@@ -105,6 +105,7 @@
   .login p{color:rgba(42,31,23,.6);font-size:15px;line-height:1.6;max-width:320px}
   .gbtn{background:var(--ink);color:var(--paper);border:none;border-radius:14px;padding:14px 24px;font:700 15px 'Karla';cursor:pointer}
   .sync{font-size:12px;color:rgba(42,31,23,.5);text-align:center;padding:6px}
+  .build{font-size:10px;color:rgba(42,31,23,.28);text-align:center;padding:0 0 10px}
   /* ---- Kochmodus ---- */
   .cook{position:fixed;inset:0;background:var(--paper);z-index:60;overflow-y:auto;
     max-width:640px;margin:0 auto;
@@ -139,6 +140,7 @@
 const GOOGLE_CLIENT_ID = "977952120262-lht1tbbinnj8kmehmvqe1dpu5gp7k8d8.apps.googleusercontent.com";
 const FILE_NAME = "rezepte.json";
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
+const BUILD = "2026-05-31-fix-cookclass";  // zur Versions-Kontrolle (unten in der App sichtbar)
 
 const CATEGORIES = [
   "Frühstück & Brunch","Schnelle Wochentags-Gerichte","Pasta & Nudeln",
@@ -408,6 +410,7 @@ function render() {
           </div>`;}).join("")}
     </main>
     <div class="sync">${esc(syncMsg)}</div>
+    <div class="build">Build ${esc(BUILD)}</div>
     <button class="fab" id="addBtn">+</button>
   `;
 
@@ -462,7 +465,7 @@ function openDetail(id){
     ${r.tips?`<h3>Tipps</h3><p class="tips">${esc(r.tips)}</p>`:""}
 
     <div class="actions">
-      <button class="btn-primary btn-cook cook">👨‍🍳 Kochmodus</button>
+      <button class="btn-primary btn-cook act-cook">👨‍🍳 Kochmodus</button>
       <button class="btn-primary cooked">✓ Heute gekocht</button>
       <button class="btn-sec edit">✎ Bearbeiten</button>
       <button class="btn-sec btn-del del">🗑 Löschen</button>
@@ -525,7 +528,7 @@ function openDetail(id){
   });
 
   // Aktionen
-  ov.querySelector(".cook").onclick=()=>{ close(); openCook(r.id); };
+  ov.querySelector(".act-cook").onclick=()=>{ close(); openCook(r.id); };
   ov.querySelector(".edit").onclick=()=>{ close(); openForm(r); };
   ov.querySelector(".cooked").onclick=async()=>{
     r.lastCooked=new Date().toLocaleDateString("de-DE",{month:"long",year:"numeric"});
@@ -659,6 +662,7 @@ function exportMd(){
    BOOT
    ============================================================ */
 window.onload = () => {
+  console.log("Mein Kochbuch — Build", BUILD);
   render(); // zeigt Login
   if (typeof google !== "undefined") initGoogle();
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
