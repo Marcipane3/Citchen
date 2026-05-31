@@ -25,7 +25,8 @@
   h1{font-family:'Fraunces',serif;font-size:26px;color:var(--ink);letter-spacing:-.5px}
   .sub{font-size:13px;color:rgba(42,31,23,.6);font-weight:500}
   .icon-btn{background:var(--card);border:1.5px solid rgba(42,31,23,.13);border-radius:12px;
-    padding:9px;color:var(--ink);cursor:pointer;display:flex;font-size:0}
+    padding:7px 9px;color:var(--ink);cursor:pointer;display:flex;align-items:center;font-size:15px;line-height:1}
+  .icon-btn.close{color:#c0392b;border-color:rgba(192,57,43,.35);font-size:17px;font-weight:700}
   .search-wrap{display:flex;align-items:center;gap:8px;background:var(--card);
     border:1.5px solid rgba(42,31,23,.1);border-radius:14px;padding:10px 14px;margin-bottom:12px}
   .search-wrap input{flex:1;border:none;background:transparent;font-size:15px;font-family:inherit;color:var(--ink);outline:none}
@@ -140,7 +141,7 @@
 const GOOGLE_CLIENT_ID = "977952120262-lht1tbbinnj8kmehmvqe1dpu5gp7k8d8.apps.googleusercontent.com";
 const FILE_NAME = "rezepte.json";
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
-const BUILD = "2026-05-31-fix-cookclass";  // zur Versions-Kontrolle (unten in der App sichtbar)
+const BUILD = "2026-05-31-login+ux";  // zur Versions-Kontrolle (unten in der App sichtbar)
 
 const CATEGORIES = [
   "Frühstück & Brunch","Schnelle Wochentags-Gerichte","Pasta & Nudeln",
@@ -161,24 +162,51 @@ const imgCache = new Map(); // Drive-fileId -> Object-URL (Bilder werden authent
    GOOGLE DRIVE LAYER
    ============================================================ */
 let tokenClient;
+const TOKEN_KEY = "kb_token";
+
+/* Token im localStorage halten, damit man nicht bei jedem App-Start neu zustimmen muss.
+   Hinweis: Der GIS-Token-Flow (clientseitig, ohne Server) liefert KEINEN Refresh-Token.
+   Wir speichern daher das kurzlebige Access-Token + Ablaufzeit und erneuern es bei
+   Bedarf "silent" (prompt:'') — ohne Popup, solange die Google-Session aktiv ist. */
+function saveToken(resp){
+  TOKEN = resp.access_token;
+  const ttl = (resp.expires_in ? resp.expires_in * 1000 : 3600000) - 60000; // 60s Puffer
+  try { localStorage.setItem(TOKEN_KEY, JSON.stringify({ t: TOKEN, e: Date.now() + ttl })); } catch(e){}
+}
+function loadStoredToken(){
+  try {
+    const s = JSON.parse(localStorage.getItem(TOKEN_KEY) || "null");
+    if (s && s.t && s.e > Date.now()) { TOKEN = s.t; return true; }
+  } catch(e){}
+  return false;
+}
+function clearToken(){ TOKEN = null; try { localStorage.removeItem(TOKEN_KEY); } catch(e){} }
+
 function initGoogle() {
+  if (tokenClient) return;  // nur einmal initialisieren (window.onload + GIS-onload)
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID, scope: SCOPE,
-    callback: (resp) => { TOKEN = resp.access_token; afterLogin(); }
+    callback: (resp) => { if (resp && resp.access_token){ saveToken(resp); afterLogin(); } },
+    error_callback: () => { /* silent-Refresh nicht möglich → Login-Button bleibt sichtbar */ }
   });
+  // Auto-Login: gültiges Token aus dem Speicher nutzen, sonst lautlos erneuern versuchen.
+  if (loadStoredToken()) { afterLogin(); }
+  else { try { tokenClient.requestAccessToken({ prompt: "" }); } catch(e){} }
 }
-function login(){ tokenClient.requestAccessToken(); }
+function login(){ tokenClient.requestAccessToken(); }  // explizit (mit Popup), für den Button
 
 async function driveFind() {
   const q = encodeURIComponent(`name='${FILE_NAME}' and trashed=false`);
   const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`,
     { headers: { Authorization: "Bearer " + TOKEN } });
+  if (!r.ok) throw new Error("Drive find " + r.status);   // z.B. 401 → Token ungültig
   const j = await r.json();
   return j.files && j.files.length ? j.files[0].id : null;
 }
 async function driveRead(id) {
   const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`,
     { headers: { Authorization: "Bearer " + TOKEN } });
+  if (!r.ok) throw new Error("Drive read " + r.status);
   return r.json();
 }
 async function driveCreate(data) {
@@ -223,15 +251,23 @@ async function driveImageUrl(fileId) {
 
 async function afterLogin() {
   setSync("Verbinde mit Drive…");
-  FILE_ID = await driveFind();
-  if (FILE_ID) {
-    DATA = await driveRead(FILE_ID);
-  } else {
-    DATA = SEED;
-    FILE_ID = await driveCreate(DATA);
+  try {
+    FILE_ID = await driveFind();
+    if (FILE_ID) {
+      DATA = await driveRead(FILE_ID);
+    } else {
+      DATA = SEED;
+      FILE_ID = await driveCreate(DATA);
+    }
+    normalize();
+    render(); setSync("Synchronisiert ✓");
+  } catch(e) {
+    // Gespeichertes Token vermutlich abgelaufen/zurückgezogen → verwerfen,
+    // einmal lautlos erneuern; klappt das nicht, bleibt der Login-Button stehen.
+    clearToken();
+    render();
+    try { tokenClient.requestAccessToken({ prompt: "" }); } catch(_){}
   }
-  normalize();
-  render(); setSync("Synchronisiert ✓");
 }
 async function save() {
   DATA.updated = new Date().toISOString();
@@ -633,6 +669,7 @@ function openForm(existing){
         }, fields));
       }
       await save(); close(); render();
+      if (ed) openDetail(ed.id);   // nach dem Bearbeiten zurück zur Rezeptansicht
     } catch(err){
       submitting = false; saveBtn.disabled = false; saveBtn.textContent = "Speichern";
       alert("Speichern fehlgeschlagen: "+err.message);

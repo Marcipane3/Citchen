@@ -83,6 +83,16 @@ Bewusst noch nicht gebaut, weil sie eine Datenmodell-Änderung oder mehr Aufwand
   Rechts = „heute kochen" (öffnet Rezept/Kochmodus), links = nächstes. Optional Filter
   (vegetarisch, schnell, Favorit) als Quelle für den Stapel.
 
+### KI-Feedback zum Rezept (Backlog)
+- **AI-Kommentarfeld pro Rezept** — ein Freitextfeld, in das man schreibt, was am Rezept
+  gefehlt hat / wie es war (z.B. „zu wenig Schärfe", „brauchte 10 Min länger"). Per Knopf
+  („Mit Claude verbessern") wird ein Prompt mit Rezept + Kommentar an Claude geschickt,
+  der das Rezept entsprechend anpasst und zurückschreibt (`rezepte.json` in place,
+  siehe SCHEMA.md). Offene Punkte: Wie ruft die App Claude auf? Optionen: (a) Kommentar
+  wird im Rezept gespeichert (`feedback`-Feld) und beim nächsten Claude-Code-Lauf
+  abgearbeitet; (b) direkter API-Aufruf aus der App (braucht API-Key → Kosten/Sicherheit).
+  Empfehlung: zunächst (a) — kostenlos, kein Key in der App.
+
 ### Kochmodus — mögliche Upgrades (Backlog)
 Der aktuelle Kochmodus (Vollbild, abhakbare Zutaten/Schritte, Bildschirm bleibt an) funktioniert.
 Mögliche Erweiterungen:
