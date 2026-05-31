@@ -32,7 +32,7 @@
 | `updated` | string (ISO 8601) | Zeitpunkt der letzten Änderung. Bei jedem Schreiben aktualisieren. |
 | `recipes` | array | Liste der Rezept-Objekte. |
 
-> **v1 → v2:** Alle neuen Felder (`rating`, `favorite`, `cookedCount`, `image`, `photos`)
+> **v1 → v2:** Alle neuen Felder (`rating`, `favorite`, `cookedCount`, `image`, `photos`, `feedback`)
 > sind **optional**. Alte v1-Rezepte ohne diese Felder funktionieren weiter — die App
 > ergänzt fehlende Werte beim Laden mit Standardwerten und schreibt `version: 2` zurück.
 
@@ -70,6 +70,7 @@
 | `cookedCount` | number | nein | Wie oft gekocht. Wird vom „Heute gekocht"-Button hochgezählt. |
 | `image` | string | nein | **URL** zu einem Titelbild (z.B. ein Bild aus dem Web). Claude darf das setzen. |
 | `photos` | object[] | nein | Eigene Foto-Uploads des Nutzers. **App-verwaltet — Claude NICHT anfassen** (siehe unten). |
+| `feedback` | string | nein | Freitext-Notiz des Nutzers an Claude (siehe „KI-Feedback" unten). Standard `""`. |
 | `ingredients` | string[] | nein | Array, eine Zutat pro Eintrag. |
 | `steps` | string[] | nein | Array, ein Schritt pro Eintrag. |
 | `tips` | string | nein | Freitext. |
@@ -88,6 +89,22 @@ Es gibt **zwei getrennte** Bildmechanismen:
   Binär-Uploads unter dem `drive.file`-Scope der App — Claude kann sie weder sehen noch
   hochladen. Erfundene `id`-Werte würden in der App nur als kaputte Bilder erscheinen.
   Bestehende `photos`-Arrays beim Editieren **unverändert übernehmen**.
+
+### KI-Feedback: das Feld `feedback` (wichtig für Claude)
+Der Nutzer kann pro Rezept eine Notiz schreiben (in der App: „💬 Notiz für Claude"),
+z.B. „zu wenig Schärfe", „brauchte 10 Min länger", „mehr Knoblauch". Diese Notiz landet
+im Feld `feedback`.
+
+**Aufgabe für Claude bei einem Lauf** (z.B. wenn der Nutzer sagt „arbeite das Feedback ein"):
+1. `rezepte.json` lesen (in place, siehe Speicherort-Regeln).
+2. Für jedes Rezept mit nicht-leerem `feedback`: das Rezept **anhand der Notiz anpassen**
+   (z.B. Zutatenmenge, Schritt, Zeitangabe, `tips` ergänzen). Sinnvoll und konservativ ändern —
+   die Absicht des Nutzers umsetzen, nicht das Rezept neu erfinden.
+3. Nach dem Einarbeiten `feedback` wieder auf `""` setzen (erledigt).
+4. `updated` aktualisieren, Datei in place zurückschreiben.
+
+Hinweis: Der Nutzer ruft das bewusst an („go für das Feedback"); Claude soll nicht
+ungefragt Rezepte umschreiben. Niemals `feedback` ohne Einarbeiten löschen.
 
 ## Die 16 erlaubten Kategorien (exakt so schreiben)
 1. Frühstück & Brunch
