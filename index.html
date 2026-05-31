@@ -141,7 +141,7 @@
 const GOOGLE_CLIENT_ID = "977952120262-lht1tbbinnj8kmehmvqe1dpu5gp7k8d8.apps.googleusercontent.com";
 const FILE_NAME = "rezepte.json";
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
-const BUILD = "2026-05-31-login+ux";  // zur Versions-Kontrolle (unten in der App sichtbar)
+const BUILD = "2026-05-31-cooked+back";  // zur Versions-Kontrolle (unten in der App sichtbar)
 
 const CATEGORIES = [
   "Frühstück & Brunch","Schnelle Wochentags-Gerichte","Pasta & Nudeln",
@@ -506,6 +506,7 @@ function openDetail(id){
       <button class="btn-sec edit">✎ Bearbeiten</button>
       <button class="btn-sec btn-del del">🗑 Löschen</button>
     </div>
+    <button class="btn-sec back" style="width:100%;margin-top:10px">← Zurück zur Übersicht</button>
   </div>`;
   document.body.appendChild(ov);
   const isArmed = armSheet(ov);            // verhindert Geister-Klick auf Aktionsbuttons
@@ -564,12 +565,19 @@ function openDetail(id){
   });
 
   // Aktionen
+  ov.querySelector(".back").onclick=close;
   ov.querySelector(".act-cook").onclick=()=>{ close(); openCook(r.id); };
   ov.querySelector(".edit").onclick=()=>{ close(); openForm(r); };
-  ov.querySelector(".cooked").onclick=async()=>{
+  ov.querySelector(".cooked").onclick=async(e)=>{
+    const btn=e.currentTarget;
+    if(btn.disabled) return;
     r.lastCooked=new Date().toLocaleDateString("de-DE",{month:"long",year:"numeric"});
     r.cookedCount=(r.cookedCount||0)+1;
-    await save(); close(); render();
+    btn.disabled=true; btn.textContent="✓ Eingetragen!";
+    await save();
+    render();   // Liste im Hintergrund aktualisieren (Zuletzt gekocht / Zähler)
+    // sichtbare Bestätigung, Detailansicht bleibt offen; danach Button zurücksetzen
+    setTimeout(()=>{ if(btn.isConnected){ btn.disabled=false; btn.textContent="✓ Heute gekocht"; } }, 1600);
   };
   ov.querySelector(".del").onclick=async()=>{
     if(!confirm("Rezept wirklich löschen?"))return;
