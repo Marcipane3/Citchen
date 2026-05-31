@@ -15,6 +15,10 @@ direkt aktualisieren.
 - **Zeilen-Editor** für Zutaten & Schritte (eine Zeile pro Eintrag, Enter = nächste Zeile).
 - **Bearbeiten & Löschen** bestehender Rezepte, „Heute gekocht"-Zähler.
 - **Suche** nach Name/Zutat, **Export** als Markdown.
+- **Einkaufsliste** (über das ☰-Menü oben): eigener Bereich mit Katalog nach Supermarkt-Gängen
+  (Kategorien + Artikel mit Icons). Artikel antippen = +1 Menge (Badge zeigt Anzahl), Suchfeld,
+  Freitextfeld für Eigenes. Liste nach Gängen gruppiert, abhakbar, Mengen ±. **Speicherung lokal
+  (localStorage) — pro Gerät, noch keine Geräte-Synchronisation** (siehe Roadmap).
 
 ## Dateien
 | Datei | Zweck |
@@ -74,7 +78,10 @@ siehe SETUP-GOOGLE.md.)
 ## Ideen für später (Roadmap)
 Bewusst noch nicht gebaut, weil sie eine Datenmodell-Änderung oder mehr Aufwand brauchen:
 - **Portions-Rechner** — Mengen automatisch hoch-/runterskalieren (braucht strukturierte Mengen statt Freitext).
-- **Einkaufsliste** — Zutaten ausgewählter Rezepte sammeln und abhaken.
+- **Einkaufsliste-Sync über Geräte** — aktuell lokal (localStorage). Optional: in eine eigene
+  Drive-Datei `einkaufsliste.json` schreiben (wie `rezepte.json`), damit Handy & Laptop dieselbe
+  Liste sehen. Trade-off: Drive-Schreibzugriff pro Änderung → ggf. mit Entprellung/lokalem Cache.
+- **Zutaten aus Rezept → Einkaufsliste** — Button im Rezept, der die Zutaten in die Liste übernimmt.
 - **Wochenplan** — Rezepte auf Wochentage legen.
 - **Import aus URL** — Rezept von einer Webseite einlesen/parsen.
 - **Prep- vs. Kochzeit** getrennt, Schwierigkeitsgrad, freie Tags neben den 16 Kategorien.

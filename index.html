@@ -159,6 +159,45 @@
   .fb{width:100%;min-height:70px;margin-top:4px}
   .fb-save{margin-top:8px}
   .fb-note{font-size:12px;color:rgba(42,31,23,.5);margin-top:6px;line-height:1.5}
+  /* ---- Menü + Einkaufsliste ---- */
+  .menu-btn{font-size:18px}
+  .menu-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);
+    border:1.5px solid rgba(42,31,23,.13);border-radius:14px;padding:16px 18px;margin-top:10px;
+    font:700 16px 'Karla';color:var(--ink);cursor:pointer}
+  .menu-item.on{border-color:var(--accent);color:var(--accent)}
+  .shop-add{display:flex;gap:8px;margin-top:10px}
+  .shop-add input{flex:1;border:1.5px solid rgba(42,31,23,.13);border-radius:12px;padding:10px 12px;
+    font:15px 'Karla';background:var(--card);color:var(--ink);outline:none}
+  .shop-add input:focus{outline:2px solid var(--accent)}
+  .add-custom{flex-shrink:0;background:var(--accent);color:#fff;border:none;border-radius:12px;
+    padding:0 14px;font:700 14px 'Karla';cursor:pointer}
+  .sl-top{display:flex;justify-content:space-between;align-items:center;margin:4px 0 2px}
+  .sl-title{font-family:'Fraunces',serif;font-size:19px;font-weight:600}
+  .sl-clear{background:none;border:none;color:var(--accent);font:700 13px 'Karla';cursor:pointer;text-decoration:underline}
+  .sl-cat{font:700 11px 'Karla';text-transform:uppercase;letter-spacing:.5px;color:rgba(42,31,23,.45);margin:14px 0 4px}
+  .sl-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(42,31,23,.07)}
+  .sl-item.done .sl-name{text-decoration:line-through;opacity:.45}
+  .sl-ic{font-size:20px;flex-shrink:0;width:24px;text-align:center}
+  .sl-name{flex:1;font-size:16px;cursor:pointer}
+  .sl-ctrl{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .sl-dec,.sl-inc{width:30px;height:30px;border-radius:8px;border:1.5px solid rgba(42,31,23,.18);
+    background:var(--card);font:700 17px 'Karla';color:var(--ink);cursor:pointer;line-height:1;padding:0}
+  .sl-qty{min-width:18px;text-align:center;font:700 15px 'Karla'}
+  .sl-rm{width:30px;height:30px;border-radius:8px;border:none;background:transparent;color:#b3401f;font-size:15px;cursor:pointer}
+  .cat-sec{margin-bottom:8px}
+  .cat-head{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--card);
+    border:1.5px solid rgba(42,31,23,.13);border-radius:12px;padding:13px 15px;font:700 15px 'Karla';
+    color:var(--ink);cursor:pointer;gap:8px}
+  .cat-head .chev{color:rgba(42,31,23,.45);font-size:13px}
+  .cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:8px 0 4px}
+  .cat-item{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--card);
+    border:1.5px solid rgba(42,31,23,.12);border-radius:12px;padding:12px 6px;font:600 12px 'Karla';
+    color:var(--ink);cursor:pointer;text-align:center;transition:transform .12s,border-color .12s}
+  .cat-item .ci-ic{font-size:24px}
+  .cat-item .ci-nm{line-height:1.2}
+  .cat-item.just-added{transform:scale(.93);border-color:var(--accent)}
+  .ci-badge{position:absolute;top:-7px;right:-7px;background:var(--accent);color:#fff;border-radius:11px;
+    min-width:22px;height:22px;font:700 12px 'Karla';display:flex;align-items:center;justify-content:center;padding:0 5px}
 </style>
 </head>
 <body>
@@ -171,7 +210,7 @@
 const GOOGLE_CLIENT_ID = "977952120262-lht1tbbinnj8kmehmvqe1dpu5gp7k8d8.apps.googleusercontent.com";
 const FILE_NAME = "rezepte.json";
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
-const BUILD = "2026-05-31-pager+timer+feedback";  // zur Versions-Kontrolle (unten in der App sichtbar)
+const BUILD = "2026-05-31-shopping";  // zur Versions-Kontrolle (unten in der App sichtbar)
 
 const CATEGORIES = [
   "Frühstück & Brunch","Schnelle Wochentags-Gerichte","Pasta & Nudeln",
@@ -182,11 +221,84 @@ const CATEGORIES = [
   "Grundrezepte & Basissoßen"
 ];
 
+/* Einkaufslisten-Katalog: Supermarkt-Gänge mit gängigen Artikeln (vegetarisch-lastig),
+   Detailtiefe bewusst flach (z.B. "Nudeln (Fusilli)" / "Spaghetti"). */
+const CATALOG = [
+  { name:"Gemüse", icon:"🥦", items:[
+    {name:"Brokkoli",icon:"🥦"},{name:"Karotten",icon:"🥕"},{name:"Zwiebeln",icon:"🧅"},{name:"Knoblauch",icon:"🧄"},
+    {name:"Tomaten",icon:"🍅"},{name:"Paprika",icon:"🫑"},{name:"Gurke",icon:"🥒"},{name:"Kartoffeln",icon:"🥔"},
+    {name:"Süßkartoffel",icon:"🍠"},{name:"Salat",icon:"🥬"},{name:"Spinat",icon:"🥬"},{name:"Zucchini",icon:"🥒"},
+    {name:"Aubergine",icon:"🍆"},{name:"Champignons",icon:"🍄"},{name:"Mais",icon:"🌽"},{name:"Blumenkohl",icon:"🥦"},
+    {name:"Lauch",icon:"🥬"},{name:"Avocado",icon:"🥑"},{name:"Ingwer",icon:"🫚"},{name:"Chili",icon:"🌶️"} ]},
+  { name:"Obst", icon:"🍎", items:[
+    {name:"Äpfel",icon:"🍎"},{name:"Bananen",icon:"🍌"},{name:"Orangen",icon:"🍊"},{name:"Zitronen",icon:"🍋"},
+    {name:"Limetten",icon:"🍋"},{name:"Trauben",icon:"🍇"},{name:"Erdbeeren",icon:"🍓"},{name:"Blaubeeren",icon:"🫐"},
+    {name:"Birnen",icon:"🍐"},{name:"Kiwi",icon:"🥝"},{name:"Mango",icon:"🥭"},{name:"Ananas",icon:"🍍"},
+    {name:"Wassermelone",icon:"🍉"},{name:"Datteln",icon:"🌴"} ]},
+  { name:"Milch & Eier", icon:"🥛", items:[
+    {name:"Milch",icon:"🥛"},{name:"Eier",icon:"🥚"},{name:"Butter",icon:"🧈"},{name:"Naturjoghurt",icon:"🥛"},
+    {name:"Joghurt",icon:"🥛"},{name:"Sahne",icon:"🥛"},{name:"Quark",icon:"🥛"},{name:"Skyr",icon:"🥛"},
+    {name:"Buttermilch",icon:"🥛"},{name:"Hafermilch",icon:"🌾"} ]},
+  { name:"Käse", icon:"🧀", items:[
+    {name:"Gouda",icon:"🧀"},{name:"Mozzarella",icon:"🧀"},{name:"Parmesan",icon:"🧀"},{name:"Feta",icon:"🧀"},
+    {name:"Frischkäse",icon:"🧀"},{name:"Halloumi",icon:"🧀"},{name:"Reibekäse",icon:"🧀"} ]},
+  { name:"Fleisch & Fisch", icon:"🥩", items:[
+    {name:"Hähnchen",icon:"🍗"},{name:"Hackfleisch",icon:"🥩"},{name:"Speck",icon:"🥓"},{name:"Lachs",icon:"🐟"},
+    {name:"Thunfisch",icon:"🐟"},{name:"Garnelen",icon:"🦐"},{name:"Schinken",icon:"🍖"},{name:"Wurst",icon:"🌭"} ]},
+  { name:"Vegetarisch", icon:"🌱", items:[
+    {name:"Tofu",icon:"🧊"},{name:"Tempeh",icon:"🌱"},{name:"Hummus",icon:"🥣"},{name:"Falafel",icon:"🧆"},
+    {name:"Veggie-Burger",icon:"🍔"},{name:"Sojaschnetzel",icon:"🌱"} ]},
+  { name:"Nudeln, Reis & Co.", icon:"🍝", items:[
+    {name:"Nudeln (Fusilli)",icon:"🍝"},{name:"Spaghetti",icon:"🍝"},{name:"Penne",icon:"🍝"},{name:"Reis",icon:"🍚"},
+    {name:"Basmatireis",icon:"🍚"},{name:"Couscous",icon:"🌾"},{name:"Bulgur",icon:"🌾"},{name:"Quinoa",icon:"🌾"},
+    {name:"Haferflocken",icon:"🌾"},{name:"Mehl",icon:"🌾"},{name:"Lasagneplatten",icon:"🍝"} ]},
+  { name:"Konserven & Vorrat", icon:"🥫", items:[
+    {name:"Dosentomaten",icon:"🥫"},{name:"Tomatenmark",icon:"🥫"},{name:"Kokosmilch",icon:"🥥"},{name:"Kichererbsen (Dose)",icon:"🫘"},
+    {name:"Bohnen (Dose)",icon:"🫘"},{name:"Mais (Dose)",icon:"🌽"},{name:"Linsen",icon:"🫘"},{name:"Oliven",icon:"🫒"},
+    {name:"Brühe",icon:"🥣"},{name:"Erdnussbutter",icon:"🥜"},{name:"Honig",icon:"🍯"},{name:"Marmelade",icon:"🍓"} ]},
+  { name:"Gewürze & Öl", icon:"🧂", items:[
+    {name:"Salz",icon:"🧂"},{name:"Pfeffer",icon:"🧂"},{name:"Olivenöl",icon:"🫒"},{name:"Sonnenblumenöl",icon:"🌻"},
+    {name:"Essig",icon:"🫗"},{name:"Sojasauce",icon:"🥢"},{name:"Zucker",icon:"🍬"},{name:"Currypulver",icon:"🍛"},
+    {name:"Paprikapulver",icon:"🌶️"},{name:"Kreuzkümmel",icon:"🌿"},{name:"Chiliflocken",icon:"🌶️"},{name:"Oregano",icon:"🌿"},
+    {name:"Backpulver",icon:"🧁"},{name:"Senf",icon:"🟡"},{name:"Ketchup",icon:"🍅"},{name:"Mayonnaise",icon:"🥚"} ]},
+  { name:"Brot & Backwaren", icon:"🍞", items:[
+    {name:"Brot",icon:"🍞"},{name:"Vollkornbrot",icon:"🍞"},{name:"Toast",icon:"🍞"},{name:"Brötchen",icon:"🥖"},
+    {name:"Baguette",icon:"🥖"},{name:"Tortillas",icon:"🌯"},{name:"Croissant",icon:"🥐"},{name:"Knäckebrot",icon:"🍘"} ]},
+  { name:"Tiefkühl", icon:"🧊", items:[
+    {name:"TK-Erbsen",icon:"🫛"},{name:"TK-Spinat",icon:"🥬"},{name:"TK-Beeren",icon:"🫐"},{name:"TK-Gemüse",icon:"🥦"},
+    {name:"Pizza",icon:"🍕"},{name:"Pommes",icon:"🍟"},{name:"Eis",icon:"🍦"} ]},
+  { name:"Getränke", icon:"🥤", items:[
+    {name:"Wasser",icon:"💧"},{name:"Sprudelwasser",icon:"💧"},{name:"Orangensaft",icon:"🧃"},{name:"Saft",icon:"🧃"},
+    {name:"Kaffee",icon:"☕"},{name:"Tee",icon:"🍵"},{name:"Bier",icon:"🍺"},{name:"Wein",icon:"🍷"},{name:"Cola",icon:"🥤"} ]},
+  { name:"Snacks & Süßes", icon:"🍫", items:[
+    {name:"Schokolade",icon:"🍫"},{name:"Chips",icon:"🥔"},{name:"Kekse",icon:"🍪"},{name:"Nüsse",icon:"🥜"},
+    {name:"Müsliriegel",icon:"🍫"},{name:"Popcorn",icon:"🍿"},{name:"Cracker",icon:"🍘"} ]},
+  { name:"Haushalt & Drogerie", icon:"🧴", items:[
+    {name:"Klopapier",icon:"🧻"},{name:"Küchenrolle",icon:"🧻"},{name:"Spülmittel",icon:"🧴"},{name:"Müllbeutel",icon:"🗑️"},
+    {name:"Zahnpasta",icon:"🪥"},{name:"Shampoo",icon:"🧴"},{name:"Seife",icon:"🧼"},{name:"Waschmittel",icon:"🧺"},
+    {name:"Alufolie",icon:"🌫️"},{name:"Frischhaltefolie",icon:"🌫️"},{name:"Backpapier",icon:"📄"} ]}
+];
+
 /* ---------- App-Zustand ---------- */
 let TOKEN = null, FILE_ID = null;
 let DATA = { version: 2, updated: null, recipes: [] };
 let query = "", activeCat = "Alle";
+let appView = "recipes";            // "recipes" | "shopping"
 const imgCache = new Map(); // Drive-fileId -> Object-URL (Bilder werden authentifiziert geladen)
+
+/* ---------- Einkaufsliste (lokal, localStorage) ---------- */
+let SHOP = [];
+let shopSearch = "", shopOpenSection = null;
+function loadShopping(){ try{ return JSON.parse(localStorage.getItem("kb_shopping")||"[]"); }catch(e){ return []; } }
+function saveShopping(){ try{ localStorage.setItem("kb_shopping", JSON.stringify(SHOP)); }catch(e){} }
+function shopAdd(name, cat, icon){
+  name=(name||"").trim(); if(!name) return;
+  const key=name.toLowerCase();
+  const it=SHOP.find(x=>x.name.toLowerCase()===key);
+  if(it){ it.qty++; it.done=false; }
+  else SHOP.push({ name, cat:cat||"Sonstiges", icon:icon||"🛒", qty:1, done:false });
+  saveShopping();
+}
 
 /* ============================================================
    GOOGLE DRIVE LAYER
@@ -427,6 +539,7 @@ function makeListEditor(mount, initial, ph, numbered){
    UI / RENDER
    ============================================================ */
 function render() {
+  appView = "recipes";
   const app = document.getElementById("app");
   if (!TOKEN) { app.innerHTML = loginView(); document.querySelector(".gbtn").onclick = login; return; }
 
@@ -448,7 +561,7 @@ function render() {
           <div><h1>Mein Kochbuch</h1>
           <div class="sub">${DATA.recipes.length} ${DATA.recipes.length===1?"Rezept":"Rezepte"}</div></div>
         </div>
-        <button class="icon-btn" id="exportBtn" title="Export">⬇️</button>
+        <button class="icon-btn menu-btn" id="menuBtn" title="Menü">☰</button>
       </div>
       <div class="search-wrap">
         <span>🔍</span>
@@ -490,11 +603,147 @@ function render() {
     r.favorite = !r.favorite; b.textContent = r.favorite?"♥":"♡"; await save();
   });
   document.getElementById("addBtn").onclick = () => openForm();
-  document.getElementById("exportBtn").onclick = exportMd;
+  document.getElementById("menuBtn").onclick = openMenu;
   hydrateImages();
 }
 function renderListOnly(){ render(); const i=document.getElementById("search");
   i.focus(); i.setSelectionRange(i.value.length,i.value.length); }
+
+/* ---------- Menü (Navigation zwischen Rezepten & Einkaufsliste) ---------- */
+function openMenu(){
+  const ov = $(`<div class="overlay"></div>`);
+  ov.innerHTML = `<div class="sheet">
+    <div class="sheet-head"><span class="cat">Menü</span><button class="icon-btn close">✕</button></div>
+    <button class="menu-item ${appView==="recipes"?"on":""}" data-go="recipes">📖 Rezepte</button>
+    <button class="menu-item ${appView==="shopping"?"on":""}" data-go="shopping">🛒 Einkaufsliste</button>
+    <button class="menu-item" data-go="export">⬇️ Rezepte als Markdown exportieren</button>
+  </div>`;
+  document.body.appendChild(ov);
+  const isArmed = armSheet(ov);
+  const close=()=>ov.remove();
+  ov.onclick=(e)=>{ if(isArmed() && e.target===ov) close(); };
+  ov.querySelector(".close").onclick=close;
+  ov.querySelectorAll(".menu-item").forEach(b=>b.onclick=()=>{
+    const go=b.dataset.go; close();
+    if(go==="recipes") render();
+    else if(go==="shopping") renderShopping();
+    else if(go==="export") exportMd();
+  });
+}
+
+/* ---------- Einkaufsliste-Ansicht ---------- */
+function renderShopping(){
+  appView = "shopping";
+  SHOP = loadShopping();
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <header>
+      <div class="brand">
+        <div class="brand-l">
+          <span style="font-size:24px">🛒</span>
+          <div><h1>Einkaufsliste</h1><div class="sub" id="shop-sub"></div></div>
+        </div>
+        <button class="icon-btn menu-btn" id="menuBtn" title="Menü">☰</button>
+      </div>
+      <div class="search-wrap">
+        <span>🔍</span>
+        <input id="shop-search" placeholder="Artikel suchen…" value="${esc(shopSearch)}" />
+      </div>
+      <div class="shop-add">
+        <input id="shop-custom" placeholder="Eigenes hinzufügen…" />
+        <button class="add-custom">+ Hinzufügen</button>
+      </div>
+    </header>
+    <main>
+      <div id="shop-list"></div>
+      <div id="shop-catalog"></div>
+    </main>
+    <div class="build">Build ${esc(BUILD)}</div>
+  `;
+  document.getElementById("menuBtn").onclick = openMenu;
+  const s = document.getElementById("shop-search");
+  s.oninput = ()=>{ shopSearch = s.value; paintCatalog(); };
+  const custom = document.getElementById("shop-custom");
+  const addCustom = ()=>{ const v=custom.value.trim(); if(v){ shopAdd(v,"Sonstiges","📝"); custom.value=""; paintList(); paintCatalog(); custom.focus(); } };
+  document.querySelector(".add-custom").onclick = addCustom;
+  custom.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); addCustom(); } });
+  paintList(); paintCatalog();
+}
+
+function paintList(){
+  const el = document.getElementById("shop-list"); if(!el) return;
+  const doneCount = SHOP.filter(x=>x.done).length, openCount = SHOP.length - doneCount;
+  const sub = document.getElementById("shop-sub");
+  if(sub) sub.textContent = SHOP.length ? `${openCount} offen${doneCount?` · ${doneCount} erledigt`:""}` : "leer";
+  if(!SHOP.length){ el.innerHTML = `<p class="empty">Liste ist leer.<br>Tippe unten auf Artikel oder füge oben eigene hinzu.</p>`; return; }
+  const order = CATALOG.map(s=>s.name).concat(["Sonstiges"]);
+  const cats = [...new Set(SHOP.map(x=>x.cat))].sort((a,b)=>{
+    const ia=order.indexOf(a), ib=order.indexOf(b);
+    return (ia<0?99:ia) - (ib<0?99:ib);
+  });
+  let html = `<div class="sl-top"><div class="sl-title">Meine Liste</div>${doneCount?`<button class="sl-clear">Erledigte entfernen</button>`:""}</div>`;
+  cats.forEach(cat=>{
+    const catIcon = (CATALOG.find(s=>s.name===cat)||{}).icon || "🛒";
+    html += `<div class="sl-cat">${catIcon} ${esc(cat)}</div>`;
+    SHOP.forEach((it,i)=>{ if(it.cat!==cat) return;
+      html += `<div class="sl-item ${it.done?"done":""}">
+        <span class="sl-ic">${it.icon||"🛒"}</span>
+        <span class="sl-name" data-i="${i}">${esc(it.name)}</span>
+        <div class="sl-ctrl">
+          <button class="sl-dec" data-i="${i}">−</button>
+          <span class="sl-qty">${it.qty}</span>
+          <button class="sl-inc" data-i="${i}">+</button>
+          <button class="sl-rm" data-i="${i}">✕</button>
+        </div>
+      </div>`;
+    });
+  });
+  el.innerHTML = html;
+  el.querySelectorAll(".sl-name").forEach(n=>n.onclick=()=>{ const it=SHOP[+n.dataset.i]; if(it){ it.done=!it.done; saveShopping(); paintList(); } });
+  el.querySelectorAll(".sl-dec").forEach(b=>b.onclick=()=>{ const it=SHOP[+b.dataset.i]; if(!it)return; it.qty--; if(it.qty<=0) SHOP.splice(+b.dataset.i,1); saveShopping(); paintList(); paintCatalog(); });
+  el.querySelectorAll(".sl-inc").forEach(b=>b.onclick=()=>{ const it=SHOP[+b.dataset.i]; if(it){ it.qty++; saveShopping(); paintList(); paintCatalog(); } });
+  el.querySelectorAll(".sl-rm").forEach(b=>b.onclick=()=>{ SHOP.splice(+b.dataset.i,1); saveShopping(); paintList(); paintCatalog(); });
+  const clr = el.querySelector(".sl-clear"); if(clr) clr.onclick=()=>{ SHOP=SHOP.filter(x=>!x.done); saveShopping(); paintList(); paintCatalog(); };
+}
+
+function catItemHTML(name, cat, icon){
+  const inList = SHOP.find(x=>x.name.toLowerCase()===name.toLowerCase());
+  return `<button class="cat-item" data-name="${esc(name)}" data-cat="${esc(cat)}" data-icon="${esc(icon||"🛒")}">
+    <span class="ci-ic">${icon||"🛒"}</span><span class="ci-nm">${esc(name)}</span>
+    ${inList?`<span class="ci-badge">${inList.qty}</span>`:""}
+  </button>`;
+}
+function paintCatalog(){
+  const el = document.getElementById("shop-catalog"); if(!el) return;
+  const q = shopSearch.trim().toLowerCase();
+  if(q){
+    const matches = [];
+    CATALOG.forEach(sec=>sec.items.forEach(it=>{ if(it.name.toLowerCase().includes(q)) matches.push({it, sec}); }));
+    el.innerHTML = `<h3>Suchergebnisse</h3>` + (matches.length
+      ? `<div class="cat-grid">${matches.map(m=>catItemHTML(m.it.name, m.sec.name, m.it.icon||m.sec.icon)).join("")}</div>`
+      : `<p class="empty" style="margin-top:18px">Nichts gefunden.<br>Nutze „Eigenes hinzufügen" oben.</p>`);
+  } else {
+    el.innerHTML = `<h3>Hinzufügen</h3>` + CATALOG.map(sec=>{
+      const open = shopOpenSection===sec.name;
+      return `<div class="cat-sec">
+        <button class="cat-head" data-sec="${esc(sec.name)}">${sec.icon} ${esc(sec.name)} <span class="chev">${open?"▾":"▸"}</span></button>
+        ${open?`<div class="cat-grid">${sec.items.map(it=>catItemHTML(it.name, sec.name, it.icon||sec.icon)).join("")}</div>`:""}
+      </div>`;
+    }).join("");
+  }
+  // Sektion auf-/zuklappen
+  el.querySelectorAll(".cat-head").forEach(b=>b.onclick=()=>{ const s=b.dataset.sec; shopOpenSection = (shopOpenSection===s)?null:s; paintCatalog(); });
+  // Artikel hinzufügen (+1 pro Klick), Badge in place aktualisieren -> Sektion bleibt offen
+  el.querySelectorAll(".cat-item").forEach(b=>b.onclick=()=>{
+    shopAdd(b.dataset.name, b.dataset.cat, b.dataset.icon);
+    const it = SHOP.find(x=>x.name.toLowerCase()===b.dataset.name.toLowerCase());
+    let badge = b.querySelector(".ci-badge");
+    if(!badge){ badge=document.createElement("span"); badge.className="ci-badge"; b.appendChild(badge); }
+    badge.textContent = it.qty;
+    b.classList.add("just-added"); setTimeout(()=>b.classList.remove("just-added"), 220);
+    paintList();
+  });
+}
 
 function loginView(){
   return `<div class="login">
