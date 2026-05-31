@@ -4,12 +4,17 @@
 > sonst bricht die Synchronisation. Änderungen hier nur bewusst und versioniert.
 
 ## Speicherort
-- Datei: `rezepte.json`
-- Liegt in: Google Drive des Nutzers (über `drive.file`-Scope von der App erstellt)
-- Damit **Claude im Projekt** die Datei updaten kann: der Nutzer muss den Drive-Ordner,
-  der die Datei enthält, im Claude-Google-Drive-Connector freigeben. Dann findet die
-  Projekt-Instanz die Datei über den Drive-Connector, liest sie, ergänzt Rezepte und
-  schreibt sie zurück.
+- Datei: `rezepte.json`, im **My-Drive-Root** des Nutzers.
+- Von der App erstellt — mit minimalem Scope `drive.file`. **Wichtig:** Dieser Scope bedeutet,
+  die App sieht **ausschließlich Dateien, die sie selbst erstellt hat**.
+- **Schreibweg für Claude:** über **Google Drive für Desktop** (lokaler Pfad, z.B.
+  `G:\My Drive\rezepte.json`). Claude (Claude Code) liest und **editiert die bestehende Datei
+  in place** — Drive synchronisiert die Inhaltsänderung hoch, die Datei-ID bleibt gleich,
+  die App sieht die Änderung beim nächsten Öffnen.
+- ⚠️ **Niemals eine neue `rezepte.json` anlegen** (auch nicht über den claude.ai-Drive-Connector,
+  der nur „create" kann). Eine neu erstellte Datei wäre für die App wegen `drive.file`
+  unsichtbar → es entstehen Duplikate, die in der App nie auftauchen. Es darf immer nur
+  **genau eine** `rezepte.json` geben, und sie muss von der App stammen.
 
 ## Struktur
 
@@ -74,8 +79,11 @@
 16. Grundrezepte & Basissoßen
 
 ## Regeln für Claude beim Schreiben
-1. Datei lesen → JSON parsen → `recipes`-Array ergänzen/ändern → zurückschreiben.
-2. `updated` auf aktuelle ISO-Zeit setzen.
-3. Neue `id` eindeutig vergeben, nie bestehende überschreiben (außer gezielt).
-4. `category` gegen die 16 Werte prüfen.
-5. Niemals andere Felder hinzufügen ohne `version` zu erhöhen + App anzupassen.
+1. **Bestehende Datei in place editieren** (lokaler Drive-für-Desktop-Pfad). Nie eine neue
+   `rezepte.json` anlegen — siehe Speicherort-Warnung.
+2. Datei lesen → JSON parsen → `recipes`-Array ergänzen/ändern → in dieselbe Datei zurückschreiben.
+3. `updated` auf aktuelle ISO-Zeit setzen.
+4. Neue `id` eindeutig vergeben, nie bestehende überschreiben (außer gezielt).
+5. `category` gegen die 16 Werte prüfen.
+6. Niemals andere Felder hinzufügen ohne `version` zu erhöhen + App anzupassen.
+7. Auf korrekte UTF-8-Umlaute achten (ü/ö/ä/ß), nicht versehentlich verfälschen.

@@ -32,12 +32,19 @@ siehe SETUP-GOOGLE.md.)
 
 ## Der Alltagsablauf
 - **Rezept selbst hinzufügen:** App öffnen → `+` → ausfüllen → speichern. Landet sofort in Drive.
-- **Claude ein Rezept eintragen lassen:** Im Kochbuch-Projekt sagen „trag das ein". Claude
-  schreibt es in `rezepte.json`. Beim nächsten App-Öffnen ist es da.
+- **Claude ein Rezept eintragen lassen:** In **Claude Code** sagen „trag dieses Rezept ein: …".
+  Claude editiert die lokale `G:\My Drive\rezepte.json` (Google Drive für Desktop) *in place* →
+  Drive synct hoch → beim nächsten App-Öffnen ist es da.
 - **Backup:** Export-Button (⬇️) kopiert alles als Markdown.
 
 ## Was Claude updaten kann — und was nicht
-- **Daten (Rezepte):** ja, jederzeit über den Drive-Connector im Projekt.
+- **Daten (Rezepte):** ja, über **Claude Code + Google Drive für Desktop**. Claude bearbeitet
+  die bestehende `rezepte.json` *in place* (gleiche Datei-ID).
+- ⚠️ **Nicht über den claude.ai-Drive-Connector schreiben.** Der kann nur *neue Dateien
+  anlegen*, nicht bestehende ändern. Da die App den minimalen `drive.file`-Scope nutzt (sie
+  sieht **nur selbst erstellte Dateien**), wäre jede vom Connector neu angelegte Datei für
+  die App **unsichtbar** → Duplikate, die nie in der App erscheinen. **Goldene Regel:
+  immer die vorhandene Datei editieren, nie eine neue erzeugen.**
 - **App-Code (Features/Design):** über Claude Code — Claude schreibt den Code, du deployst.
   Kein automatisches Live-Update auf dem laufenden Handy; das ist bei einer statischen
   PWA technisch nicht anders lösbar ohne eigenen Server.
