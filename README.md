@@ -4,6 +4,18 @@ Eine installierbare PWA als persönliches Kochbuch. Rezepte liegen in deinem
 Google Drive und synchronisieren über alle Geräte. Claude kann sie im Projekt
 direkt aktualisieren.
 
+## Funktionen
+- **Rezepte** mit Kategorie, Zeit, Portionen, Zutaten und Schritten.
+- **Titelbild & eigene Fotos** — Foto vom fertigen Gericht aufnehmen/hochladen; das
+  neueste erscheint oben als Titelbild, weitere als Streifen. Bilder werden komprimiert
+  und als **separate Dateien in Drive** gespeichert (hält `rezepte.json` klein).
+- **Bewertung** — 0–5 Sterne pro Rezept.
+- **Favoriten** (♥) mit eigenem Filter.
+- **Kochmodus** — Vollbild, große Schrift, Zutaten/Schritte abhakbar, Bildschirm bleibt an.
+- **Zeilen-Editor** für Zutaten & Schritte (eine Zeile pro Eintrag, Enter = nächste Zeile).
+- **Bearbeiten & Löschen** bestehender Rezepte, „Heute gekocht"-Zähler.
+- **Suche** nach Name/Zutat, **Export** als Markdown.
+
 ## Dateien
 | Datei | Zweck |
 |-------|-------|
@@ -32,6 +44,9 @@ siehe SETUP-GOOGLE.md.)
 
 ## Der Alltagsablauf
 - **Rezept selbst hinzufügen:** App öffnen → `+` → ausfüllen → speichern. Landet sofort in Drive.
+- **Foto hinzufügen:** Rezept öffnen → „📷 Foto aufnehmen oder hochladen". Erscheint oben als Titelbild.
+- **Bewerten / Favorit:** Rezept öffnen → Sterne tippen bzw. ♥.
+- **Kochen:** Rezept öffnen → „👨‍🍳 Kochmodus" — Vollbild, Schritte abhaken, Bildschirm bleibt an.
 - **Claude ein Rezept eintragen lassen:** In **Claude Code** sagen „trag dieses Rezept ein: …".
   Claude editiert die lokale `G:\My Drive\rezepte.json` (Google Drive für Desktop) *in place* →
   Drive synct hoch → beim nächsten App-Öffnen ist es da.
@@ -40,6 +55,9 @@ siehe SETUP-GOOGLE.md.)
 ## Was Claude updaten kann — und was nicht
 - **Daten (Rezepte):** ja, über **Claude Code + Google Drive für Desktop**. Claude bearbeitet
   die bestehende `rezepte.json` *in place* (gleiche Datei-ID).
+- **Titelbild:** Claude kann das Feld `image` (eine Bild-**URL**) setzen. Eigene **Fotos**
+  (`photos`) sind dagegen App-verwaltete Drive-Dateien — die fasst Claude **nicht** an
+  (Details in `SCHEMA.md`).
 - ⚠️ **Nicht über den claude.ai-Drive-Connector schreiben.** Der kann nur *neue Dateien
   anlegen*, nicht bestehende ändern. Da die App den minimalen `drive.file`-Scope nutzt (sie
   sieht **nur selbst erstellte Dateien**), wäre jede vom Connector neu angelegte Datei für
@@ -52,3 +70,11 @@ siehe SETUP-GOOGLE.md.)
 ## Hosting-Empfehlung (Claude Code berät dich)
 **GitHub Pages** ist die einfachste kostenlose Option mit echter HTTPS-URL
 (nötig für PWA-Icon & Google-Login). Alternativ Netlify/Cloudflare Pages — alle gratis.
+
+## Ideen für später (Roadmap)
+Bewusst noch nicht gebaut, weil sie eine Datenmodell-Änderung oder mehr Aufwand brauchen:
+- **Portions-Rechner** — Mengen automatisch hoch-/runterskalieren (braucht strukturierte Mengen statt Freitext).
+- **Einkaufsliste** — Zutaten ausgewählter Rezepte sammeln und abhaken.
+- **Wochenplan** — Rezepte auf Wochentage legen.
+- **Import aus URL** — Rezept von einer Webseite einlesen/parsen.
+- **Prep- vs. Kochzeit** getrennt, Schwierigkeitsgrad, freie Tags neben den 16 Kategorien.

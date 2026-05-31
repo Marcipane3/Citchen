@@ -20,7 +20,7 @@
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "updated": "2026-05-31T12:00:00.000Z",
   "recipes": [ ... ]
 }
@@ -28,9 +28,13 @@
 
 | Feld | Typ | Beschreibung |
 |------|-----|--------------|
-| `version` | number | Schema-Version. Aktuell `1`. |
+| `version` | number | Schema-Version. Aktuell `2`. |
 | `updated` | string (ISO 8601) | Zeitpunkt der letzten Änderung. Bei jedem Schreiben aktualisieren. |
 | `recipes` | array | Liste der Rezept-Objekte. |
+
+> **v1 → v2:** Alle neuen Felder (`rating`, `favorite`, `cookedCount`, `image`, `photos`)
+> sind **optional**. Alte v1-Rezepte ohne diese Felder funktionieren weiter — die App
+> ergänzt fehlende Werte beim Laden mit Standardwerten und schreibt `version: 2` zurück.
 
 ## Rezept-Objekt
 
@@ -42,6 +46,11 @@
   "time": "35 Min",
   "servings": "~4",
   "lastCooked": "Mai 2026",
+  "rating": 0,
+  "favorite": false,
+  "cookedCount": 0,
+  "image": "",
+  "photos": [],
   "ingredients": ["2 Süßkartoffeln, gewürfelt", "..."],
   "steps": ["Reis aufsetzen.", "..."],
   "tips": "Joghurt drüber = frischer."
@@ -56,9 +65,29 @@
 | `time` | string | nein | Frei, z.B. `"25 Min"`. |
 | `servings` | string | nein | Frei, z.B. `"~4"` oder `"1 Zucchini, 2 Paprika"`. |
 | `lastCooked` | string | nein | Z.B. `"Mai 2026"` oder `""`. |
+| `rating` | number | nein | Bewertung `0`–`5` (Sterne). `0` = nicht bewertet. |
+| `favorite` | boolean | nein | Favorit (♥). Default `false`. |
+| `cookedCount` | number | nein | Wie oft gekocht. Wird vom „Heute gekocht"-Button hochgezählt. |
+| `image` | string | nein | **URL** zu einem Titelbild (z.B. ein Bild aus dem Web). Claude darf das setzen. |
+| `photos` | object[] | nein | Eigene Foto-Uploads des Nutzers. **App-verwaltet — Claude NICHT anfassen** (siehe unten). |
 | `ingredients` | string[] | nein | Array, eine Zutat pro Eintrag. |
 | `steps` | string[] | nein | Array, ein Schritt pro Eintrag. |
 | `tips` | string | nein | Freitext. |
+
+### Bilder: `image` vs. `photos` — wichtig für Claude
+Es gibt **zwei getrennte** Bildmechanismen:
+
+- **`image`** — eine einfache **Bild-URL** (String). Dient als Titelbild „so soll es
+  aussehen". Claude **darf** hier eine öffentliche URL eintragen (z.B. ein passendes
+  Rezeptbild). Wird direkt als `<img src>` angezeigt.
+- **`photos`** — eigene Fotos, die der Nutzer **in der App** aufnimmt/hochlädt. Jeder
+  Eintrag ist `{ "id": "<Google-Drive-fileId>", "added": "<ISO-Zeit>" }` und verweist auf
+  eine **separate Bilddatei in Drive**, die die App selbst hochgeladen hat. Das neueste
+  Foto (`photos[0]`) ist das Titelbild und schlägt `image`.
+  ⚠️ **Claude darf `photos` NICHT erzeugen oder ändern.** Die referenzierten Dateien sind
+  Binär-Uploads unter dem `drive.file`-Scope der App — Claude kann sie weder sehen noch
+  hochladen. Erfundene `id`-Werte würden in der App nur als kaputte Bilder erscheinen.
+  Bestehende `photos`-Arrays beim Editieren **unverändert übernehmen**.
 
 ## Die 16 erlaubten Kategorien (exakt so schreiben)
 1. Frühstück & Brunch
@@ -87,3 +116,8 @@
 5. `category` gegen die 16 Werte prüfen.
 6. Niemals andere Felder hinzufügen ohne `version` zu erhöhen + App anzupassen.
 7. Auf korrekte UTF-8-Umlaute achten (ü/ö/ä/ß), nicht versehentlich verfälschen.
+8. **`photos` niemals erfinden oder ändern** — App-verwaltete Drive-Datei-Referenzen
+   (siehe „Bilder"-Abschnitt). Beim Editieren eines Rezepts unverändert lassen.
+9. Titelbild über **`image`** (URL) setzen, nicht über `photos`.
+10. Neue optionale Felder (`rating`, `favorite`, `cookedCount`) müssen nicht gesetzt werden —
+    die App ergänzt Defaults. Wenn gesetzt, Typen einhalten (`rating` 0–5).

@@ -35,13 +35,18 @@
     background:transparent;font:600 13px 'Karla';color:rgba(42,31,23,.67);cursor:pointer;white-space:nowrap}
   .chip.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
   main{padding:16px 18px 120px}
-  .card{display:block;width:100%;text-align:left;background:var(--card);
+  .card{position:relative;display:block;width:100%;text-align:left;background:var(--card);
     border:1.5px solid rgba(42,31,23,.13);border-radius:16px;padding:16px 18px;cursor:pointer;
     box-shadow:0 2px 0 rgba(42,31,23,.06);font-family:inherit;color:var(--ink);margin-bottom:12px;transition:transform .1s}
   .card:active{transform:scale(.98)}
+  .card-thumb{width:100%;height:150px;border-radius:12px;background:rgba(42,31,23,.06) center/cover no-repeat;
+    margin-bottom:12px;display:none}
+  .card-thumb.has-img{display:block}
   .cat{display:inline-block;font:700 11px 'Karla';text-transform:uppercase;letter-spacing:.6px;color:var(--accent);margin-bottom:6px}
-  .name{font-family:'Fraunces',serif;font-size:19px;font-weight:600;line-height:1.2;margin-bottom:8px}
-  .meta{display:flex;gap:8px;font-size:13px;color:rgba(42,31,23,.53);font-weight:500;flex-wrap:wrap}
+  .name{font-family:'Fraunces',serif;font-size:19px;font-weight:600;line-height:1.2;margin-bottom:8px;padding-right:30px}
+  .meta{display:flex;gap:8px;font-size:13px;color:rgba(42,31,23,.53);font-weight:500;flex-wrap:wrap;align-items:center}
+  .card-heart{position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;cursor:pointer;line-height:1;padding:4px;z-index:2}
+  .rate-mini{color:var(--accent2);letter-spacing:1px}
   .empty{text-align:center;color:rgba(42,31,23,.4);margin-top:60px;font-size:15px;line-height:1.6}
   .fab{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));right:max(24px,calc(50% - 296px));
     width:58px;height:58px;border-radius:18px;background:var(--accent);color:#fff;border:none;
@@ -53,22 +58,46 @@
     border-radius:24px 24px 0 0;padding:20px 20px calc(32px + env(safe-area-inset-bottom));
     animation:slideUp .28s cubic-bezier(.16,1,.3,1)}
   @keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
-  .sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-  .detail-name{font-family:'Fraunces',serif;font-size:28px;font-weight:700;margin:4px 0 10px;line-height:1.15}
+  .sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+  .sheet-head .hd-r{display:flex;gap:8px;align-items:center}
+  .hero{width:100%;height:210px;border-radius:18px;background:rgba(42,31,23,.06) center/cover no-repeat;margin:8px 0 6px;display:none}
+  .hero.has-img{display:block}
+  .detail-name{font-family:'Fraunces',serif;font-size:28px;font-weight:700;margin:4px 0 8px;line-height:1.15}
   h3{font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--accent);margin:22px 0 10px}
   ul,ol{padding-left:22px}
   li{font-size:15px;line-height:1.7;margin-bottom:4px}
   .tips{font-size:15px;line-height:1.6;background:rgba(232,161,58,.13);padding:12px 14px;border-radius:12px}
-  .actions{display:flex;gap:10px;margin-top:28px}
-  .btn-primary{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--ink);
-    color:var(--paper);border:none;border-radius:14px;padding:14px;font:700 15px 'Karla';cursor:pointer}
-  .btn-del{background:transparent;border:1.5px solid rgba(42,31,23,.16);border-radius:14px;
-    padding:14px 18px;color:#b3401f;cursor:pointer;font-size:18px}
+  .heart{background:none;border:none;font-size:24px;cursor:pointer;line-height:1;padding:0}
+  .stars{font-size:26px;letter-spacing:3px;cursor:pointer;user-select:none;margin:2px 0 8px}
+  .stars .star{color:rgba(42,31,23,.18)}
+  .stars .star.on{color:var(--accent2)}
+  .photo-add{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--card);
+    border:1.5px dashed rgba(42,31,23,.28);border-radius:12px;padding:12px;width:100%;
+    font:600 14px 'Karla';color:var(--ink);cursor:pointer;margin-top:10px}
+  .photostrip{display:flex;gap:8px;overflow-x:auto;padding:8px 0 2px}
+  .photostrip::-webkit-scrollbar{height:0}
+  .photostrip .ph{position:relative;flex-shrink:0}
+  .photostrip .ph .thumb{width:96px;height:96px;border-radius:12px;background:rgba(42,31,23,.06) center/cover no-repeat}
+  .photostrip .rm{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.55);color:#fff;border:none;
+    border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:13px;line-height:1}
   label{display:block;font:700 13px 'Karla';color:rgba(42,31,23,.67);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.4px}
   input.f,textarea.f,select.f{width:100%;padding:11px 13px;border-radius:11px;border:1.5px solid rgba(42,31,23,.13);
     background:var(--card);font:15px 'Karla';color:var(--ink);outline:none}
   input.f:focus,textarea.f:focus,select.f:focus{outline:2px solid var(--accent)}
   textarea.f{resize:vertical}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:7px}
+  .row .num{flex-shrink:0;width:24px;text-align:right;font:700 14px 'Karla';color:rgba(42,31,23,.4)}
+  .row input{flex:1}
+  .row .rm{flex-shrink:0;background:transparent;border:1.5px solid rgba(42,31,23,.14);border-radius:10px;
+    padding:10px 12px;color:#b3401f;cursor:pointer;font-size:14px}
+  .addrow{background:transparent;border:none;color:var(--accent);font:700 14px 'Karla';cursor:pointer;padding:8px 0 2px}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:28px}
+  .btn-primary{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--ink);
+    color:var(--paper);border:none;border-radius:14px;padding:14px;font:700 15px 'Karla';cursor:pointer}
+  .btn-cook{background:var(--accent);color:#fff}
+  .btn-sec{display:flex;align-items:center;justify-content:center;gap:8px;background:transparent;
+    border:1.5px solid rgba(42,31,23,.16);border-radius:14px;padding:14px;font:700 15px 'Karla';color:var(--ink);cursor:pointer}
+  .btn-del{color:#b3401f}
   .save{width:100%;margin-top:24px;background:var(--accent);color:#fff;border:none;border-radius:14px;
     padding:15px;font:700 16px 'Karla';cursor:pointer}
   .login{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;text-align:center;padding:24px;gap:16px}
@@ -76,14 +105,37 @@
   .login p{color:rgba(42,31,23,.6);font-size:15px;line-height:1.6;max-width:320px}
   .gbtn{background:var(--ink);color:var(--paper);border:none;border-radius:14px;padding:14px 24px;font:700 15px 'Karla';cursor:pointer}
   .sync{font-size:12px;color:rgba(42,31,23,.5);text-align:center;padding:6px}
+  /* ---- Kochmodus ---- */
+  .cook{position:fixed;inset:0;background:var(--paper);z-index:60;overflow-y:auto;
+    max-width:640px;margin:0 auto;
+    padding:calc(16px + env(safe-area-inset-top)) 22px calc(48px + env(safe-area-inset-bottom))}
+  .cook-top{display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;
+    background:var(--paper);padding:8px 0 12px;margin-bottom:6px}
+  .cook-top .ct{font-family:'Fraunces',serif;font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--accent)}
+  .cook h2{font-family:'Fraunces',serif;font-size:26px;line-height:1.15;margin-bottom:4px}
+  .cook .wakeinfo{font-size:12px;color:rgba(42,31,23,.45);margin-bottom:14px}
+  .cook-sec{font-family:'Fraunces',serif;font-size:18px;color:var(--accent);margin:18px 0 8px}
+  .cook-ing{display:flex;gap:12px;align-items:flex-start;padding:11px 0;font-size:17px;line-height:1.45;
+    border-bottom:1px solid rgba(42,31,23,.07);cursor:pointer}
+  .cook-ing.done{opacity:.4;text-decoration:line-through}
+  .cook-step{display:flex;gap:14px;align-items:flex-start;padding:16px 0;font-size:19px;line-height:1.5;
+    border-bottom:1px solid rgba(42,31,23,.1);cursor:pointer}
+  .cook-step.done{opacity:.42;text-decoration:line-through}
+  .cook-num{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;font:700 15px 'Karla'}
+  .tick{flex-shrink:0;width:24px;height:24px;border-radius:7px;border:2px solid rgba(42,31,23,.25);margin-top:2px}
+  .done .tick{background:var(--accent);border-color:var(--accent)}
+  .cook-done-btn{width:100%;margin-top:28px;background:var(--ink);color:var(--paper);border:none;
+    border-radius:14px;padding:15px;font:700 16px 'Karla';cursor:pointer}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<input type="file" id="photoInput" accept="image/*" style="display:none" />
 
 <script>
 /* ============================================================
-   KONFIGURATION — von Claude Code auszufüllen
+   KONFIGURATION — von Claude Code ausgefüllt
    ============================================================ */
 const GOOGLE_CLIENT_ID = "977952120262-lht1tbbinnj8kmehmvqe1dpu5gp7k8d8.apps.googleusercontent.com";
 const FILE_NAME = "rezepte.json";
@@ -100,8 +152,9 @@ const CATEGORIES = [
 
 /* ---------- App-Zustand ---------- */
 let TOKEN = null, FILE_ID = null;
-let DATA = { version: 1, updated: null, recipes: [] };
+let DATA = { version: 2, updated: null, recipes: [] };
 let query = "", activeCat = "Alle";
+const imgCache = new Map(); // Drive-fileId -> Object-URL (Bilder werden authentifiziert geladen)
 
 /* ============================================================
    GOOGLE DRIVE LAYER
@@ -141,6 +194,31 @@ async function driveUpdate(id, data) {
     { method: "PATCH", headers: { Authorization: "Bearer " + TOKEN, "Content-Type": "application/json" },
       body: JSON.stringify(data, null, 2) });
 }
+/* --- Bild-Dateien (eigene Drive-Dateien, per fileId referenziert) --- */
+async function driveUploadImage(blob, name) {
+  const meta = { name, mimeType: blob.type || "image/jpeg" };
+  const body = new FormData();
+  body.append("metadata", new Blob([JSON.stringify(meta)], { type: "application/json" }));
+  body.append("file", blob);
+  const r = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",
+    { method: "POST", headers: { Authorization: "Bearer " + TOKEN }, body });
+  return (await r.json()).id;
+}
+async function driveDelete(id) {
+  try {
+    await fetch(`https://www.googleapis.com/drive/v3/files/${id}`,
+      { method: "DELETE", headers: { Authorization: "Bearer " + TOKEN } });
+  } catch (e) { /* still missing? egal */ }
+}
+async function driveImageUrl(fileId) {
+  if (imgCache.has(fileId)) return imgCache.get(fileId);
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    { headers: { Authorization: "Bearer " + TOKEN } });
+  if (!r.ok) throw new Error("Bild nicht ladbar");
+  const url = URL.createObjectURL(await r.blob());
+  imgCache.set(fileId, url);
+  return url;
+}
 
 async function afterLogin() {
   setSync("Verbinde mit Drive…");
@@ -151,26 +229,39 @@ async function afterLogin() {
     DATA = SEED;
     FILE_ID = await driveCreate(DATA);
   }
-  if (!DATA.recipes) DATA.recipes = [];
+  normalize();
   render(); setSync("Synchronisiert ✓");
 }
 async function save() {
   DATA.updated = new Date().toISOString();
+  DATA.version = 2;
   setSync("Speichere…");
   if (FILE_ID) await driveUpdate(FILE_ID, DATA);
   else FILE_ID = await driveCreate(DATA);
   setSync("Synchronisiert ✓");
 }
 
+/* Macht ältere Rezepte v1-kompatibel: ergänzt neue optionale Felder im Speicher. */
+function normalize() {
+  if (!DATA.recipes) DATA.recipes = [];
+  DATA.recipes.forEach(r => {
+    if (typeof r.rating !== "number") r.rating = 0;
+    if (!Array.isArray(r.photos)) r.photos = [];
+    if (typeof r.favorite !== "boolean") r.favorite = false;
+    if (typeof r.cookedCount !== "number") r.cookedCount = 0;
+    if (typeof r.image !== "string") r.image = r.image || "";
+  });
+}
+
 /* ============================================================
    SEED-DATEN (erstes Rezept)
    ============================================================ */
 const SEED = {
-  version: 1, updated: new Date().toISOString(),
+  version: 2, updated: new Date().toISOString(),
   recipes: [{
     id: "r01", name: "Süßkartoffel-Curry mit Kichererbsen",
     category: "Vegetarische Hauptgerichte", time: "35 Min", servings: "~4",
-    lastCooked: "Mai 2026",
+    lastCooked: "Mai 2026", rating: 0, favorite: false, cookedCount: 0, image: "", photos: [],
     ingredients: ["2 Süßkartoffeln, gewürfelt (~2 cm)","400g Kichererbsen (Dose, abgetropft)",
       "400ml Kokosmilch (Dose)","400g Dosentomaten","1 Zwiebel, gewürfelt","3 Knoblauchzehen, gehackt",
       "2 TL Curry, 1 TL Kreuzkümmel, ½ TL Chiliflocken","Salz, Pfeffer, Öl","Reis als Beilage"],
@@ -183,24 +274,89 @@ const SEED = {
 };
 
 /* ============================================================
-   UI / RENDER
+   HELFER
    ============================================================ */
 const $ = (h) => { const d = document.createElement("div"); d.innerHTML = h; return d.firstElementChild; };
 const esc = (s) => (s||"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let syncMsg = "";
 function setSync(m){ syncMsg = m; const e = document.querySelector(".sync"); if(e) e.textContent = m; }
 
+function starsMini(n){ if(!n) return ""; return `<span class="rate-mini">${"★".repeat(n)}${"☆".repeat(5-n)}</span>`; }
+
+/* Lädt das Titelbild (neuestes eigenes Foto, sonst Bild-URL) asynchron in ein Element. */
+async function loadHeroInto(el, r){
+  let url = null;
+  if (r.photos && r.photos.length){ try { url = await driveImageUrl(r.photos[0].id); } catch(e){} }
+  if (!url && r.image){ url = r.image; }
+  if (url){ el.style.backgroundImage = `url("${url}")`; el.classList.add("has-img"); }
+}
+function hydrateImages(scope){
+  (scope||document).querySelectorAll("[data-hero]").forEach(el=>{
+    const r = DATA.recipes.find(x=>x.id===el.dataset.hero);
+    if (r) loadHeroInto(el, r);
+  });
+}
+
+/* Bild clientseitig verkleinern + als JPEG komprimieren, bevor es zu Drive geht. */
+function compressImage(file, maxDim=1280, quality=0.72){
+  return new Promise((res, rej)=>{
+    const fr = new FileReader();
+    fr.onerror = rej;
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = rej;
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > h && w > maxDim){ h = Math.round(h*maxDim/w); w = maxDim; }
+        else if (h >= w && h > maxDim){ w = Math.round(w*maxDim/h); h = maxDim; }
+        const c = document.createElement("canvas"); c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        c.toBlob(b => b ? res(b) : rej(new Error("Komprimierung fehlgeschlagen")), "image/jpeg", quality);
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+/* Wiederverwendbarer Zeilen-Editor (Zutaten / Schritte). Gibt einen Getter zurück. */
+function makeListEditor(mount, initial, ph, numbered){
+  const wrap = document.createElement("div");
+  function addRow(val){
+    const row = $(`<div class="row">${numbered?'<span class="num"></span>':''}<input class="f"><button class="rm" type="button">✕</button></div>`);
+    row.querySelector("input").value = val || "";
+    row.querySelector("input").placeholder = ph;
+    row.querySelector(".rm").onclick = () => { row.remove(); renum(); };
+    row.querySelector("input").addEventListener("keydown", (e)=>{
+      if (e.key === "Enter"){ e.preventDefault(); const nr = addRow(""); nr.querySelector("input").focus(); }
+    });
+    wrap.appendChild(row); renum(); return row;
+  }
+  function renum(){ if(!numbered) return;
+    Array.from(wrap.querySelectorAll(".num")).forEach((n,i)=> n.textContent = (i+1)+"."); }
+  const init = (initial && initial.length) ? initial : [""];
+  init.forEach(v => addRow(v));
+  const add = $(`<button class="addrow" type="button">+ Zeile hinzufügen</button>`);
+  add.onclick = () => { const r = addRow(""); r.querySelector("input").focus(); };
+  mount.appendChild(wrap); mount.appendChild(add);
+  return () => Array.from(wrap.querySelectorAll("input")).map(i=>i.value.trim()).filter(Boolean);
+}
+
+/* ============================================================
+   UI / RENDER
+   ============================================================ */
 function render() {
   const app = document.getElementById("app");
   if (!TOKEN) { app.innerHTML = loginView(); document.querySelector(".gbtn").onclick = login; return; }
 
-  const cats = ["Alle", ...CATEGORIES.filter(c => DATA.recipes.some(r => r.category === c))];
+  const usedCats = CATEGORIES.filter(c => DATA.recipes.some(r => r.category === c));
+  const cats = ["Alle", "__fav", ...usedCats];
+  const q = query.toLowerCase();
   const filtered = DATA.recipes.filter(r => {
-    const mc = activeCat === "Alle" || r.category === activeCat;
-    const q = query.toLowerCase();
-    const mq = !q || r.name.toLowerCase().includes(q) ||
+    if (activeCat === "__fav"){ if (!r.favorite) return false; }
+    else if (activeCat !== "Alle" && r.category !== activeCat) return false;
+    return !q || r.name.toLowerCase().includes(q) ||
       (r.ingredients||[]).join(" ").toLowerCase().includes(q);
-    return mc && mq;
   });
 
   app.innerHTML = `
@@ -218,18 +374,26 @@ function render() {
         <input id="search" placeholder="Suchen nach Name oder Zutat…" value="${esc(query)}" />
       </div>
       <div class="chips">
-        ${cats.map(c=>`<button class="chip ${activeCat===c?'active':''}" data-cat="${esc(c)}">${esc(c==="Alle"?"Alle":c.split(":")[0].split(" & ")[0].split(" ")[0])}</button>`).join("")}
+        ${cats.map(c=>{
+          const lbl = c==="Alle" ? "Alle" : c==="__fav" ? "♥ Favoriten"
+            : c.split(":")[0].split(" & ")[0].split(" ")[0];
+          return `<button class="chip ${activeCat===c?'active':''}" data-cat="${esc(c)}">${esc(lbl)}</button>`;
+        }).join("")}
       </div>
     </header>
     <main>
       ${filtered.length===0
-        ? `<p class="empty">Noch keine Rezepte hier.<br>Tippe auf + um eins hinzuzufügen.</p>`
-        : filtered.map(r=>`
-          <button class="card" data-id="${r.id}">
+        ? `<p class="empty">${activeCat==="__fav"?"Noch keine Favoriten.<br>Öffne ein Rezept und tippe auf ♥.":"Noch keine Rezepte hier.<br>Tippe auf + um eins hinzuzufügen."}</p>`
+        : filtered.map(r=>{
+          const hasImg = (r.photos&&r.photos.length)||r.image;
+          return `
+          <div class="card" data-id="${r.id}">
+            <button class="card-heart" data-fav="${r.id}">${r.favorite?"♥":"♡"}</button>
+            ${hasImg?`<div class="card-thumb" data-hero="${r.id}"></div>`:""}
             <div class="cat">${esc(r.category)}</div>
             <div class="name">${esc(r.name)}</div>
-            <div class="meta">${r.time?`⏱ ${esc(r.time)}`:""} ${r.lastCooked?`· ${esc(r.lastCooked)}`:""}</div>
-          </button>`).join("")}
+            <div class="meta">${r.time?`⏱ ${esc(r.time)}`:""} ${r.lastCooked?`· ${esc(r.lastCooked)}`:""} ${starsMini(r.rating)}</div>
+          </div>`;}).join("")}
     </main>
     <div class="sync">${esc(syncMsg)}</div>
     <button class="fab" id="addBtn">+</button>
@@ -238,11 +402,17 @@ function render() {
   document.getElementById("search").oninput = (e)=>{ query=e.target.value; renderListOnly(); };
   document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{ activeCat=b.dataset.cat; render(); });
   document.querySelectorAll(".card").forEach(b=>b.onclick=()=>openDetail(b.dataset.id));
-  document.getElementById("addBtn").onclick = openForm;
+  document.querySelectorAll(".card-heart").forEach(b=>b.onclick=async(e)=>{
+    e.stopPropagation();
+    const r = DATA.recipes.find(x=>x.id===b.dataset.fav); if(!r) return;
+    r.favorite = !r.favorite; b.textContent = r.favorite?"♥":"♡"; await save();
+  });
+  document.getElementById("addBtn").onclick = () => openForm();
   document.getElementById("exportBtn").onclick = exportMd;
+  hydrateImages();
 }
-function renderListOnly(){ render(); document.getElementById("search").focus();
-  const i=document.getElementById("search"); i.setSelectionRange(i.value.length,i.value.length); }
+function renderListOnly(){ render(); const i=document.getElementById("search");
+  i.focus(); i.setSelectionRange(i.value.length,i.value.length); }
 
 function loginView(){
   return `<div class="login">
@@ -253,48 +423,150 @@ function loginView(){
   </div>`;
 }
 
+/* ---------- Detail-Ansicht ---------- */
 function openDetail(id){
   const r = DATA.recipes.find(x=>x.id===id); if(!r) return;
   const ov = $(`<div class="overlay"></div>`);
   ov.innerHTML = `<div class="sheet">
-    <div class="sheet-head"><span class="cat">${esc(r.category)}</span><button class="icon-btn close">✕</button></div>
+    <div class="sheet-head">
+      <span class="cat">${esc(r.category)}</span>
+      <div class="hd-r">
+        <button class="heart" title="Favorit">${r.favorite?"♥":"♡"}</button>
+        <button class="icon-btn close">✕</button>
+      </div>
+    </div>
+    <div class="hero" data-hero="${r.id}"></div>
     <div class="detail-name">${esc(r.name)}</div>
-    <div class="meta">${r.time?`⏱ ${esc(r.time)}`:""} ${r.servings?`· 🍽 ${esc(r.servings)}`:""}</div>
+    <div class="stars" data-rate>${[1,2,3,4,5].map(i=>`<span class="star ${i<=r.rating?'on':''}" data-v="${i}">★</span>`).join("")}</div>
+    <div class="meta">${r.time?`⏱ ${esc(r.time)}`:""} ${r.servings?`· 🍽 ${esc(r.servings)}`:""} ${r.cookedCount?`· ${r.cookedCount}× gekocht`:""}</div>
     ${r.lastCooked?`<p style="font-size:13px;color:rgba(42,31,23,.5);font-style:italic;margin-top:4px">Zuletzt gekocht: ${esc(r.lastCooked)}</p>`:""}
+
+    <button class="photo-add">📷 Foto aufnehmen oder hochladen</button>
+    ${r.photos&&r.photos.length?`<div class="photostrip">${r.photos.map(p=>`
+      <div class="ph"><div class="thumb" data-photo="${p.id}"></div><button class="rm" data-rm="${p.id}">✕</button></div>`).join("")}</div>`:""}
+
     ${r.ingredients&&r.ingredients.length?`<h3>Zutaten</h3><ul>${r.ingredients.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>`:""}
     ${r.steps&&r.steps.length?`<h3>Zubereitung</h3><ol>${r.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>`:""}
     ${r.tips?`<h3>Tipps</h3><p class="tips">${esc(r.tips)}</p>`:""}
+
     <div class="actions">
+      <button class="btn-primary btn-cook cook">👨‍🍳 Kochmodus</button>
       <button class="btn-primary cooked">✓ Heute gekocht</button>
-      <button class="btn-del del">🗑</button>
+      <button class="btn-sec edit">✎ Bearbeiten</button>
+      <button class="btn-sec btn-del del">🗑 Löschen</button>
     </div>
   </div>`;
   document.body.appendChild(ov);
   const close=()=>ov.remove();
   ov.onclick=(e)=>{ if(e.target===ov) close(); };
   ov.querySelector(".close").onclick=close;
+
+  // Titelbild + Foto-Thumbnails laden
+  hydrateImages(ov);
+  ov.querySelectorAll("[data-photo]").forEach(el=>{
+    driveImageUrl(el.dataset.photo).then(u=>{ el.style.backgroundImage=`url("${u}")`; }).catch(()=>{});
+  });
+
+  // Bewertung
+  ov.querySelectorAll("[data-rate] .star").forEach(s=>s.onclick=async()=>{
+    const v = +s.dataset.v;
+    r.rating = (r.rating === v) ? v-1 : v;  // gleichen Stern nochmal = eins runter
+    ov.querySelectorAll("[data-rate] .star").forEach(x=>x.classList.toggle("on", +x.dataset.v<=r.rating));
+    await save();
+  });
+
+  // Favorit
+  ov.querySelector(".heart").onclick=async(e)=>{
+    r.favorite=!r.favorite; e.target.textContent=r.favorite?"♥":"♡"; await save();
+  };
+
+  // Foto aufnehmen/hochladen
+  ov.querySelector(".photo-add").onclick=()=>{
+    const inp=document.getElementById("photoInput");
+    inp.onchange=async()=>{
+      const f=inp.files&&inp.files[0]; inp.value="";
+      if(!f) return;
+      setSync("Foto wird hochgeladen…");
+      try{
+        const blob=await compressImage(f);
+        const fid=await driveUploadImage(blob, `kochbuch-foto-${r.id}-${Date.now()}.jpg`);
+        r.photos.unshift({ id: fid, added: new Date().toISOString() });
+        await save(); close(); openDetail(r.id); render();
+      }catch(err){ alert("Foto fehlgeschlagen: "+err.message); setSync(""); }
+    };
+    inp.click();
+  };
+
+  // Foto löschen
+  ov.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{
+    if(!confirm("Foto löschen?")) return;
+    const fid=b.dataset.rm;
+    r.photos=r.photos.filter(p=>p.id!==fid);
+    imgCache.delete(fid);
+    await save(); driveDelete(fid);
+    close(); openDetail(r.id); render();
+  });
+
+  // Aktionen
+  ov.querySelector(".cook").onclick=()=>{ close(); openCook(r.id); };
+  ov.querySelector(".edit").onclick=()=>{ close(); openForm(r); };
   ov.querySelector(".cooked").onclick=async()=>{
     r.lastCooked=new Date().toLocaleDateString("de-DE",{month:"long",year:"numeric"});
+    r.cookedCount=(r.cookedCount||0)+1;
     await save(); close(); render();
   };
   ov.querySelector(".del").onclick=async()=>{
     if(!confirm("Rezept wirklich löschen?"))return;
-    DATA.recipes=DATA.recipes.filter(x=>x.id!==id); await save(); close(); render();
+    (r.photos||[]).forEach(p=>driveDelete(p.id)); // Fotos in Drive mit aufräumen
+    DATA.recipes=DATA.recipes.filter(x=>x.id!==id);
+    await save(); close(); render();
   };
 }
 
-function openForm(){
+/* ---------- Kochmodus (Vollbild, Bildschirm bleibt an) ---------- */
+let wakeLock=null;
+async function reqWake(){ try{ if("wakeLock" in navigator) wakeLock=await navigator.wakeLock.request("screen"); }catch(e){} }
+function relWake(){ try{ wakeLock&&wakeLock.release(); }catch(e){} wakeLock=null; }
+
+function openCook(id){
+  const r = DATA.recipes.find(x=>x.id===id); if(!r) return;
+  const view = $(`<div class="cook"></div>`);
+  view.innerHTML = `
+    <div class="cook-top">
+      <span class="ct">Kochmodus</span>
+      <button class="icon-btn close">✕</button>
+    </div>
+    <h2>${esc(r.name)}</h2>
+    <div class="wakeinfo">📱 Bildschirm bleibt im Kochmodus an. Tippe Zutaten/Schritte zum Abhaken.</div>
+    ${r.ingredients&&r.ingredients.length?`<div class="cook-sec">Zutaten</div>
+      ${r.ingredients.map(i=>`<div class="cook-ing"><span class="tick"></span><span>${esc(i)}</span></div>`).join("")}`:""}
+    ${r.steps&&r.steps.length?`<div class="cook-sec">Zubereitung</div>
+      ${r.steps.map((s,i)=>`<div class="cook-step"><span class="cook-num">${i+1}</span><span>${esc(s)}</span></div>`).join("")}`:""}
+    <button class="cook-done-btn done-btn">Fertig — zurück</button>
+  `;
+  document.body.appendChild(view);
+  reqWake();
+  const exit=()=>{ relWake(); view.remove(); };
+  view.querySelector(".close").onclick=exit;
+  view.querySelector(".done-btn").onclick=exit;
+  view.querySelectorAll(".cook-ing, .cook-step").forEach(el=>el.onclick=()=>el.classList.toggle("done"));
+}
+
+/* ---------- Formular: Neu + Bearbeiten ---------- */
+function openForm(existing){
+  const ed = existing || null;
   const ov = $(`<div class="overlay"></div>`);
   ov.innerHTML = `<div class="sheet">
-    <div class="sheet-head"><span class="cat">Neues Rezept</span><button class="icon-btn close">✕</button></div>
+    <div class="sheet-head"><span class="cat">${ed?"Rezept bearbeiten":"Neues Rezept"}</span><button class="icon-btn close">✕</button></div>
     <label>Name</label><input class="f" id="f-name" placeholder="z.B. Linsensuppe" />
-    <label>Kategorie</label><select class="f" id="f-cat">${CATEGORIES.map(c=>`<option>${esc(c)}</option>`).join("")}</select>
+    <label>Kategorie</label><select class="f" id="f-cat">${CATEGORIES.map(c=>`<option ${ed&&ed.category===c?"selected":""}>${esc(c)}</option>`).join("")}</select>
     <div style="display:flex;gap:10px">
       <div style="flex:1"><label>Zeit</label><input class="f" id="f-time" placeholder="25 Min" /></div>
       <div style="flex:1"><label>Portionen</label><input class="f" id="f-serv" value="~4" /></div>
     </div>
-    <label>Zutaten (eine pro Zeile)</label><textarea class="f" id="f-ing" rows="5"></textarea>
-    <label>Zubereitung (ein Schritt pro Zeile)</label><textarea class="f" id="f-steps" rows="5"></textarea>
+    <label>Bild-URL (optional)</label><input class="f" id="f-image" placeholder="https://… (Titelbild)" />
+    <label>Zutaten</label><div id="f-ing"></div>
+    <label>Zubereitung</label><div id="f-steps"></div>
     <label>Tipps (optional)</label><textarea class="f" id="f-tips" rows="2"></textarea>
     <button class="save">Speichern</button>
   </div>`;
@@ -302,23 +574,42 @@ function openForm(){
   const close=()=>ov.remove();
   ov.onclick=(e)=>{ if(e.target===ov) close(); };
   ov.querySelector(".close").onclick=close;
+
+  if (ed){
+    ov.querySelector("#f-name").value = ed.name || "";
+    ov.querySelector("#f-time").value = ed.time || "";
+    ov.querySelector("#f-serv").value = ed.servings || "";
+    ov.querySelector("#f-image").value = ed.image || "";
+    ov.querySelector("#f-tips").value = ed.tips || "";
+  }
+  const getIng = makeListEditor(ov.querySelector("#f-ing"), ed?ed.ingredients:[], "z.B. 2 Eier", false);
+  const getSteps = makeListEditor(ov.querySelector("#f-steps"), ed?ed.steps:[], "Schritt beschreiben…", true);
+
   ov.querySelector(".save").onclick=async()=>{
     const name=ov.querySelector("#f-name").value.trim();
     if(!name){ alert("Name fehlt"); return; }
-    DATA.recipes.unshift({
-      id:"r"+Date.now(), name,
-      category:ov.querySelector("#f-cat").value,
-      time:ov.querySelector("#f-time").value.trim(),
-      servings:ov.querySelector("#f-serv").value.trim(),
-      lastCooked:"",
-      ingredients:ov.querySelector("#f-ing").value.split("\n").map(s=>s.trim()).filter(Boolean),
-      steps:ov.querySelector("#f-steps").value.split("\n").map(s=>s.trim()).filter(Boolean),
-      tips:ov.querySelector("#f-tips").value.trim()
-    });
+    const fields = {
+      name,
+      category: ov.querySelector("#f-cat").value,
+      time: ov.querySelector("#f-time").value.trim(),
+      servings: ov.querySelector("#f-serv").value.trim(),
+      image: ov.querySelector("#f-image").value.trim(),
+      ingredients: getIng(),
+      steps: getSteps(),
+      tips: ov.querySelector("#f-tips").value.trim()
+    };
+    if (ed){
+      Object.assign(ed, fields);
+    } else {
+      DATA.recipes.unshift(Object.assign({
+        id:"r"+Date.now(), lastCooked:"", rating:0, favorite:false, cookedCount:0, photos:[]
+      }, fields));
+    }
     await save(); close(); render();
   };
 }
 
+/* ---------- Export ---------- */
 function exportMd(){
   let md="# 📖 Rezept-Datenbank\n\n";
   CATEGORIES.forEach(cat=>{
@@ -326,7 +617,8 @@ function exportMd(){
     if(!items.length)return;
     md+=`## ${cat}\n\n`;
     items.forEach(r=>{
-      md+=`### ${r.name}\n**Zeit:** ${r.time||"—"} | **Portionen:** ${r.servings||"—"} | **Zuletzt:** ${r.lastCooked||"—"}\n\n`;
+      md+=`### ${r.name}${r.rating?` (${"★".repeat(r.rating)})`:""}\n`;
+      md+=`**Zeit:** ${r.time||"—"} | **Portionen:** ${r.servings||"—"} | **Zuletzt:** ${r.lastCooked||"—"}\n\n`;
       md+=`#### Zutaten\n${(r.ingredients||[]).map(i=>"- "+i).join("\n")}\n\n`;
       md+=`#### Zubereitung\n${(r.steps||[]).map((s,i)=>`${i+1}. ${s}`).join("\n")}\n\n`;
       if(r.tips)md+=`#### Tipps\n${r.tips}\n\n`;
