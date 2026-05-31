@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "updated": "2026-05-31T12:00:00.000Z",
+  "recipes": [
+    {
+      "id": "r01",
+      "name": "Süßkartoffel-Curry mit Kichererbsen",
+      "category": "Vegetarische Hauptgerichte",
+      "time": "35 Min",
+      "servings": "~4",
+      "lastCooked": "Mai 2026",
+      "ingredients": [
+        "2 Süßkartoffeln, gewürfelt (~2 cm)",
+        "400g Kichererbsen (Dose, abgetropft)",
+        "400ml Kokosmilch (Dose)",
+        "400g Dosentomaten",
+        "1 Zwiebel, gewürfelt",
+        "3 Knoblauchzehen, gehackt",
+        "2 TL Curry, 1 TL Kreuzkümmel, ½ TL Chiliflocken",
+        "Salz, Pfeffer, Öl",
+        "Reis als Beilage"
+      ],
+      "steps": [
+        "Reis aufsetzen.",
+        "Öl erhitzen, Zwiebel 3–4 Min glasig braten, Knoblauch 1 Min dazu.",
+        "Gewürze einrühren, 1 Min anrösten.",
+        "Süßkartoffeln + Dosentomaten dazu, umrühren.",
+        "Deckel drauf, 12–15 Min köcheln bis Süßkartoffeln weich.",
+        "Kokosmilch + Kichererbsen einrühren, 5 Min weiterköcheln, abschmecken.",
+        "Über Reis servieren."
+      ],
+      "tips": "Joghurt oder Buttermilch drüber = frischer. Gefrorene Erbsen/Spinat am Ende einrühren. Mehr Chiliflocken für mehr Schärfe."
+    }
+  ]
+}

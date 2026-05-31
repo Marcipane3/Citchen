@@ -1,0 +1,12 @@
+# Niemals Secrets committen
+client_secret*.json
+*.secret.json
+
+# Original-Bundle / Build-Artefakte
+files.zip
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.claude/

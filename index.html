@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#c8632e" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<title>Mein Kochbuch</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Karla:wght@400;500;600;700&display=swap');
+  :root{
+    --accent:#c8632e; --accent2:#e8a13a; --ink:#2a1f17;
+    --paper:#f6efe3; --card:#fffaf2;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+  body{font-family:'Karla',sans-serif;background:var(--paper);color:var(--ink);
+    max-width:640px;margin:0 auto;min-height:100vh;
+    background-image:radial-gradient(rgba(42,31,23,.03) 1px,transparent 1px);
+    background-size:16px 16px;padding-bottom:env(safe-area-inset-bottom)}
+  header{position:sticky;top:0;z-index:10;background:var(--paper);
+    padding:calc(18px + env(safe-area-inset-top)) 18px 10px;border-bottom:1px solid rgba(42,31,23,.09)}
+  .brand{display:flex;align-items:center;gap:12px;color:var(--accent);margin-bottom:14px;justify-content:space-between}
+  .brand-l{display:flex;align-items:center;gap:12px}
+  h1{font-family:'Fraunces',serif;font-size:26px;color:var(--ink);letter-spacing:-.5px}
+  .sub{font-size:13px;color:rgba(42,31,23,.6);font-weight:500}
+  .icon-btn{background:var(--card);border:1.5px solid rgba(42,31,23,.13);border-radius:12px;
+    padding:9px;color:var(--ink);cursor:pointer;display:flex;font-size:0}
+  .search-wrap{display:flex;align-items:center;gap:8px;background:var(--card);
+    border:1.5px solid rgba(42,31,23,.1);border-radius:14px;padding:10px 14px;margin-bottom:12px}
+  .search-wrap input{flex:1;border:none;background:transparent;font-size:15px;font-family:inherit;color:var(--ink);outline:none}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+  .chips::-webkit-scrollbar{height:0}
+  .chip{flex-shrink:0;padding:7px 14px;border-radius:20px;border:1.5px solid rgba(42,31,23,.13);
+    background:transparent;font:600 13px 'Karla';color:rgba(42,31,23,.67);cursor:pointer;white-space:nowrap}
+  .chip.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  main{padding:16px 18px 120px}
+  .card{display:block;width:100%;text-align:left;background:var(--card);
+    border:1.5px solid rgba(42,31,23,.13);border-radius:16px;padding:16px 18px;cursor:pointer;
+    box-shadow:0 2px 0 rgba(42,31,23,.06);font-family:inherit;color:var(--ink);margin-bottom:12px;transition:transform .1s}
+  .card:active{transform:scale(.98)}
+  .cat{display:inline-block;font:700 11px 'Karla';text-transform:uppercase;letter-spacing:.6px;color:var(--accent);margin-bottom:6px}
+  .name{font-family:'Fraunces',serif;font-size:19px;font-weight:600;line-height:1.2;margin-bottom:8px}
+  .meta{display:flex;gap:8px;font-size:13px;color:rgba(42,31,23,.53);font-weight:500;flex-wrap:wrap}
+  .empty{text-align:center;color:rgba(42,31,23,.4);margin-top:60px;font-size:15px;line-height:1.6}
+  .fab{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));right:max(24px,calc(50% - 296px));
+    width:58px;height:58px;border-radius:18px;background:var(--accent);color:#fff;border:none;
+    font-size:30px;cursor:pointer;box-shadow:0 6px 20px rgba(200,99,46,.35);z-index:20;transition:transform .12s}
+  .fab:active{transform:scale(.92)}
+  .overlay{position:fixed;inset:0;background:rgba(42,31,23,.4);backdrop-filter:blur(3px);
+    z-index:50;display:flex;align-items:flex-end;justify-content:center}
+  .sheet{background:var(--paper);width:100%;max-width:640px;max-height:92vh;overflow-y:auto;
+    border-radius:24px 24px 0 0;padding:20px 20px calc(32px + env(safe-area-inset-bottom));
+    animation:slideUp .28s cubic-bezier(.16,1,.3,1)}
+  @keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .detail-name{font-family:'Fraunces',serif;font-size:28px;font-weight:700;margin:4px 0 10px;line-height:1.15}
+  h3{font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--accent);margin:22px 0 10px}
+  ul,ol{padding-left:22px}
+  li{font-size:15px;line-height:1.7;margin-bottom:4px}
+  .tips{font-size:15px;line-height:1.6;background:rgba(232,161,58,.13);padding:12px 14px;border-radius:12px}
+  .actions{display:flex;gap:10px;margin-top:28px}
+  .btn-primary{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--ink);
+    color:var(--paper);border:none;border-radius:14px;padding:14px;font:700 15px 'Karla';cursor:pointer}
+  .btn-del{background:transparent;border:1.5px solid rgba(42,31,23,.16);border-radius:14px;
+    padding:14px 18px;color:#b3401f;cursor:pointer;font-size:18px}
+  label{display:block;font:700 13px 'Karla';color:rgba(42,31,23,.67);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.4px}
+  input.f,textarea.f,select.f{width:100%;padding:11px 13px;border-radius:11px;border:1.5px solid rgba(42,31,23,.13);
+    background:var(--card);font:15px 'Karla';color:var(--ink);outline:none}
+  input.f:focus,textarea.f:focus,select.f:focus{outline:2px solid var(--accent)}
+  textarea.f{resize:vertical}
+  .save{width:100%;margin-top:24px;background:var(--accent);color:#fff;border:none;border-radius:14px;
+    padding:15px;font:700 16px 'Karla';cursor:pointer}
+  .login{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;text-align:center;padding:24px;gap:16px}
+  .login h2{font-family:'Fraunces',serif;font-size:24px}
+  .login p{color:rgba(42,31,23,.6);font-size:15px;line-height:1.6;max-width:320px}
+  .gbtn{background:var(--ink);color:var(--paper);border:none;border-radius:14px;padding:14px 24px;font:700 15px 'Karla';cursor:pointer}
+  .sync{font-size:12px;color:rgba(42,31,23,.5);text-align:center;padding:6px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============================================================
+   KONFIGURATION — von Claude Code auszufüllen
+   ============================================================ */
+const GOOGLE_CLIENT_ID = "977952120262-lht1tbbinnj8kmehmvqe1dpu5gp7k8d8.apps.googleusercontent.com";
+const FILE_NAME = "rezepte.json";
+const SCOPE = "https://www.googleapis.com/auth/drive.file";
+
+const CATEGORIES = [
+  "Frühstück & Brunch","Schnelle Wochentags-Gerichte","Pasta & Nudeln",
+  "Reis & Getreide","Suppen & Eintöpfe","Salate & leichte Gerichte",
+  "Wochenend-Gerichte","Vegetarische Hauptgerichte","Deutsche Hausmannskost",
+  "Middle Eastern & Mediterran","Asiatisch inspiriert","Backen: Brot & Herzhaftes",
+  "Backen: Süßes & Kuchen","Muffins & Kleingebäck","Sourdough & Sauerteig",
+  "Grundrezepte & Basissoßen"
+];
+
+/* ---------- App-Zustand ---------- */
+let TOKEN = null, FILE_ID = null;
+let DATA = { version: 1, updated: null, recipes: [] };
+let query = "", activeCat = "Alle";
+
+/* ============================================================
+   GOOGLE DRIVE LAYER
+   ============================================================ */
+let tokenClient;
+function initGoogle() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID, scope: SCOPE,
+    callback: (resp) => { TOKEN = resp.access_token; afterLogin(); }
+  });
+}
+function login(){ tokenClient.requestAccessToken(); }
+
+async function driveFind() {
+  const q = encodeURIComponent(`name='${FILE_NAME}' and trashed=false`);
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`,
+    { headers: { Authorization: "Bearer " + TOKEN } });
+  const j = await r.json();
+  return j.files && j.files.length ? j.files[0].id : null;
+}
+async function driveRead(id) {
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`,
+    { headers: { Authorization: "Bearer " + TOKEN } });
+  return r.json();
+}
+async function driveCreate(data) {
+  const meta = { name: FILE_NAME, mimeType: "application/json" };
+  const body = new FormData();
+  body.append("metadata", new Blob([JSON.stringify(meta)], { type: "application/json" }));
+  body.append("file", new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  const r = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",
+    { method: "POST", headers: { Authorization: "Bearer " + TOKEN }, body });
+  return (await r.json()).id;
+}
+async function driveUpdate(id, data) {
+  await fetch(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`,
+    { method: "PATCH", headers: { Authorization: "Bearer " + TOKEN, "Content-Type": "application/json" },
+      body: JSON.stringify(data, null, 2) });
+}
+
+async function afterLogin() {
+  setSync("Verbinde mit Drive…");
+  FILE_ID = await driveFind();
+  if (FILE_ID) {
+    DATA = await driveRead(FILE_ID);
+  } else {
+    DATA = SEED;
+    FILE_ID = await driveCreate(DATA);
+  }
+  if (!DATA.recipes) DATA.recipes = [];
+  render(); setSync("Synchronisiert ✓");
+}
+async function save() {
+  DATA.updated = new Date().toISOString();
+  setSync("Speichere…");
+  if (FILE_ID) await driveUpdate(FILE_ID, DATA);
+  else FILE_ID = await driveCreate(DATA);
+  setSync("Synchronisiert ✓");
+}
+
+/* ============================================================
+   SEED-DATEN (erstes Rezept)
+   ============================================================ */
+const SEED = {
+  version: 1, updated: new Date().toISOString(),
+  recipes: [{
+    id: "r01", name: "Süßkartoffel-Curry mit Kichererbsen",
+    category: "Vegetarische Hauptgerichte", time: "35 Min", servings: "~4",
+    lastCooked: "Mai 2026",
+    ingredients: ["2 Süßkartoffeln, gewürfelt (~2 cm)","400g Kichererbsen (Dose, abgetropft)",
+      "400ml Kokosmilch (Dose)","400g Dosentomaten","1 Zwiebel, gewürfelt","3 Knoblauchzehen, gehackt",
+      "2 TL Curry, 1 TL Kreuzkümmel, ½ TL Chiliflocken","Salz, Pfeffer, Öl","Reis als Beilage"],
+    steps: ["Reis aufsetzen.","Öl erhitzen, Zwiebel 3–4 Min glasig braten, Knoblauch 1 Min dazu.",
+      "Gewürze einrühren, 1 Min anrösten.","Süßkartoffeln + Dosentomaten dazu, umrühren.",
+      "Deckel drauf, 12–15 Min köcheln bis Süßkartoffeln weich.",
+      "Kokosmilch + Kichererbsen einrühren, 5 Min weiterköcheln, abschmecken.","Über Reis servieren."],
+    tips: "Joghurt oder Buttermilch drüber = frischer. Gefrorene Erbsen/Spinat am Ende einrühren."
+  }]
+};
+
+/* ============================================================
+   UI / RENDER
+   ============================================================ */
+const $ = (h) => { const d = document.createElement("div"); d.innerHTML = h; return d.firstElementChild; };
+const esc = (s) => (s||"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let syncMsg = "";
+function setSync(m){ syncMsg = m; const e = document.querySelector(".sync"); if(e) e.textContent = m; }
+
+function render() {
+  const app = document.getElementById("app");
+  if (!TOKEN) { app.innerHTML = loginView(); document.querySelector(".gbtn").onclick = login; return; }
+
+  const cats = ["Alle", ...CATEGORIES.filter(c => DATA.recipes.some(r => r.category === c))];
+  const filtered = DATA.recipes.filter(r => {
+    const mc = activeCat === "Alle" || r.category === activeCat;
+    const q = query.toLowerCase();
+    const mq = !q || r.name.toLowerCase().includes(q) ||
+      (r.ingredients||[]).join(" ").toLowerCase().includes(q);
+    return mc && mq;
+  });
+
+  app.innerHTML = `
+    <header>
+      <div class="brand">
+        <div class="brand-l">
+          <span style="font-size:24px">🍳</span>
+          <div><h1>Mein Kochbuch</h1>
+          <div class="sub">${DATA.recipes.length} ${DATA.recipes.length===1?"Rezept":"Rezepte"}</div></div>
+        </div>
+        <button class="icon-btn" id="exportBtn" title="Export">⬇️</button>
+      </div>
+      <div class="search-wrap">
+        <span>🔍</span>
+        <input id="search" placeholder="Suchen nach Name oder Zutat…" value="${esc(query)}" />
+      </div>
+      <div class="chips">
+        ${cats.map(c=>`<button class="chip ${activeCat===c?'active':''}" data-cat="${esc(c)}">${esc(c==="Alle"?"Alle":c.split(":")[0].split(" & ")[0].split(" ")[0])}</button>`).join("")}
+      </div>
+    </header>
+    <main>
+      ${filtered.length===0
+        ? `<p class="empty">Noch keine Rezepte hier.<br>Tippe auf + um eins hinzuzufügen.</p>`
+        : filtered.map(r=>`
+          <button class="card" data-id="${r.id}">
+            <div class="cat">${esc(r.category)}</div>
+            <div class="name">${esc(r.name)}</div>
+            <div class="meta">${r.time?`⏱ ${esc(r.time)}`:""} ${r.lastCooked?`· ${esc(r.lastCooked)}`:""}</div>
+          </button>`).join("")}
+    </main>
+    <div class="sync">${esc(syncMsg)}</div>
+    <button class="fab" id="addBtn">+</button>
+  `;
+
+  document.getElementById("search").oninput = (e)=>{ query=e.target.value; renderListOnly(); };
+  document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{ activeCat=b.dataset.cat; render(); });
+  document.querySelectorAll(".card").forEach(b=>b.onclick=()=>openDetail(b.dataset.id));
+  document.getElementById("addBtn").onclick = openForm;
+  document.getElementById("exportBtn").onclick = exportMd;
+}
+function renderListOnly(){ render(); document.getElementById("search").focus();
+  const i=document.getElementById("search"); i.setSelectionRange(i.value.length,i.value.length); }
+
+function loginView(){
+  return `<div class="login">
+    <span style="font-size:48px">🍳</span>
+    <h2>Mein Kochbuch</h2>
+    <p>Melde dich mit Google an. Deine Rezepte werden sicher in deinem Google Drive gespeichert und über alle Geräte synchronisiert.</p>
+    <button class="gbtn">Mit Google anmelden</button>
+  </div>`;
+}
+
+function openDetail(id){
+  const r = DATA.recipes.find(x=>x.id===id); if(!r) return;
+  const ov = $(`<div class="overlay"></div>`);
+  ov.innerHTML = `<div class="sheet">
+    <div class="sheet-head"><span class="cat">${esc(r.category)}</span><button class="icon-btn close">✕</button></div>
+    <div class="detail-name">${esc(r.name)}</div>
+    <div class="meta">${r.time?`⏱ ${esc(r.time)}`:""} ${r.servings?`· 🍽 ${esc(r.servings)}`:""}</div>
+    ${r.lastCooked?`<p style="font-size:13px;color:rgba(42,31,23,.5);font-style:italic;margin-top:4px">Zuletzt gekocht: ${esc(r.lastCooked)}</p>`:""}
+    ${r.ingredients&&r.ingredients.length?`<h3>Zutaten</h3><ul>${r.ingredients.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>`:""}
+    ${r.steps&&r.steps.length?`<h3>Zubereitung</h3><ol>${r.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>`:""}
+    ${r.tips?`<h3>Tipps</h3><p class="tips">${esc(r.tips)}</p>`:""}
+    <div class="actions">
+      <button class="btn-primary cooked">✓ Heute gekocht</button>
+      <button class="btn-del del">🗑</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.onclick=(e)=>{ if(e.target===ov) close(); };
+  ov.querySelector(".close").onclick=close;
+  ov.querySelector(".cooked").onclick=async()=>{
+    r.lastCooked=new Date().toLocaleDateString("de-DE",{month:"long",year:"numeric"});
+    await save(); close(); render();
+  };
+  ov.querySelector(".del").onclick=async()=>{
+    if(!confirm("Rezept wirklich löschen?"))return;
+    DATA.recipes=DATA.recipes.filter(x=>x.id!==id); await save(); close(); render();
+  };
+}
+
+function openForm(){
+  const ov = $(`<div class="overlay"></div>`);
+  ov.innerHTML = `<div class="sheet">
+    <div class="sheet-head"><span class="cat">Neues Rezept</span><button class="icon-btn close">✕</button></div>
+    <label>Name</label><input class="f" id="f-name" placeholder="z.B. Linsensuppe" />
+    <label>Kategorie</label><select class="f" id="f-cat">${CATEGORIES.map(c=>`<option>${esc(c)}</option>`).join("")}</select>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label>Zeit</label><input class="f" id="f-time" placeholder="25 Min" /></div>
+      <div style="flex:1"><label>Portionen</label><input class="f" id="f-serv" value="~4" /></div>
+    </div>
+    <label>Zutaten (eine pro Zeile)</label><textarea class="f" id="f-ing" rows="5"></textarea>
+    <label>Zubereitung (ein Schritt pro Zeile)</label><textarea class="f" id="f-steps" rows="5"></textarea>
+    <label>Tipps (optional)</label><textarea class="f" id="f-tips" rows="2"></textarea>
+    <button class="save">Speichern</button>
+  </div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.onclick=(e)=>{ if(e.target===ov) close(); };
+  ov.querySelector(".close").onclick=close;
+  ov.querySelector(".save").onclick=async()=>{
+    const name=ov.querySelector("#f-name").value.trim();
+    if(!name){ alert("Name fehlt"); return; }
+    DATA.recipes.unshift({
+      id:"r"+Date.now(), name,
+      category:ov.querySelector("#f-cat").value,
+      time:ov.querySelector("#f-time").value.trim(),
+      servings:ov.querySelector("#f-serv").value.trim(),
+      lastCooked:"",
+      ingredients:ov.querySelector("#f-ing").value.split("\n").map(s=>s.trim()).filter(Boolean),
+      steps:ov.querySelector("#f-steps").value.split("\n").map(s=>s.trim()).filter(Boolean),
+      tips:ov.querySelector("#f-tips").value.trim()
+    });
+    await save(); close(); render();
+  };
+}
+
+function exportMd(){
+  let md="# 📖 Rezept-Datenbank\n\n";
+  CATEGORIES.forEach(cat=>{
+    const items=DATA.recipes.filter(r=>r.category===cat);
+    if(!items.length)return;
+    md+=`## ${cat}\n\n`;
+    items.forEach(r=>{
+      md+=`### ${r.name}\n**Zeit:** ${r.time||"—"} | **Portionen:** ${r.servings||"—"} | **Zuletzt:** ${r.lastCooked||"—"}\n\n`;
+      md+=`#### Zutaten\n${(r.ingredients||[]).map(i=>"- "+i).join("\n")}\n\n`;
+      md+=`#### Zubereitung\n${(r.steps||[]).map((s,i)=>`${i+1}. ${s}`).join("\n")}\n\n`;
+      if(r.tips)md+=`#### Tipps\n${r.tips}\n\n`;
+    });
+  });
+  navigator.clipboard.writeText(md).then(()=>alert("Markdown in Zwischenablage kopiert!"));
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+window.onload = () => {
+  render(); // zeigt Login
+  if (typeof google !== "undefined") initGoogle();
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+};
+</script>
+<script src="https://accounts.google.com/gsi/client" onload="initGoogle()" async defer></script>
+</body>
+</html>
