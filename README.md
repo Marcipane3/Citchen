@@ -78,3 +78,19 @@ Bewusst noch nicht gebaut, weil sie eine Datenmodell-Änderung oder mehr Aufwand
 - **Wochenplan** — Rezepte auf Wochentage legen.
 - **Import aus URL** — Rezept von einer Webseite einlesen/parsen.
 - **Prep- vs. Kochzeit** getrennt, Schwierigkeitsgrad, freie Tags neben den 16 Kategorien.
+- **„Swipe/Tinder"-Entdeckungsmodus** — Karten-Stapel mit großem Bild + Kurzinfos (Zeit,
+  Kategorie, Bewertung) unten; nach rechts/links wischen, um ein Gericht zum Kochen zu finden.
+  Rechts = „heute kochen" (öffnet Rezept/Kochmodus), links = nächstes. Optional Filter
+  (vegetarisch, schnell, Favorit) als Quelle für den Stapel.
+
+### Kochmodus — mögliche Upgrades (Backlog)
+Der aktuelle Kochmodus (Vollbild, abhakbare Zutaten/Schritte, Bildschirm bleibt an) funktioniert.
+Mögliche Erweiterungen:
+- **Schritt-für-Schritt-Pager** — nur ein großer Schritt sichtbar, „Weiter/Zurück" bzw. wischen
+  (weniger Scrollen mit teigigen Händen), Fortschrittsbalken.
+- **Timer pro Schritt** — Zeitangaben im Schritt erkennen und einen Countdown-Button anbieten
+  (z.B. „12 Min köcheln" → tippen startet Timer mit Signal).
+- **Portionen im Kochmodus skalieren** (hängt am Portions-Rechner oben).
+- **Hands-free** — Vorlesen der Schritte / Sprachsteuerung „nächster Schritt".
+- **Zutaten-Referenz einklappbar** beim Scrollen durch die Schritte immer griffbereit.
+- **Abgehakter Fortschritt merken**, bis das Gericht fertig ist (überlebt versehentliches Schließen).
