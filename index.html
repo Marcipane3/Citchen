@@ -198,6 +198,53 @@
   .cat-item.just-added{transform:scale(.93);border-color:var(--accent)}
   .ci-badge{position:absolute;top:-7px;right:-7px;background:var(--accent);color:#fff;border-radius:11px;
     min-width:22px;height:22px;font:700 12px 'Karla';display:flex;align-items:center;justify-content:center;padding:0 5px}
+  /* Zutaten -> Einkaufsliste */
+  .add-ing-shop{width:100%;margin-top:6px}
+  /* ---- Koch-Match (Swipe-Entdeckung) ---- */
+  .match-stack{position:relative;background:linear-gradient(135deg,#e8a13a,#c8632e);color:#fff;border:none;
+    border-radius:14px;padding:8px 12px;font:700 14px 'Karla';cursor:pointer;display:flex;align-items:center;gap:6px;
+    box-shadow:0 3px 10px rgba(200,99,46,.35)}
+  .match-stack .ms-count{background:#fff;color:var(--accent);border-radius:10px;min-width:20px;height:20px;
+    display:flex;align-items:center;justify-content:center;font:700 12px 'Karla';padding:0 5px}
+  .swipe-wrap{padding:8px 18px 30px}
+  .swipe-deck{position:relative;height:60vh;max-height:540px;margin:6px auto 0}
+  .scard{position:absolute;inset:0;border-radius:24px;overflow:hidden;background:#2a1f17;
+    box-shadow:0 10px 30px rgba(42,31,23,.25);will-change:transform;touch-action:pan-y;cursor:grab}
+  .scard.behind{transform:scale(.94) translateY(14px);filter:brightness(.95);pointer-events:none}
+  .scard-img{position:absolute;inset:0;background:#e9dcc6 center/cover no-repeat;display:flex;
+    align-items:center;justify-content:center;font-size:88px}
+  .scard-img.has-img,.match-thumb.has-img{font-size:0}
+  .scard-grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.8) 0%,rgba(0,0,0,.2) 46%,rgba(0,0,0,0) 72%)}
+  .scard-badges{position:absolute;top:14px;left:14px;display:flex;gap:6px;flex-wrap:wrap;max-width:84%}
+  .sb{font:700 11px 'Karla';text-transform:uppercase;letter-spacing:.5px;color:#fff;background:rgba(0,0,0,.42);
+    backdrop-filter:blur(4px);padding:6px 10px;border-radius:20px}
+  .sb.kind{background:rgba(232,161,58,.95)}
+  .scard-info{position:absolute;left:18px;right:18px;bottom:18px;color:#fff}
+  .scard-name{font-family:'Fraunces',serif;font-size:26px;font-weight:700;line-height:1.15;margin-bottom:6px;text-shadow:0 2px 8px rgba(0,0,0,.45)}
+  .scard-meta{font:600 14px 'Karla';opacity:.96;display:flex;gap:12px;flex-wrap:wrap;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+  .scard-meta .st{color:var(--accent2)}
+  .scard-stamp{position:absolute;top:34px;font:800 26px 'Karla';letter-spacing:2px;padding:6px 16px;
+    border:4px solid;border-radius:12px;opacity:0;text-transform:uppercase;pointer-events:none}
+  .scard-stamp.like{left:22px;color:#2e7d32;border-color:#2e7d32;transform:rotate(-16deg)}
+  .scard-stamp.nope{right:22px;color:#c0392b;border-color:#c0392b;transform:rotate(16deg)}
+  .swipe-actions{display:flex;justify-content:center;align-items:center;gap:20px;margin-top:20px}
+  .sw-btn{width:62px;height:62px;border-radius:50%;border:none;font-size:26px;cursor:pointer;
+    box-shadow:0 4px 14px rgba(42,31,23,.18);display:flex;align-items:center;justify-content:center;
+    background:var(--card);transition:transform .12s}
+  .sw-btn:active{transform:scale(.9)}
+  .sw-btn.nope{color:#c0392b}
+  .sw-btn.like{color:#fff;background:linear-gradient(135deg,#ff7a45,#c8632e);font-size:28px}
+  .sw-btn.undo{width:48px;height:48px;font-size:19px;color:rgba(42,31,23,.55)}
+  .swipe-hint{text-align:center;font:600 12px 'Karla';color:rgba(42,31,23,.45);margin-top:14px}
+  .swipe-empty{text-align:center;padding:50px 20px;color:rgba(42,31,23,.6);display:flex;flex-direction:column;align-items:center}
+  .swipe-empty h3{color:var(--accent);margin:0 0 6px}
+  .match-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(42,31,23,.08);cursor:pointer}
+  .match-thumb{width:56px;height:56px;border-radius:12px;background:#e9dcc6 center/cover no-repeat;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:26px}
+  .match-info{flex:1;min-width:0}
+  .match-info .mn{font-family:'Fraunces',serif;font-size:17px;font-weight:600;line-height:1.15}
+  .match-info .mm{font:600 12px 'Karla';color:rgba(42,31,23,.55);margin-top:3px}
+  .match-rm{background:none;border:none;color:#b3401f;font-size:16px;cursor:pointer;padding:6px;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -210,7 +257,7 @@
 const GOOGLE_CLIENT_ID = "977952120262-lht1tbbinnj8kmehmvqe1dpu5gp7k8d8.apps.googleusercontent.com";
 const FILE_NAME = "rezepte.json";
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
-const BUILD = "2026-05-31-shopping";  // zur Versions-Kontrolle (unten in der App sichtbar)
+const BUILD = "2026-06-01-swipe";  // zur Versions-Kontrolle (unten in der App sichtbar)
 
 const CATEGORIES = [
   "Frühstück & Brunch","Schnelle Wochentags-Gerichte","Pasta & Nudeln",
@@ -298,6 +345,30 @@ function shopAdd(name, cat, icon){
   if(it){ it.qty++; it.done=false; }
   else SHOP.push({ name, cat:cat||"Sonstiges", icon:icon||"🛒", qty:1, done:false });
   saveShopping();
+}
+/* Versucht, einer Rezept-Zutat (Freitext) eine Katalog-Kategorie + Icon zuzuordnen,
+   damit die übernommenen Zutaten in der Liste sinnvoll gruppiert sind. */
+function ingMatchCat(text){
+  const low=(text||"").toLowerCase();
+  for(const sec of CATALOG){
+    for(const it of sec.items){
+      const base=it.name.toLowerCase().replace(/\s*\(.*?\)\s*/g," ").trim();
+      if(base.length>=3 && low.includes(base)) return { cat:sec.name, icon:it.icon||sec.icon };
+    }
+  }
+  return null;
+}
+/* Übernimmt alle Zutaten eines Rezepts (mit Originaltext inkl. Mengen) in die Einkaufsliste. */
+function addRecipeIngredients(r){
+  SHOP = loadShopping();
+  let n=0;
+  (r.ingredients||[]).forEach(txt=>{
+    const t=(txt||"").trim(); if(!t) return;
+    const m=ingMatchCat(t);
+    shopAdd(t, m?m.cat:"Aus Rezepten", m?m.icon:"🍳");
+    n++;
+  });
+  return n;
 }
 
 /* ============================================================
@@ -615,6 +686,7 @@ function openMenu(){
   ov.innerHTML = `<div class="sheet">
     <div class="sheet-head"><span class="cat">Menü</span><button class="icon-btn close">✕</button></div>
     <button class="menu-item ${appView==="recipes"?"on":""}" data-go="recipes">📖 Rezepte</button>
+    <button class="menu-item ${appView==="swipe"?"on":""}" data-go="swipe">🔥 Koch-Match (Swipe)</button>
     <button class="menu-item ${appView==="shopping"?"on":""}" data-go="shopping">🛒 Einkaufsliste</button>
     <button class="menu-item" data-go="export">⬇️ Rezepte als Markdown exportieren</button>
   </div>`;
@@ -626,6 +698,7 @@ function openMenu(){
   ov.querySelectorAll(".menu-item").forEach(b=>b.onclick=()=>{
     const go=b.dataset.go; close();
     if(go==="recipes") render();
+    else if(go==="swipe") renderSwipe();
     else if(go==="shopping") renderShopping();
     else if(go==="export") exportMd();
   });
@@ -745,6 +818,191 @@ function paintCatalog(){
   });
 }
 
+/* ============================================================
+   KOCH-MATCH — Swipe-Entdeckung (Tinder-Stil)
+   ============================================================ */
+let swipeOrder=[], swipeIdx=0, swipeMatches=[], swipeHistory=[];
+function loadMatches(){ try{ const a=JSON.parse(localStorage.getItem("kb_matches")||"[]"); return a.filter(id=>DATA.recipes.some(r=>r.id===id)); }catch(e){ return []; } }
+function saveMatches(){ try{ localStorage.setItem("kb_matches", JSON.stringify(swipeMatches)); }catch(e){} }
+function shuffleArr(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+/* Wochentags- vs. Wochenend-Gericht aus Zeit/Kategorie ableiten (für das Karten-Badge). */
+function dishKind(r){
+  const m=parseMinutes(r.time);
+  const wkCat=["Wochenend-Gerichte","Backen: Süßes & Kuchen","Sourdough & Sauerteig","Backen: Brot & Herzhaftes"].includes(r.category);
+  if(wkCat || (m && m>40)) return { label:"Wochenende", icon:"🍷" };
+  return { label:"Wochentags", icon:"⚡" };
+}
+
+function renderSwipe(){
+  appView="swipe";
+  swipeMatches=loadMatches();
+  swipeHistory=[];
+  swipeOrder=shuffleArr(DATA.recipes.filter(r=>!swipeMatches.includes(r.id)).map(r=>r.id));
+  swipeIdx=0;
+  const app=document.getElementById("app");
+  app.innerHTML=`
+    <header>
+      <div class="brand">
+        <div class="brand-l">
+          <span style="font-size:24px">🔥</span>
+          <div><h1>Koch-Match</h1><div class="sub">Swipe dich durch deine Rezepte</div></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="match-stack" id="matchStack" title="Deine Matches">🔥 <span class="ms-count">0</span></button>
+          <button class="icon-btn menu-btn" id="menuBtn" title="Menü">☰</button>
+        </div>
+      </div>
+    </header>
+    <main class="swipe-wrap">
+      <div class="swipe-deck" id="deck"></div>
+      <div class="swipe-actions" id="swipeActions">
+        <button class="sw-btn undo" id="swUndo" title="Zurück">↩︎</button>
+        <button class="sw-btn nope" id="swNope" title="Nö">✕</button>
+        <button class="sw-btn like" id="swLike" title="Lecker!">🔥</button>
+      </div>
+      <div class="swipe-hint">Nach rechts wischen = Match · nach links = weiter</div>
+    </main>
+    <div class="build">Build ${esc(BUILD)}</div>`;
+  document.getElementById("menuBtn").onclick=openMenu;
+  document.getElementById("matchStack").onclick=openMatches;
+  paintSwipe();
+}
+
+function updateStackBadge(){ const c=document.querySelector(".ms-count"); if(c) c.textContent=swipeMatches.length; }
+
+function scardHTML(r, behind){
+  const k=dishKind(r);
+  const hasImg=(r.photos&&r.photos.length)||r.image;
+  return `<div class="scard ${behind?"behind":""}" data-id="${r.id}">
+    <div class="scard-img" data-hero="${r.id}">${hasImg?"":"🍽"}</div>
+    <div class="scard-grad"></div>
+    <div class="scard-badges">
+      <span class="sb cat">${esc(r.category)}</span>
+      <span class="sb kind">${k.icon} ${k.label}</span>
+    </div>
+    <div class="scard-info">
+      <div class="scard-name">${esc(r.name)}</div>
+      <div class="scard-meta">
+        ${r.time?`<span>⏱ ${esc(r.time)}</span>`:""}
+        ${r.rating?`<span class="st">${"★".repeat(r.rating)}</span>`:""}
+        <span>🥗 ${(r.ingredients||[]).length} Zutaten</span>
+      </div>
+    </div>
+    <div class="scard-stamp like">Lecker</div>
+    <div class="scard-stamp nope">Nö</div>
+  </div>`;
+}
+
+function paintSwipe(){
+  const deck=document.getElementById("deck"); if(!deck) return;
+  updateStackBadge();
+  const sa=document.getElementById("swipeActions");
+  if(swipeIdx>=swipeOrder.length){
+    if(sa) sa.style.display="none";
+    deck.innerHTML=`<div class="swipe-empty">
+      <h3>Alles durchgeswipt! 🎉</h3>
+      <p>${swipeMatches.length} Match${swipeMatches.length===1?"":"es"} in deinem Stapel.</p>
+      <button class="btn-primary" id="swShowMatches" style="margin-top:16px">🔥 Matches ansehen</button>
+      <button class="btn-sec" id="swRestart" style="margin-top:10px">↻ Nochmal von vorn</button>
+    </div>`;
+    const sm=document.getElementById("swShowMatches"); if(sm) sm.onclick=openMatches;
+    const sr=document.getElementById("swRestart"); if(sr) sr.onclick=()=>{
+      swipeOrder=shuffleArr(DATA.recipes.map(r=>r.id)); swipeIdx=0; swipeHistory=[]; paintSwipe();
+    };
+    return;
+  }
+  if(sa) sa.style.display="";
+  const cur=DATA.recipes.find(x=>x.id===swipeOrder[swipeIdx]);
+  const nextId=swipeOrder[swipeIdx+1];
+  const next=nextId?DATA.recipes.find(x=>x.id===nextId):null;
+  deck.innerHTML=(next?scardHTML(next,true):"")+(cur?scardHTML(cur,false):"");
+  hydrateImages(deck);
+  const top=deck.querySelector(".scard:not(.behind)");
+  if(top) attachDrag(top);
+  document.getElementById("swUndo").onclick=undoSwipe;
+  document.getElementById("swNope").onclick=()=>buttonSwipe("nope");
+  document.getElementById("swLike").onclick=()=>buttonSwipe("like");
+}
+
+function attachDrag(card){
+  let startX=0,dx=0,dragging=false;
+  const like=card.querySelector(".scard-stamp.like"), nope=card.querySelector(".scard-stamp.nope");
+  card.onpointerdown=(e)=>{ dragging=true; startX=e.clientX; dx=0; try{card.setPointerCapture(e.pointerId);}catch(_){ } card.style.transition="none"; };
+  card.onpointermove=(e)=>{ if(!dragging)return;
+    dx=e.clientX-startX;
+    card.style.transform=`translate(${dx}px, ${Math.abs(dx)*0.06}px) rotate(${dx/18}deg)`;
+    const o=Math.min(Math.abs(dx)/120,1);
+    if(dx>0){ like.style.opacity=o; nope.style.opacity=0; } else { nope.style.opacity=o; like.style.opacity=0; }
+  };
+  const end=()=>{ if(!dragging)return; dragging=false;
+    card.style.transition="transform .32s cubic-bezier(.16,1,.3,1), opacity .32s ease-out";
+    if(Math.abs(dx)>110){ flyOut(card, dx>0?"like":"nope"); }
+    else { card.style.transform=""; like.style.opacity=0; nope.style.opacity=0; }
+    dx=0;
+  };
+  card.onpointerup=end; card.onpointercancel=end;
+}
+function flyOut(card, dir){
+  card.style.transition="transform .3s ease-out, opacity .3s ease-out";
+  const x=(dir==="like"?1:-1)*((window.innerWidth||420)+200);
+  card.style.transform=`translate(${x}px, -40px) rotate(${dir==="like"?26:-26}deg)`;
+  card.style.opacity="0";
+  setTimeout(()=>commitSwipe(dir), 250);
+}
+function buttonSwipe(dir){
+  const deck=document.getElementById("deck"); if(!deck){ return; }
+  const top=deck.querySelector(".scard:not(.behind)");
+  if(!top){ commitSwipe(dir); return; }
+  flyOut(top, dir);
+}
+function commitSwipe(dir){
+  const id=swipeOrder[swipeIdx];
+  if(dir==="like" && id && !swipeMatches.includes(id)){ swipeMatches.push(id); saveMatches(); }
+  swipeHistory.push({ id, dir });
+  swipeIdx++;
+  paintSwipe();
+}
+function undoSwipe(){
+  const last=swipeHistory.pop();
+  if(!last) return;
+  swipeIdx=Math.max(0, swipeIdx-1);
+  if(last.dir==="like"){ swipeMatches=swipeMatches.filter(x=>x!==last.id); saveMatches(); }
+  paintSwipe();
+}
+
+/* Goldener Stapel: Matches mit Bild + Kurzinfo; Tippen öffnet das volle Rezept (wie ein Tinder-Profil). */
+function openMatches(){
+  const ov=$(`<div class="overlay"></div>`);
+  const list=swipeMatches.map(id=>DATA.recipes.find(r=>r.id===id)).filter(Boolean);
+  ov.innerHTML=`<div class="sheet">
+    <div class="sheet-head"><span class="cat">🔥 Deine Matches (${list.length})</span><button class="icon-btn close">✕</button></div>
+    ${list.length ? list.map(r=>{
+      const hasImg=(r.photos&&r.photos.length)||r.image; const k=dishKind(r);
+      return `<div class="match-row" data-id="${r.id}">
+        <div class="match-thumb" data-hero="${r.id}">${hasImg?"":"🍽"}</div>
+        <div class="match-info"><div class="mn">${esc(r.name)}</div>
+          <div class="mm">${esc(r.category)} · ${k.icon} ${k.label}${r.time?` · ⏱ ${esc(r.time)}`:""}${r.rating?` · ${"★".repeat(r.rating)}`:""}</div></div>
+        <button class="match-rm" data-rm="${r.id}" title="Entfernen">✕</button>
+      </div>`;
+    }).join("") : `<p class="empty" style="margin-top:30px">Noch keine Matches.<br>Swipe Rezepte nach rechts.</p>`}
+  </div>`;
+  document.body.appendChild(ov);
+  const isArmed=armSheet(ov); const close=()=>ov.remove();
+  ov.onclick=(e)=>{ if(isArmed() && e.target===ov) close(); };
+  ov.querySelector(".close").onclick=close;
+  hydrateImages(ov);
+  ov.querySelectorAll(".match-row").forEach(row=>row.onclick=(e)=>{
+    if(e.target.closest(".match-rm")) return;
+    close(); openDetail(row.dataset.id);
+  });
+  ov.querySelectorAll(".match-rm").forEach(b=>b.onclick=(e)=>{
+    e.stopPropagation();
+    swipeMatches=swipeMatches.filter(x=>x!==b.dataset.rm); saveMatches();
+    close(); updateStackBadge(); openMatches();
+  });
+}
+
 function loginView(){
   return `<div class="login">
     <span style="font-size:48px">🍳</span>
@@ -776,7 +1034,8 @@ function openDetail(id){
     ${r.photos&&r.photos.length?`<div class="photostrip">${r.photos.map(p=>`
       <div class="ph"><div class="thumb" data-photo="${p.id}"></div><button class="rm" data-rm="${p.id}">✕</button></div>`).join("")}</div>`:""}
 
-    ${r.ingredients&&r.ingredients.length?`<h3>Zutaten</h3><ul>${r.ingredients.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>`:""}
+    ${r.ingredients&&r.ingredients.length?`<h3>Zutaten</h3><ul>${r.ingredients.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>
+      <button class="btn-sec add-ing-shop">🛒 Zutaten zur Einkaufsliste</button>`:""}
     ${r.steps&&r.steps.length?`<h3>Zubereitung</h3><ol>${r.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>`:""}
     ${r.tips?`<h3>Tipps</h3><p class="tips">${esc(r.tips)}</p>`:""}
 
@@ -856,6 +1115,14 @@ function openDetail(id){
     btn.disabled=true; btn.textContent="✓ Gespeichert!";
     await save();
     setTimeout(()=>{ if(btn.isConnected){ btn.disabled=false; btn.textContent="Notiz speichern"; } }, 1600);
+  };
+
+  // Zutaten auf die Einkaufsliste übernehmen
+  const addIngBtn = ov.querySelector(".add-ing-shop");
+  if(addIngBtn) addIngBtn.onclick=()=>{
+    const n = addRecipeIngredients(r);
+    if(!n){ alert("Keine Zutaten zum Übernehmen."); return; }
+    if(confirm(`${n} ${n===1?"Zutat":"Zutaten"} zur Einkaufsliste hinzugefügt.\nZur Liste wechseln?`)){ close(); renderShopping(); }
   };
 
   // Aktionen

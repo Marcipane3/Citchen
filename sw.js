@@ -1,6 +1,6 @@
 // Service Worker — cached die App-Hülle, damit sie installierbar & offline-fähig ist.
 // Daten (rezepte.json) liegen in Drive und werden NICHT hier gecacht (immer frisch).
-const CACHE = "kochbuch-v8";
+const CACHE = "kochbuch-v9";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {
