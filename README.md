@@ -19,6 +19,12 @@ direkt aktualisieren.
   (Kategorien + Artikel mit Icons). Artikel antippen = +1 Menge (Badge zeigt Anzahl), Suchfeld,
   Freitextfeld für Eigenes. Liste nach Gängen gruppiert, abhakbar, Mengen ±. **Speicherung lokal
   (localStorage) — pro Gerät, noch keine Geräte-Synchronisation** (siehe Roadmap).
+- **Zutaten → Einkaufsliste** — Button im Rezept übernimmt alle Zutaten (mit Mengen) in die Liste,
+  passend nach Supermarkt-Gang gruppiert.
+- **Koch-Match** (Swipe-Entdeckung, über das ☰-Menü): Tinder-artiger Kartenstapel — großes Bild plus
+  Kategorie, Wochentags/Wochenende-Badge, Sterne, Zeit und Zutatenzahl. Nach rechts wischen = Match,
+  nach links = weiter (oder die Buttons), Undo möglich. Der goldene Match-Stapel oben rechts sammelt
+  alle „Ja"-Karten (in localStorage gemerkt); Antippen öffnet das volle Rezept.
 
 ## Dateien
 | Datei | Zweck |
@@ -81,14 +87,12 @@ Bewusst noch nicht gebaut, weil sie eine Datenmodell-Änderung oder mehr Aufwand
 - **Einkaufsliste-Sync über Geräte** — aktuell lokal (localStorage). Optional: in eine eigene
   Drive-Datei `einkaufsliste.json` schreiben (wie `rezepte.json`), damit Handy & Laptop dieselbe
   Liste sehen. Trade-off: Drive-Schreibzugriff pro Änderung → ggf. mit Entprellung/lokalem Cache.
-- **Zutaten aus Rezept → Einkaufsliste** — Button im Rezept, der die Zutaten in die Liste übernimmt.
 - **Wochenplan** — Rezepte auf Wochentage legen.
 - **Import aus URL** — Rezept von einer Webseite einlesen/parsen.
 - **Prep- vs. Kochzeit** getrennt, Schwierigkeitsgrad, freie Tags neben den 16 Kategorien.
-- **„Swipe/Tinder"-Entdeckungsmodus** — Karten-Stapel mit großem Bild + Kurzinfos (Zeit,
-  Kategorie, Bewertung) unten; nach rechts/links wischen, um ein Gericht zum Kochen zu finden.
-  Rechts = „heute kochen" (öffnet Rezept/Kochmodus), links = nächstes. Optional Filter
-  (vegetarisch, schnell, Favorit) als Quelle für den Stapel.
+- **Vorrats-/Stock-Tracking** — was zu Hause vorrätig ist, um es auf der Karte/Liste anzuzeigen
+  (aktuell nur Wochentags/Wochenende-Badge aus der Zeit, kein echtes Vorratsmodell).
+- **Koch-Match-Filter** — den Swipe-Stapel nach vegetarisch/schnell/Favorit vorfiltern.
 
 ### KI-Feedback zum Rezept (Backlog)
 - **AI-Kommentarfeld pro Rezept** — ein Freitextfeld, in das man schreibt, was am Rezept
