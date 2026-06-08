@@ -20,7 +20,7 @@
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "updated": "2026-05-31T12:00:00.000Z",
   "recipes": [ ... ]
 }
@@ -28,13 +28,20 @@
 
 | Feld | Typ | Beschreibung |
 |------|-----|--------------|
-| `version` | number | Schema-Version. Aktuell `2`. |
+| `version` | number | Schema-Version. Aktuell `3`. |
 | `updated` | string (ISO 8601) | Zeitpunkt der letzten Änderung. Bei jedem Schreiben aktualisieren. |
 | `recipes` | array | Liste der Rezept-Objekte. |
 
 > **v1 → v2:** Alle neuen Felder (`rating`, `favorite`, `cookedCount`, `image`, `photos`, `feedback`)
 > sind **optional**. Alte v1-Rezepte ohne diese Felder funktionieren weiter — die App
-> ergänzt fehlende Werte beim Laden mit Standardwerten und schreibt `version: 2` zurück.
+> ergänzt fehlende Werte beim Laden mit Standardwerten und schreibt `version: 3` zurück.
+>
+> **v2 → v3:** Reichere Metadaten als **optionale** Felder ergänzt (`effort`, `difficulty`,
+> `cuisine`, `prepTime`, `cookTime`, `totalTime`, `mealPrep`, `toTry`, `season`, `tags`).
+> Alte Rezepte ohne diese Felder funktionieren unverändert — die App zeigt Badges/Filter nur,
+> wenn die Felder vorhanden sind. `ingredients`/`steps` bleiben **flache String-Arrays**,
+> `tips` bleibt **ein String**, `servings`/`time` bleiben **Strings** (Anzeige). Die neuen
+> Zeit-Felder sind **Zahlen** (Minuten) für Filter/Sortierung; `time` bleibt der Anzeige-String.
 
 ## Rezept-Objekt
 
@@ -71,9 +78,28 @@
 | `image` | string | nein | **URL** zu einem Titelbild (z.B. ein Bild aus dem Web). Claude darf das setzen. |
 | `photos` | object[] | nein | Eigene Foto-Uploads des Nutzers. **App-verwaltet — Claude NICHT anfassen** (siehe unten). |
 | `feedback` | string | nein | Freitext-Notiz des Nutzers an Claude (siehe „KI-Feedback" unten). Standard `""`. |
-| `ingredients` | string[] | nein | Array, eine Zutat pro Eintrag. |
+| `ingredients` | string[] | nein | Array, eine Zutat pro Eintrag. Nicht-Vorrats-Zutaten mit `🛒` markiert (s.u.). |
 | `steps` | string[] | nein | Array, ein Schritt pro Eintrag. |
-| `tips` | string | nein | Freitext. |
+| `tips` | string | nein | Freitext (ein String). Konvention: ausführlich, mit Toppings, Swap und Alltags-Upgrade. |
+| `effort` | string | nein | `"alltag"` (schnell, Wochentags) oder `"besonders"` (aufwändiger). Treibt einen App-Filter. |
+| `difficulty` | string | nein | `"einfach"` \| `"mittel"` \| `"aufwändig"`. |
+| `cuisine` | string | nein | Küche, z.B. `"Italienisch"`, `"Middle Eastern"`, `"Deutsch"`, `"Asiatisch"`, `"Mediterran"`. |
+| `prepTime` | number | nein | Vorbereitungszeit in Minuten. |
+| `cookTime` | number | nein | Koch-/Backzeit in Minuten. |
+| `totalTime` | number | nein | Gesamtzeit in Minuten (inkl. Geh-/Ruhe-/Kühlzeit). |
+| `mealPrep` | boolean | nein | `true`, wenn ~4 Tage haltbar / gut aufwärmbar. Treibt einen App-Filter. |
+| `toTry` | boolean | nein | `true` bei neuen, noch nie gekochten Ideen. Treibt einen App-Filter. |
+| `season` | string | nein | Saison, falls relevant, z.B. `"Herbst"`, `"Sommer"`. |
+| `tags` | string[] | nein | Freie Schlagworte (z.B. `["bowl","mealprep","scharf"]`). |
+
+### Vorrat vs. „neu kaufen": die `🛒`-Konvention (wichtig für Claude)
+Zutaten, die **nicht** auf der Vorratsliste des Nutzers stehen (`Projektwissen1.md` →
+„Vorratsliste"), bekommen am **Ende des Strings** ein ` 🛒` angehängt, z.B.
+`"2 Knoblauchzehen, gehackt 🛒"`. Vorrats-Zutaten bleiben unmarkiert. Als „vorhanden" gelten
+nur die Vorratsliste **plus** selbstverständliche Basics (Öl, Wasser, Salz). Gewürze: nur
+Salz, Pfeffer, Paprika, Kreuzkümmel/Cumin, Curry, Chiliflocken, Rosmarin, Muskat, Zimt gelten
+als vorhanden — alles andere (Vanille, Oregano, Kurkuma, Kardamom …) ist `🛒`. Die App rendert
+das ` 🛒` einfach mit; der Einkaufslisten-Button übernimmt die Zutat samt Marker.
 
 ### Bilder: `image` vs. `photos` — wichtig für Claude
 Es gibt **zwei getrennte** Bildmechanismen:
