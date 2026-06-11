@@ -1,0 +1,16 @@
+{
+  "name": "Koch — Mein Kochbuch",
+  "short_name": "Koch",
+  "description": "Persönliches Kochbuch: Rezepte, Kochmodus, Wochenplan, Einkaufsliste — offline-first",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6efe3",
+  "theme_color": "#c8632e",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

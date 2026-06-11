@@ -1,0 +1,87 @@
+/* tokens.css — Design-Tokens. Warm-papierne Identität aus v1, plus Dark Theme.
+   Theme-Steuerung: html[data-theme="light"|"dark"], Default folgt dem System. */
+
+:root {
+  /* Farben (hell — v1-Identität) */
+  --accent: #c8632e;
+  --accent-2: #e8a13a;
+  --ink: #2a1f17;
+  --paper: #f6efe3;
+  --card: #fffaf2;
+  --line: rgba(42, 31, 23, 0.13);
+  --line-soft: rgba(42, 31, 23, 0.07);
+  --muted: rgba(42, 31, 23, 0.55);
+  --muted-strong: rgba(42, 31, 23, 0.67);
+  --danger: #b3401f;
+  --ok: #2e7d32;
+  --shadow: 0 2px 0 rgba(42, 31, 23, 0.06);
+  --overlay: rgba(42, 31, 23, 0.4);
+  --texture: radial-gradient(rgba(42, 31, 23, 0.03) 1px, transparent 1px);
+
+  /* Badges */
+  --badge-bg: rgba(42, 31, 23, 0.07);
+  --badge-fg: rgba(42, 31, 23, 0.7);
+  --badge-alltag-bg: rgba(76, 154, 107, 0.16);
+  --badge-alltag-fg: #3a7a52;
+  --badge-besonders-bg: rgba(232, 161, 58, 0.18);
+  --badge-besonders-fg: #a9701a;
+  --badge-prep-bg: rgba(91, 140, 200, 0.15);
+  --badge-prep-fg: #3f6aa0;
+  --badge-totry-bg: rgba(200, 91, 140, 0.15);
+  --badge-totry-fg: #a03f6a;
+  --tips-bg: rgba(232, 161, 58, 0.13);
+
+  /* Typografie */
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Karla", "Segoe UI", system-ui, sans-serif;
+
+  /* Maße */
+  --radius-s: 10px;
+  --radius-m: 14px;
+  --radius-l: 18px;
+  --radius-xl: 24px;
+  --maxw: 640px;
+  --pad: 18px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --accent: #e07a3e;
+    --accent-2: #e8a13a;
+    --ink: #f0e7da;
+    --paper: #211a14;
+    --card: #2c241c;
+    --line: rgba(240, 231, 218, 0.16);
+    --line-soft: rgba(240, 231, 218, 0.08);
+    --muted: rgba(240, 231, 218, 0.6);
+    --muted-strong: rgba(240, 231, 218, 0.72);
+    --danger: #e0654a;
+    --ok: #58a05c;
+    --shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+    --overlay: rgba(0, 0, 0, 0.55);
+    --texture: radial-gradient(rgba(240, 231, 218, 0.03) 1px, transparent 1px);
+    --badge-bg: rgba(240, 231, 218, 0.1);
+    --badge-fg: rgba(240, 231, 218, 0.75);
+    --tips-bg: rgba(232, 161, 58, 0.16);
+  }
+}
+
+:root[data-theme="dark"] {
+  --accent: #e07a3e;
+  --accent-2: #e8a13a;
+  --ink: #f0e7da;
+  --paper: #211a14;
+  --card: #2c241c;
+  --line: rgba(240, 231, 218, 0.16);
+  --line-soft: rgba(240, 231, 218, 0.08);
+  --muted: rgba(240, 231, 218, 0.6);
+  --muted-strong: rgba(240, 231, 218, 0.72);
+  --danger: #e0654a;
+  --ok: #58a05c;
+  --shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+  --overlay: rgba(0, 0, 0, 0.55);
+  --texture: radial-gradient(rgba(240, 231, 218, 0.03) 1px, transparent 1px);
+  --badge-bg: rgba(240, 231, 218, 0.1);
+  --badge-fg: rgba(240, 231, 218, 0.75);
+  --tips-bg: rgba(232, 161, 58, 0.16);
+}
