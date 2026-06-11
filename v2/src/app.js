@@ -13,6 +13,7 @@ import { renderShopping } from "./features/shopping/shopping.js";
 import { renderPlanner } from "./features/planner/planner.js";
 import { renderAssistant } from "./features/assistant/assistant.js";
 import { renderSettings } from "./features/settings/settings.js";
+import { renderCapture } from "./features/capture/capture.js";
 import { initTheme } from "./data/settings.js";
 import { closeAllSheets } from "./ui/sheet.js";
 import { esc } from "./ui/helpers.js";
@@ -51,6 +52,7 @@ async function boot() {
   router.register("shopping", () => mount("shopping", renderShopping));
   router.register("planner", () => mount("planner", renderPlanner));
   router.register("assistant", () => mount("assistant", renderAssistant));
+  router.register("capture", () => mount("capture", renderCapture));
   router.register("settings", () => mount("settings", renderSettings));
   router.setNotFound(() => router.navigate("cookbook"));
   router.start();

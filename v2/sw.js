@@ -6,7 +6,7 @@
 //  - Fonts (fonts.googleapis.com / fonts.gstatic.com): cache-first zur Laufzeit,
 //    damit die Typo auch offline stimmt.
 
-const CACHE = "koch-v2-phase3-1";
+const CACHE = "koch-v2-phase4-1";
 
 const SHELL = [
   "./",
@@ -49,6 +49,9 @@ const SHELL = [
   "./src/ai/client.js",
   "./src/ai/prompts.js",
   "./src/ai/parse.js",
+  "./src/flags.js",
+  "./src/features/capture/capture.js",
+  "./src/features/capture/parse.js",
   "./data/rezepte.snapshot.json",
 ];
 

@@ -14,6 +14,7 @@ const ITEMS = [
   { go: "shopping", icon: "🛒", label: "Einkaufsliste" },
   { go: "planner", icon: "🗓", label: "Wochenplan" },
   { go: "assistant", icon: "✨", label: "KI-Assistent" },
+  { go: "capture", icon: "📸", label: "Rezept erfassen (Foto/URL)", tag: "Vorschau" },
   { go: "settings", icon: "⚙️", label: "Einstellungen" },
   { go: "__export", icon: "⬇️", label: "Rezepte als Markdown exportieren" },
 ];
@@ -27,7 +28,7 @@ export function openMenu(current) {
     <div class="sheet-head"><span class="cat-label">Menü</span><button class="icon-btn close">✕</button></div>
     ${ITEMS.map((it) => `
       <button class="menu-item ${current === it.go ? "on" : ""}" data-go="${it.go}" ${it.soon ? "disabled style='opacity:.55'" : ""}>
-        ${it.icon} ${it.label}${it.soon ? `<span class="soon">${it.soon}</span>` : ""}
+        ${it.icon} ${it.label}${it.soon ? `<span class="soon">${it.soon}</span>` : ""}${it.tag ? `<span class="soon">${it.tag}</span>` : ""}
       </button>`).join("")}
     ${driveItem}
   `;

@@ -7,14 +7,20 @@ import { esc, makeListEditor } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "./detail.js";
 
-export function openForm(existing) {
-  const ed = existing || null;
+/**
+ * Neues Rezept / Bearbeiten / Entwurf prüfen.
+ * draft=true: existing füllt nur die Felder vor (Review-vor-Speichern,
+ * z.B. aus der Erfassung) — gespeichert wird als NEUES Rezept via addRecipe.
+ */
+export function openForm(existing, { draft = false } = {}) {
+  const prefill = existing || null;       // füllt die Felder
+  const ed = draft ? null : prefill;      // nur echte Rezepte werden aktualisiert
 
   const html = `
-    <div class="sheet-head"><span class="cat-label">${ed ? "Rezept bearbeiten" : "Neues Rezept"}</span><button class="icon-btn close">✕</button></div>
+    <div class="sheet-head"><span class="cat-label">${draft ? "Rezept-Entwurf prüfen" : ed ? "Rezept bearbeiten" : "Neues Rezept"}</span><button class="icon-btn close">✕</button></div>
     <label>Name</label><input class="f" id="f-name" placeholder="z.B. Linsensuppe" />
     <label>Kategorie</label>
-    <select class="f" id="f-cat">${CATEGORIES.map((c) => `<option ${ed && ed.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
+    <select class="f" id="f-cat">${CATEGORIES.map((c) => `<option ${prefill && prefill.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
     <div style="display:flex;gap:10px">
       <div style="flex:1"><label>Zeit</label><input class="f" id="f-time" placeholder="25 Min" /></div>
       <div style="flex:1"><label>Portionen</label><input class="f" id="f-serv" value="~4" /></div>
@@ -42,21 +48,21 @@ export function openForm(existing) {
 
   const { el, close } = openSheet(html);
 
-  if (ed) {
-    el.querySelector("#f-name").value = ed.name || "";
-    el.querySelector("#f-time").value = ed.time || "";
-    el.querySelector("#f-serv").value = ed.servings || "";
-    el.querySelector("#f-image").value = ed.image || "";
-    el.querySelector("#f-tips").value = ed.tips || "";
-    el.querySelector("#f-effort").value = ed.effort || "";
-    el.querySelector("#f-diff").value = ed.difficulty || "";
-    el.querySelector("#f-cuisine").value = ed.cuisine || "";
-    el.querySelector("#f-season").value = ed.season || "";
-    el.querySelector("#f-mealprep").checked = !!ed.mealPrep;
-    el.querySelector("#f-totry").checked = !!ed.toTry;
+  if (prefill) {
+    el.querySelector("#f-name").value = prefill.name || "";
+    el.querySelector("#f-time").value = prefill.time || "";
+    el.querySelector("#f-serv").value = prefill.servings || "";
+    el.querySelector("#f-image").value = prefill.image || "";
+    el.querySelector("#f-tips").value = prefill.tips || "";
+    el.querySelector("#f-effort").value = prefill.effort || "";
+    el.querySelector("#f-diff").value = prefill.difficulty || "";
+    el.querySelector("#f-cuisine").value = prefill.cuisine || "";
+    el.querySelector("#f-season").value = prefill.season || "";
+    el.querySelector("#f-mealprep").checked = !!prefill.mealPrep;
+    el.querySelector("#f-totry").checked = !!prefill.toTry;
   }
-  const getIng = makeListEditor(el.querySelector("#f-ing"), ed ? ed.ingredients : [], "z.B. 2 Eier", false);
-  const getSteps = makeListEditor(el.querySelector("#f-steps"), ed ? ed.steps : [], "Schritt beschreiben…", true);
+  const getIng = makeListEditor(el.querySelector("#f-ing"), prefill ? prefill.ingredients : [], "z.B. 2 Eier", false);
+  const getSteps = makeListEditor(el.querySelector("#f-steps"), prefill ? prefill.steps : [], "Schritt beschreiben…", true);
 
   let submitting = false;
   const saveBtn = el.querySelector(".save-btn");
@@ -91,8 +97,9 @@ export function openForm(existing) {
         close();
         openDetail(ed.id); // v1-Verhalten: zurück zur Rezeptansicht
       } else {
-        await addRecipe(fields);
+        const saved = await addRecipe(fields);
         close();
+        if (draft) openDetail(saved.id); // Review-Flow: das Ergebnis direkt zeigen
       }
     } catch (err) {
       submitting = false;
