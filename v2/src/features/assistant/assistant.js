@@ -9,14 +9,14 @@ import * as gate from "../../ai/gate.js";
 import { complete, AiError } from "../../ai/client.js";
 import { buildSystemPrompt, suggestUserPrompt, leftoverUserPrompt, generateUserPrompt, elaborateUserPrompt } from "../../ai/prompts.js";
 import { extractJson, coerceRecipe, coerceSuggestions } from "../../ai/parse.js";
-import { getStaples } from "../../data/settings.js";
+import { getStaples, getProfile } from "../../data/settings.js";
 import { esc } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "../cookbook/detail.js";
 import { openMenu } from "../menu.js";
 import { navigate } from "../../router.js";
 import { BUILD } from "../../version.js";
-import { t } from "../../i18n.js";
+import { t, getLang } from "../../i18n.js";
 
 let history = [];   // [{role, content}] — API-Verlauf (Session, nicht persistiert)
 let chatLog = [];   // gerenderte Einträge {who:"user"|"ai", html}
@@ -111,9 +111,9 @@ async function ask(container, displayText, apiPrompt) {
   container.querySelector("#ai-busy").style.display = "";
 
   try {
-    const [staples, { getFridge }] = await Promise.all([getStaples(), import("../../data/lager.js")]);
+    const [staples, profile, { getFridge }] = await Promise.all([getStaples(), getProfile(), import("../../data/lager.js")]);
     const fridge = await getFridge();
-    const system = buildSystemPrompt({ recipes: state.recipes, staples, fridge });
+    const system = buildSystemPrompt({ recipes: state.recipes, staples, fridge, profile, lang: getLang() });
     history.push({ role: "user", content: apiPrompt });
     if (history.length > 12) history = history.slice(-12); // Verlauf begrenzen
     const { text } = await complete({ system, messages: history });

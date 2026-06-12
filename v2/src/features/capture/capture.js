@@ -4,8 +4,10 @@
 import * as gate from "../../ai/gate.js";
 import { VISION_MODEL } from "../../ai/client.js";
 import { AiError } from "../../ai/client.js";
-import { parseCapture, draftFromInput, CaptureDisabledError, CaptureParseError } from "./parse.js";
+import { parseCapture, draftFromInput, parseBulk, CaptureDisabledError, CaptureParseError } from "./parse.js";
 import { esc } from "../../ui/helpers.js";
+import { addRecipe } from "../../store.js";
+import { getTotalMinutes } from "../../data/derive.js";
 import { openForm } from "../cookbook/form.js";
 import { openMenu } from "../menu.js";
 import { navigate } from "../../router.js";
@@ -47,11 +49,23 @@ export function renderCapture(container) {
       </div>
 
       <div class="card set-card">
+        <h3>${t("capture.bulkHeading")}</h3>
+        <p class="set-note">${t("capture.bulkBody")}</p>
+        <textarea class="f" id="cap-bulk" rows="5" placeholder="${t("capture.bulkPlaceholder")}"></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn-primary" id="cap-bulk-text">${t("capture.bulkFromText")}</button>
+          <button class="btn-sec" id="cap-bulk-gen">${t("capture.bulkGenerate")}</button>
+        </div>
+        <div id="cap-bulk-review"></div>
+      </div>
+
+      <div class="card set-card">
         <h3>${t("capture.manualHeading")}</h3>
         <p class="set-note">${t("capture.manualBody")}</p>
         <button class="btn-sec" id="cap-manual" style="width:100%">${t("capture.manualBtn")}</button>
       </div>
 
+      <div id="cap-busy"></div>
       <p class="set-note" id="cap-status" style="text-align:center"></p>
     </main>
     <div class="build-line">Build ${esc(BUILD)}</div>`;
@@ -59,7 +73,9 @@ export function renderCapture(container) {
   container.querySelector("#menuBtn").onclick = () => openMenu("capture");
   const status = container.querySelector("#cap-status");
   const preview = container.querySelector("#cap-preview");
+  const busy = container.querySelector("#cap-busy");
   const photoAnalyzeBtn = container.querySelector("#cap-photo-analyze");
+  const urlInput = container.querySelector("#cap-url");
 
   function requireKey() {
     if (gate.isPremium()) return true;
@@ -67,16 +83,42 @@ export function renderCapture(container) {
     return false;
   }
 
+  // A2: sichtbarer Arbeits-Zustand (Spinner + zweistufiger Text).
+  let buildTimer = null;
+  function showBusy(text) {
+    busy.innerHTML = `<div class="cap-busy"><div class="spinner"></div><div><div class="cap-busy-text">${esc(text)}</div><div class="cap-busy-sub">${t("capture.analyzing")}</div></div></div>`;
+  }
+  function hideBusy() {
+    if (buildTimer) { clearTimeout(buildTimer); buildTimer = null; }
+    busy.innerHTML = "";
+  }
+
+  // A1: nach Speichern/Abbruch ist die Erfassung ein sauberes Blatt.
+  function resetCaptureUI() {
+    photoFile = null;
+    preview.innerHTML = "";
+    photoAnalyzeBtn.style.display = "none";
+    if (urlInput) urlInput.value = "";
+    hideBusy();
+    status.textContent = "";
+  }
+
   async function runParse(input, btn) {
     if (!requireKey()) return;
     const label = btn.textContent;
     btn.disabled = true;
-    status.textContent = t("capture.analyzing");
+    status.textContent = "";
+    showBusy(t("capture.reading"));
+    // Nach kurzer Zeit auf „baue zusammen“ wechseln — fühlt sich responsiv an
+    // (beides passiert real innerhalb des einen Vision-Aufrufs).
+    buildTimer = setTimeout(() => showBusy(t("capture.building")), 1600);
     try {
       const draft = await parseCapture(input);
+      resetCaptureUI();                  // A1: Vorschau/Foto/URL zurücksetzen
       status.textContent = t("capture.gotRecipe");
-      openForm(draft, { draft: true }); // Review-vor-Speichern
+      openForm(draft, { draft: true });  // Review-vor-Speichern
     } catch (e) {
+      hideBusy();
       if (e instanceof CaptureDisabledError) {
         status.textContent = "🟡 " + e.message;
       } else if (e instanceof AiError && e.kind === "auth") {
@@ -117,4 +159,61 @@ export function renderCapture(container) {
 
   // Manuell
   container.querySelector("#cap-manual").onclick = () => openForm(draftFromInput({}), { draft: true });
+
+  /* ---------- C1: Mehrere Rezepte auf einmal ---------- */
+  const bulkInput = container.querySelector("#cap-bulk");
+  const bulkReview = container.querySelector("#cap-bulk-review");
+
+  async function runBulk({ generate }, btn) {
+    if (!requireKey()) return;
+    const text = bulkInput.value.trim();
+    if (!generate && !text) { status.textContent = t("capture.bulkNeedsText"); return; }
+    bulkReview.innerHTML = "";
+    btn.disabled = true;
+    showBusy(generate ? t("capture.building") : t("capture.reading"));
+    try {
+      const recipes = await parseBulk({ text, generate, wish: generate ? text : "", count: 6 });
+      hideBusy();
+      renderBulkReview(recipes);
+    } catch (e) {
+      hideBusy();
+      if (e instanceof CaptureDisabledError) status.textContent = "🟡 " + e.message;
+      else if (e instanceof AiError && e.kind === "auth") status.innerHTML = `⚠️ ${esc(e.message)} <a href="#/settings">${t("nav.settings")}</a>`;
+      else status.textContent = t("capture.parseFailed", { e: e.message });
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function renderBulkReview(recipes) {
+    bulkReview.innerHTML = `
+      <p class="set-note" style="margin-top:12px">${t("capture.bulkReview", { n: recipes.length })}</p>
+      <div id="bulk-list">${recipes.map((r, i) => {
+        const mins = getTotalMinutes(r);
+        return `<label class="bulk-row">
+          <input type="checkbox" class="bulk-cb" data-i="${i}" checked />
+          <span class="bulk-meta"><span class="bulk-name">${esc(r.name)}</span>
+          <span class="bulk-sub">${esc(r.category)}${mins ? " · " + mins + " Min" : ""} · ${r.ingredients.length} Zutaten</span></span>
+          <button type="button" class="btn-sec bulk-edit" data-i="${i}">${t("capture.bulkEdit")}</button>
+        </label>`;
+      }).join("")}</div>
+      <button class="btn-primary" id="bulk-save" style="width:100%;margin-top:10px">${t("capture.bulkSave")}</button>`;
+
+    bulkReview.querySelectorAll(".bulk-edit").forEach((b) => {
+      b.onclick = (e) => { e.preventDefault(); openForm(recipes[+b.dataset.i], { draft: true }); };
+    });
+    bulkReview.querySelector("#bulk-save").onclick = async (e) => {
+      const picked = [...bulkReview.querySelectorAll(".bulk-cb")].filter((c) => c.checked).map((c) => recipes[+c.dataset.i]);
+      if (!picked.length) { status.textContent = t("capture.bulkNonePicked"); return; }
+      e.currentTarget.disabled = true;
+      let saved = 0;
+      for (const r of picked) { try { await addRecipe(r); saved++; } catch (_) { /* skip */ } }
+      bulkReview.innerHTML = "";
+      bulkInput.value = "";
+      status.textContent = t("capture.bulkSaved", { n: saved });
+    };
+  }
+
+  container.querySelector("#cap-bulk-text").onclick = (e) => runBulk({ generate: false }, e.currentTarget);
+  container.querySelector("#cap-bulk-gen").onclick = (e) => runBulk({ generate: true }, e.currentTarget);
 }

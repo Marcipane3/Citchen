@@ -11,13 +11,18 @@ import { BUILD } from "../../version.js";
 import { t } from "../../i18n.js";
 
 const LIST_ID = "current";
+const SORT_KEY = "shopSort"; // E2: "aisle" | "alpha"
 let ITEMS = [];           // [{name, amount, unit, cat, icon, qty, done}]
 let search = "";
 let openSection = null;
+let sortMode = "aisle";   // E2: Sortierung der Liste
+let undoSnapshot = null;  // E1: zuletzt geleerte Liste, für „Rückgängig"
+let undoTimer = null;
 
 async function load() {
   const row = await db.get("lists", LIST_ID);
   ITEMS = row && Array.isArray(row.items) ? row.items : [];
+  sortMode = await db.kvGet(SORT_KEY, "aisle");
 }
 function save() {
   db.put("lists", { id: LIST_ID, items: ITEMS, updated: new Date().toISOString() }).catch(() => {});
@@ -90,30 +95,54 @@ function paintList(container) {
   if (sub) sub.textContent = ITEMS.length ? (doneCount ? t("shopping.openDone", { n: openCount, d: doneCount }) : t("shopping.open", { n: openCount })) : t("shopping.empty");
 
   if (!ITEMS.length) {
-    el.innerHTML = `<p class="empty">${t("shopping.emptyList")}</p>`;
+    const undoBar = undoSnapshot
+      ? `<div class="sl-undo">${t("shopping.cleared")} <button class="sl-undo-btn">${t("shopping.undo")}</button></div>`
+      : "";
+    el.innerHTML = undoBar + `<p class="empty">${t("shopping.emptyList")}</p>`;
+    const ub = el.querySelector(".sl-undo-btn");
+    if (ub) ub.onclick = () => {
+      if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
+      ITEMS = undoSnapshot; undoSnapshot = null; save();
+      paintList(container); paintCatalog(container);
+    };
     return;
   }
 
-  const cats = [...new Set(ITEMS.map((x) => x.cat))].sort((a, b) => {
-    const ia = SECTION_ORDER.indexOf(a), ib = SECTION_ORDER.indexOf(b);
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-  });
+  // E2: data-i bleibt IMMER der Original-Index in ITEMS (Handler mutieren per Index).
+  // Erledigte rutschen innerhalb der Anzeige nach unten.
+  const rowHTML = (it, i) => {
+    const hasAmount = it.amount !== null && it.amount !== undefined;
+    return `<div class="sl-item ${it.done ? "done" : ""}">
+      <span class="sl-ic">${it.icon || "🛒"}</span>
+      <span class="sl-name" data-i="${i}">${esc(itemLabel(it))}</span>
+      <div class="sl-ctrl">
+        ${hasAmount ? "" : `<button class="sl-dec" data-i="${i}">−</button><span class="sl-qty">${it.qty}</span><button class="sl-inc" data-i="${i}">+</button>`}
+        <button class="sl-rm" data-i="${i}">✕</button>
+      </div>
+    </div>`;
+  };
 
-  let html = `<div class="sl-top"><div class="sl-title">${t("shopping.myList")}</div>${doneCount ? `<button class="sl-clear">${t("shopping.clearDone")}</button>` : ""}</div>`;
-  for (const cat of cats) {
-    html += `<div class="sl-cat">${sectionIcon(cat)} ${esc(cat)}</div>`;
-    ITEMS.forEach((it, i) => {
-      if (it.cat !== cat) return;
-      const hasAmount = it.amount !== null && it.amount !== undefined;
-      html += `<div class="sl-item ${it.done ? "done" : ""}">
-        <span class="sl-ic">${it.icon || "🛒"}</span>
-        <span class="sl-name" data-i="${i}">${esc(itemLabel(it))}</span>
-        <div class="sl-ctrl">
-          ${hasAmount ? "" : `<button class="sl-dec" data-i="${i}">−</button><span class="sl-qty">${it.qty}</span><button class="sl-inc" data-i="${i}">+</button>`}
-          <button class="sl-rm" data-i="${i}">✕</button>
-        </div>
-      </div>`;
+  const sortBar = `<div class="sl-sort">
+    <button class="sl-sortbtn ${sortMode === "aisle" ? "on" : ""}" data-sort="aisle">${t("shopping.sortAisle")}</button>
+    <button class="sl-sortbtn ${sortMode === "alpha" ? "on" : ""}" data-sort="alpha">${t("shopping.sortAlpha")}</button>
+  </div>`;
+  let html = `<div class="sl-top"><div class="sl-title">${t("shopping.myList")}</div><div class="sl-actions">${doneCount ? `<button class="sl-clear">${t("shopping.clearDone")}</button>` : ""}<button class="sl-clear-all">${t("shopping.clearAll")}</button></div></div>${sortBar}`;
+
+  const indexed = ITEMS.map((it, i) => ({ it, i }));
+  if (sortMode === "alpha") {
+    indexed.sort((a, b) => (a.it.done - b.it.done) || a.it.name.localeCompare(b.it.name));
+    html += indexed.map(({ it, i }) => rowHTML(it, i)).join("");
+  } else {
+    const cats = [...new Set(ITEMS.map((x) => x.cat))].sort((a, b) => {
+      const ia = SECTION_ORDER.indexOf(a), ib = SECTION_ORDER.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
     });
+    for (const cat of cats) {
+      html += `<div class="sl-cat">${sectionIcon(cat)} ${esc(cat)}</div>`;
+      html += indexed.filter(({ it }) => it.cat === cat)
+        .sort((a, b) => a.it.done - b.it.done)
+        .map(({ it, i }) => rowHTML(it, i)).join("");
+    }
   }
   el.innerHTML = html;
 
@@ -135,8 +164,20 @@ function paintList(container) {
   el.querySelectorAll(".sl-rm").forEach((b) => {
     b.onclick = () => { ITEMS.splice(+b.dataset.i, 1); save(); paintList(container); paintCatalog(container); };
   });
+  el.querySelectorAll(".sl-sortbtn").forEach((b) => {
+    b.onclick = () => { sortMode = b.dataset.sort; db.kvSet(SORT_KEY, sortMode).catch(() => {}); paintList(container); };
+  });
   const clr = el.querySelector(".sl-clear");
   if (clr) clr.onclick = () => { ITEMS = ITEMS.filter((x) => !x.done); save(); paintList(container); paintCatalog(container); };
+  const clrAll = el.querySelector(".sl-clear-all");
+  if (clrAll) clrAll.onclick = () => {
+    if (!ITEMS.length) return;
+    undoSnapshot = ITEMS;            // E1: für „Rückgängig" merken
+    ITEMS = []; save();
+    if (undoTimer) clearTimeout(undoTimer);
+    undoTimer = setTimeout(() => { undoSnapshot = null; undoTimer = null; paintList(container); }, 6000);
+    paintList(container); paintCatalog(container);
+  };
 }
 
 function catItemHTML(name, cat, icon) {

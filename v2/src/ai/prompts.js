@@ -5,6 +5,24 @@
 import { CATEGORIES } from "../data/schema.js";
 import { getTotalMinutes } from "../data/derive.js";
 
+// A3: Koch-Profil — früher im System-Prompt hartkodiert, jetzt nutzereditierbar
+// (Settings → data/settings.js). Diese Defaults sind Marcels Ausgangswerte; sie
+// halten den Prompt unverändert, wenn niemand etwas anpasst. Pur & dep-frei,
+// damit prompts.js testbar bleibt (settings.js importiert sie von hier).
+export const DEFAULT_PROFILE = {
+  level: "Anfänger bis Mittelstufe, pragmatisch",
+  diet: "Hauptsächlich vegetarisch (Eier/Fisch ok, kein Fleisch im Regelkauf)",
+  servings: "~4",
+  weekday: "Schnell, 20–30 Min",
+  weekend: "Aufwendiger, Experimente, Backen",
+  shopping: "Dänische Supermärkte + Middle-Eastern-Bazaars",
+  equipment: "Herd, Backofen, Mikrowelle, Mixer, Reiskocher",
+  spices: "Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt",
+  notes: "",
+};
+
+const LANG_NAMES = { de: "Deutsch", en: "Englisch", es: "Spanisch", da: "Dänisch" };
+
 /** Kompakte Sammlung-Übersicht: eine Zeile pro Rezept (id|Name|Kategorie|…). */
 export function buildCollectionContext(recipes) {
   return recipes.map((r) => {
@@ -20,28 +38,29 @@ export function buildCollectionContext(recipes) {
   }).join("\n");
 }
 
-export function buildSystemPrompt({ recipes, staples, fridge = [] }) {
+export function buildSystemPrompt({ recipes, staples, fridge = [], profile = DEFAULT_PROFILE, lang = "de" }) {
+  const p = { ...DEFAULT_PROFILE, ...(profile || {}) };
+  const langName = LANG_NAMES[lang] || "Deutsch";
   const fridgeLine = fridge.length
     ? `\n\nFRISCH IM KÜHLSCHRANK (jetzt verfügbar — bevorzugt verwerten):\n${fridge.map((f) => f.menge ? `${f.name} (${f.menge})` : f.name).join(", ")}`
     : "";
-  return `Du bist der Koch-Assistent in Marcels persönlicher Kochbuch-App (Kopenhagen).
+  return `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
 
 KOCH-PROFIL:
-- Anfänger bis Mittelstufe, pragmatisch. Kocht hauptsächlich vegetarisch (Eier/Fisch ok, kein Fleisch im Regelkauf).
-- Immer ~4 Portionen (Reste werden über mehrere Tage gegessen).
-- Wochentags: schnell, 20–30 Min. Wochenende: aufwendiger, Experimente, Backen.
-- Zugang zu dänischen Supermärkten + Middle-Eastern-Bazaars.
-- Ausstattung: Herd, Backofen, Mikrowelle, Mixer, Reiskocher. Kein Spezialgerät voraussetzen.
-
+- ${p.level}. ${p.diet}.
+- Immer ${p.servings} Portionen (Reste werden über mehrere Tage gegessen).
+- Wochentags: ${p.weekday}. Wochenende: ${p.weekend}.
+${p.shopping ? `- Einkauf: ${p.shopping}.\n` : ""}- Ausstattung: ${p.equipment}. Kein Spezialgerät voraussetzen.
+${p.notes ? `- ${p.notes}\n` : ""}
 VORRAT (immer da — alles andere muss gekauft werden):
 ${(staples || []).join(", ")}
-Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.${fridgeLine}
+Gewürze nur: ${p.spices}. Andere Gewürze gelten als zu kaufen.${fridgeLine}
 
 KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
 ${buildCollectionContext(recipes)}
 
 REGELN:
-1. Antworte IMMER auf Deutsch, kurz und klar.
+1. Antworte IMMER auf ${langName}, kurz und klar.
 2. Antworte mit GENAU EINEM JSON-Objekt (ohne Markdown-Zaun, ohne Text davor/danach):
    - Vorschläge: {"type":"suggestions","intro":"1 Satz","items":[{"id":"r… oder null","name":"…","reason":"1 Satz"}]} — 3 bis 5 Stück. "id" nur, wenn das Rezept WIRKLICH im Kochbuch steht (exakte id aus der Liste). Neue Ideen: id=null.
    - Vollrezept: {"type":"recipe","intro":"1 Satz","recipe":{…}} — Schema unten.

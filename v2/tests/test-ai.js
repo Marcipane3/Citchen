@@ -154,6 +154,29 @@ test("buildSystemPrompt: Deutsch, Vorrat, 16 Kategorien, JSON-Regeln", () => {
   assert(sys.includes("🛒"));
 });
 
+test("buildSystemPrompt: Profil-Felder + Sprache werden eingespeist (A3)", () => {
+  const sys = buildSystemPrompt({
+    recipes: R.slice(0, 2), staples: ["Reis"], lang: "en",
+    profile: { diet: "Vegan, keine Eier", spices: "nur Salz", servings: "~2" },
+  });
+  assert(sys.includes("Vegan, keine Eier"), "Diät-Feld fehlt");
+  assert(sys.includes("nur Salz"), "Gewürz-Feld fehlt");
+  assert(sys.includes("~2 Portionen"), "Portionen-Feld fehlt");
+  assert(sys.includes("IMMER auf Englisch"), "Sprachzeile fehlt");
+  assert(!sys.includes("Marcels persönlicher"), "alter hartkodierter Text noch da");
+});
+
+test("buildBulkPrompt: Text-Modus vs. Generieren, recipes-Array, 16 Kategorien (C1)", async () => {
+  const { buildBulkPrompt } = await import("../src/features/capture/parse.js");
+  const fromText = buildBulkPrompt({ generate: false });
+  assert(fromText.includes("Extrahiere ALLE Rezepte"));
+  assert(fromText.includes('"recipes"'));
+  assert(fromText.includes("Grundrezepte & Basissoßen"));
+  const gen = buildBulkPrompt({ generate: true, wish: "schnelle Pasta", count: 4 });
+  assert(gen.includes("Erfinde 4"));
+  assert(gen.includes("schnelle Pasta"));
+});
+
 test("suggestUserPrompt: Wochentag vs. Wochenende", () => {
   assert(suggestUserPrompt({ isWeekend: false }).includes("Wochentag"));
   assert(suggestUserPrompt({ isWeekend: true }).includes("Wochenende"));

@@ -6,7 +6,7 @@ import * as gate from "../../ai/gate.js";
 import { testKey, AiError } from "../../ai/client.js";
 import * as drive from "../../data/drive.js";
 import * as sync from "../../data/sync.js";
-import { getTheme, setTheme } from "../../data/settings.js";
+import { getTheme, setTheme, getProfile, setProfile, resetProfile } from "../../data/settings.js";
 import { esc } from "../../ui/helpers.js";
 import { openMenu } from "../menu.js";
 import { navigate } from "../../router.js";
@@ -49,6 +49,27 @@ export function renderSettings(container) {
       </div>
 
       <div class="card set-card">
+        <h3>${t("settings.profileHeading")}</h3>
+        <p class="set-note">${t("settings.profileNote")}</p>
+        <label>${t("settings.profileLevel")}</label><input class="f" id="prof-level" />
+        <label>${t("settings.profileDiet")}</label><input class="f" id="prof-diet" />
+        <label>${t("settings.profileServings")}</label><input class="f" id="prof-servings" />
+        <div style="display:flex;gap:10px">
+          <div style="flex:1"><label>${t("settings.profileWeekday")}</label><input class="f" id="prof-weekday" /></div>
+          <div style="flex:1"><label>${t("settings.profileWeekend")}</label><input class="f" id="prof-weekend" /></div>
+        </div>
+        <label>${t("settings.profileShopping")}</label><input class="f" id="prof-shopping" />
+        <label>${t("settings.profileEquipment")}</label><input class="f" id="prof-equipment" />
+        <label>${t("settings.profileSpices")}</label><textarea class="f" id="prof-spices" rows="2"></textarea>
+        <label>${t("settings.profileNotes")}</label><textarea class="f" id="prof-notes" rows="2"></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn-primary" id="prof-save">${t("settings.profileSave")}</button>
+          <button class="btn-sec" id="prof-reset">${t("settings.profileReset")}</button>
+        </div>
+        <p class="set-note" id="prof-status"></p>
+      </div>
+
+      <div class="card set-card">
         <h3>${t("settings.driveHeading")}</h3>
         <p class="set-note">${t("settings.driveNote")}</p>
         <p id="drive-status" style="font-weight:600;margin-bottom:10px"></p>
@@ -84,6 +105,23 @@ export function renderSettings(container) {
   container.querySelector("#menuBtn").onclick = () => openMenu("settings");
   container.querySelector("#open-lager").onclick = () => navigate("lager");
   container.querySelector("#open-guide").onclick = () => navigate("guide");
+
+  /* ---------- Koch-Profil (A3) ---------- */
+  const PROF_FIELDS = ["level", "diet", "servings", "weekday", "weekend", "shopping", "equipment", "spices", "notes"];
+  const profStatus = container.querySelector("#prof-status");
+  const fillProfile = (p) => PROF_FIELDS.forEach((k) => { const el = container.querySelector("#prof-" + k); if (el) el.value = p[k] || ""; });
+  getProfile().then(fillProfile);
+  container.querySelector("#prof-save").onclick = async () => {
+    const p = {};
+    PROF_FIELDS.forEach((k) => { p[k] = container.querySelector("#prof-" + k).value; });
+    fillProfile(await setProfile(p));
+    profStatus.textContent = t("settings.profileSaved");
+  };
+  container.querySelector("#prof-reset").onclick = async () => {
+    if (!confirm(t("settings.profileReset") + "?")) return;
+    fillProfile(await resetProfile());
+    profStatus.textContent = t("settings.profileResetDone");
+  };
 
   /* ---------- KI / Key ---------- */
   const keyInput = container.querySelector("#set-key");

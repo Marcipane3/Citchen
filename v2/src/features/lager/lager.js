@@ -10,6 +10,7 @@ import { openMenu } from "../menu.js";
 import { BUILD } from "../../version.js";
 import { t } from "../../i18n.js";
 import * as store from "../../data/lager.js";
+import { CATALOG, ingMatchCat } from "../shopping/catalog.js";
 import {
   togglePantry, addPantryItem, removePantryItem, groupPantry,
   addFridgeItem, removeFridgeItem, mergeFridge, PANTRY_CATEGORIES,
@@ -17,6 +18,14 @@ import {
 
 let pantry = [];
 let fridge = [];
+let openCatSection = null; // D1: aufgeklappter Katalog-Gang im Kühlschrank
+
+/** Icon für einen Frischware-Namen: gespeichert → Katalog-Treffer → Default. */
+function fridgeIcon(f) {
+  if (f.icon) return f.icon;
+  const m = ingMatchCat(f.name);
+  return (m && m.icon) || "🧊";
+}
 
 export function renderLager(container) {
   container.innerHTML = `
@@ -52,6 +61,10 @@ export function renderLager(container) {
         <button class="photo-add" id="fridge-scan" style="margin-top:14px">${t("lager.scan")}</button>
         <p class="set-note">${t("lager.scanHint")}</p>
         <div id="scan-area"></div>
+
+        <h3 style="margin-top:18px">${t("lager.catalogHeading")}</h3>
+        <p class="set-note">${t("lager.catalogHint")}</p>
+        <div id="fridge-catalog"></div>
       </div>
     </main>
     <div class="build-line">Build ${esc(BUILD)}</div>`;
@@ -62,6 +75,7 @@ export function renderLager(container) {
     pantry = p; fridge = f;
     paintPantry(container);
     paintFridge(container);
+    paintCatalog(container);
   });
 
   // Vorrat: eigenen Artikel hinzufügen
@@ -80,11 +94,13 @@ export function renderLager(container) {
     const name = container.querySelector("#fridge-name").value.trim();
     const qty = container.querySelector("#fridge-qty").value.trim();
     if (!name) return;
-    fridge = addFridgeItem(fridge, name, qty);
+    const m = ingMatchCat(name); // D1: passendes Symbol aus dem Katalog raten
+    fridge = addFridgeItem(fridge, name, qty, (m && m.icon) || "");
     store.setFridge(fridge);
     container.querySelector("#fridge-name").value = "";
     container.querySelector("#fridge-qty").value = "";
     paintFridge(container);
+    paintCatalog(container);
   };
   container.querySelector("#fridge-add").onclick = addFridge;
   container.querySelector("#fridge-name").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addFridge(); } });
@@ -126,14 +142,51 @@ function paintFridge(container) {
   if (!fridge.length) { el.innerHTML = `<p class="empty" style="margin:14px 0">${t("lager.fridgeEmpty")}</p>`; return; }
   el.innerHTML = fridge.map((f, i) => `
     <div class="fridge-item">
+      <span class="fi-ic">${fridgeIcon(f)}</span>
       <span class="fi-name">${esc(f.name)}</span>
       <span class="fi-qty">${esc(f.menge || "")}</span>
       <button class="fi-used" data-used="${i}">${t("lager.usedUp")}</button>
       <button class="fi-del" data-del="${i}">✕</button>
     </div>`).join("");
-  const remove = (i) => { fridge = fridge.filter((_, j) => j !== i); store.setFridge(fridge); paintFridge(container); };
+  const remove = (i) => { fridge = fridge.filter((_, j) => j !== i); store.setFridge(fridge); paintFridge(container); paintCatalog(container); };
   el.querySelectorAll("[data-used]").forEach((b) => { b.onclick = () => remove(+b.dataset.used); });
   el.querySelectorAll("[data-del]").forEach((b) => { b.onclick = () => remove(+b.dataset.del); });
+}
+
+/* ---------- D1: Icon-Katalog (wie Einkaufsliste) → Frischware hinzufügen ---------- */
+function inFridge(name) {
+  const n = name.toLowerCase();
+  return fridge.some((f) => f.name.toLowerCase() === n);
+}
+
+function paintCatalog(container) {
+  const el = container.querySelector("#fridge-catalog");
+  if (!el) return;
+  el.innerHTML = CATALOG.map((sec) => {
+    const open = openCatSection === sec.name;
+    return `<div class="cat-sec">
+      <button class="cat-head" data-sec="${esc(sec.name)}">${sec.icon} ${esc(sec.name)} <span class="chev">${open ? "▾" : "▸"}</span></button>
+      ${open ? `<div class="cat-grid">${sec.items.map((it) => {
+        const has = inFridge(it.name);
+        return `<button class="cat-item ${has ? "in" : ""}" data-name="${esc(it.name)}" data-icon="${esc(it.icon || sec.icon)}">
+          <span class="ci-ic">${it.icon || sec.icon}</span><span class="ci-nm">${esc(it.name)}</span>${has ? `<span class="ci-badge">✓</span>` : ""}</button>`;
+      }).join("")}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  el.querySelectorAll(".cat-head").forEach((b) => {
+    b.onclick = () => { const s = b.dataset.sec; openCatSection = (openCatSection === s) ? null : s; paintCatalog(container); };
+  });
+  el.querySelectorAll(".cat-item").forEach((b) => {
+    b.onclick = () => {
+      fridge = addFridgeItem(fridge, b.dataset.name, "", b.dataset.icon);
+      store.setFridge(fridge);
+      b.classList.add("just-added");
+      setTimeout(() => b.classList.remove("just-added"), 220);
+      paintFridge(container);
+      paintCatalog(container);
+    };
+  });
 }
 
 /* ---------- KI-Kühlschrank-Scan ---------- */

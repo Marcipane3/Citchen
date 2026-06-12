@@ -4,8 +4,35 @@
 
 import * as db from "./db.js";
 import { getInStock } from "./lager.js";
+import { DEFAULT_PROFILE } from "../ai/prompts.js";
 
 const THEME_KEY = "theme"; // "system" | "light" | "dark"
+const PROFILE_KEY = "cookProfile"; // A3: nutzereditierbares Koch-Profil
+
+export { DEFAULT_PROFILE };
+
+/** Gespeichertes Profil über die Defaults gelegt (fehlende Felder = Default). */
+export async function getProfile() {
+  const saved = await db.kvGet(PROFILE_KEY, null);
+  return { ...DEFAULT_PROFILE, ...(saved || {}) };
+}
+
+/** Nur bekannte Felder, getrimmt — speichert das Profil. */
+export async function setProfile(profile) {
+  const clean = {};
+  for (const k of Object.keys(DEFAULT_PROFILE)) {
+    const v = profile && profile[k] != null ? String(profile[k]).trim() : "";
+    clean[k] = v;
+  }
+  await db.kvSet(PROFILE_KEY, clean);
+  return clean;
+}
+
+/** Zurück auf Marcels Ausgangswerte. */
+export async function resetProfile() {
+  await db.kvDel(PROFILE_KEY);
+  return { ...DEFAULT_PROFILE };
+}
 
 // Selbstverständliche Basics, die immer als "vorhanden" gelten (Öl/Wasser/Salz …).
 const ALWAYS = ["Öl", "Olivenöl", "Wasser", "Salz", "Pfeffer"];

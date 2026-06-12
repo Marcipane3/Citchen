@@ -208,6 +208,13 @@ label.check input { width: auto; }
 .sl-top { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 2px; }
 .sl-title { font-family: var(--font-display); font-size: 19px; font-weight: 600; }
 .sl-clear { background: none; border: none; color: var(--accent); font-weight: 700; font-size: 13px; text-decoration: underline; }
+.sl-actions { display: flex; gap: 12px; align-items: center; }
+.sl-clear-all { background: none; border: none; color: var(--muted); font-weight: 700; font-size: 13px; text-decoration: underline; }
+.sl-undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; margin: 6px 0; border: 1.5px solid var(--accent); border-radius: 12px; background: var(--line-soft); font-weight: 600; }
+.sl-undo-btn { background: var(--accent); color: #fff; border: none; border-radius: 9px; padding: 7px 14px; font-weight: 700; }
+.sl-sort { display: flex; gap: 6px; margin: 8px 0 4px; }
+.sl-sortbtn { background: var(--card); border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; color: var(--muted-strong); }
+.sl-sortbtn.on { border-color: var(--accent); color: var(--accent); background: var(--line-soft); }
 .sl-cat { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin: 14px 0 4px; }
 .sl-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
 .sl-item.done .sl-name { text-decoration: line-through; opacity: .45; }
@@ -225,6 +232,7 @@ label.check input { width: auto; }
 .cat-item .ci-ic { font-size: 24px; }
 .cat-item .ci-nm { line-height: 1.2; }
 .cat-item.just-added { transform: scale(.93); border-color: var(--accent); }
+.cat-item.in { border-color: var(--accent); background: var(--line-soft); }
 .ci-badge { position: absolute; top: -7px; right: -7px; background: var(--accent); color: #fff; border-radius: 11px; min-width: 22px; height: 22px; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
 
 /* ---------- Wochenplan ---------- */
@@ -287,6 +295,7 @@ label.check input { width: auto; }
 .stock-chip.on { background: var(--badge-alltag-bg); color: var(--badge-alltag-fg); border-color: var(--badge-alltag-fg); }
 .stock-chip .x { margin-left: 6px; opacity: .5; }
 .fridge-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.fridge-item .fi-ic { font-size: 18px; flex: 0 0 auto; }
 .fridge-item .fi-name { flex: 1; font-size: 15px; }
 .fridge-item .fi-qty { font-size: 13px; color: var(--muted); }
 .fridge-item .fi-used { background: transparent; border: 1.5px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--ok); }
@@ -300,6 +309,27 @@ label.check input { width: auto; }
 .cap-thumb { width: 100%; max-height: 220px; object-fit: contain; border-radius: 14px; margin-top: 10px; background: var(--line-soft); }
 .cap-thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .cap-thumbs img { width: 90px; height: 90px; object-fit: cover; border-radius: 12px; }
+
+/* ---------- Capture: AI busy state (A2) ---------- */
+.cap-busy {
+  display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 14px 16px;
+  border: 1.5px solid var(--accent); border-radius: 14px; background: var(--line-soft);
+}
+.cap-busy .spinner {
+  width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%;
+  border: 3px solid var(--line); border-top-color: var(--accent); animation: spin 0.8s linear infinite;
+}
+.cap-busy .cap-busy-text { font-weight: 600; color: var(--ink); }
+.cap-busy .cap-busy-sub { font-size: 13px; color: var(--muted); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Capture: Bulk-Review (C1) ---------- */
+.bulk-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.bulk-row .bulk-cb { width: 20px; height: 20px; flex: 0 0 auto; accent-color: var(--accent); }
+.bulk-row .bulk-meta { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bulk-row .bulk-name { font-weight: 600; }
+.bulk-row .bulk-sub { font-size: 12px; color: var(--muted); }
+.bulk-row .bulk-edit { padding: 5px 10px; font-size: 12px; }
 
 /* ---------- Guide ---------- */
 .guide-feat { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }

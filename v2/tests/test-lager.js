@@ -5,6 +5,7 @@ import {
   seedPantry, togglePantry, addPantryItem, removePantryItem, groupPantry,
   addFridgeItem, removeFridgeItem, mergeFridge, getInStockNames, PANTRY_CATEGORIES,
 } from "../src/features/lager/logic.js";
+import { ingMatchCat } from "../src/features/shopping/catalog.js";
 
 test("seedPantry: Projektwissen-Defaults, alle on", () => {
   const p = seedPantry();
@@ -53,6 +54,27 @@ test("addFridgeItem: hinzufügen + Dedup (neue Menge gewinnt)", () => {
   f = addFridgeItem(f, "feta", "100g"); // Dedup
   assertEqual(f.length, 2);
   assertEqual(f.find((x) => x.name === "Feta").menge, "100g");
+});
+
+test("addFridgeItem: Icon wird gespeichert + bei Dedup aktualisiert (D1)", () => {
+  let f = addFridgeItem([], "Zucchini", "1 Stück", "🥒");
+  assertEqual(f[0].icon, "🥒");
+  f = addFridgeItem(f, "zucchini", "", "🍆"); // Dedup → neues Icon gewinnt
+  assertEqual(f.length, 1);
+  assertEqual(f[0].icon, "🍆");
+  f = addFridgeItem(f, "zucchini", "2 Stück", ""); // kein neues Icon → altes bleibt
+  assertEqual(f[0].icon, "🍆");
+});
+
+test("mergeFridge: reicht Icons aus dem Scan/Katalog durch (D1)", () => {
+  const f = mergeFridge([], [{ name: "Feta", menge: "200g", icon: "🧀" }]);
+  assertEqual(f[0].icon, "🧀");
+});
+
+test("ingMatchCat: Katalog liefert Symbol für Frischware-Namen (D1)", () => {
+  const m = ingMatchCat("Tomaten");
+  assert(m && m.icon, "kein Treffer für Tomaten");
+  assertEqual(m.icon, "🍅");
 });
 
 test("mergeFridge: mehrere Scan-Items zusammenführen", () => {

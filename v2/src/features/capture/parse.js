@@ -68,6 +68,46 @@ Regeln:
 - Antworte auf Deutsch.`;
 }
 
+/** C1: Prompt für MEHRERE Rezepte auf einmal (Text einfügen ODER KI-Ideen). */
+export function buildBulkPrompt({ generate = false, wish = "", count = 5 } = {}) {
+  const head = generate
+    ? `Erfinde ${count} verschiedene, alltagstaugliche Rezepte${wish ? " zum Wunsch: " + wish : ""}. Keine Duplikate untereinander.`
+    : "Extrahiere ALLE Rezepte aus dem folgenden Text (ein oder mehrere, in beliebigem Format).";
+  return `${head}
+Gib GENAU EIN JSON-Objekt zurück (ohne Markdown-Zaun, ohne Text davor/danach):
+{"recipes":[ <Rezept>, <Rezept>, … ]}
+Jedes <Rezept> exakt in diesem flachen Schema:
+{"name":string,"category":string,"time":"25 Min","servings":"~4","effort":"alltag"|"besonders"|"","difficulty":"einfach"|"mittel"|"aufwändig"|"","cuisine":string,"prepTime":int,"cookTime":int,"totalTime":int,"mealPrep":bool,"toTry":true,"season":string,"tags":[string],"ingredients":[string],"steps":[string],"tips":string}
+Regeln:
+- "category" MUSS exakt eine von diesen 16 sein: ${CATEGORIES.join(" / ")}
+- "ingredients": eine Zutat pro Eintrag, mit Menge ("400g Kichererbsen (Dose)").
+- "steps": kurze, nummerierbare Schritte; Zeitangaben als "X Min".
+- "tips": String (Konvention "Topping: … Swap: … Alltags-Upgrade: …"), darf leer sein.
+- Wenn keine Rezepte erkennbar sind, gib {"recipes":[]} zurück.
+- Antworte auf Deutsch.`;
+}
+
+/**
+ * input = { text?, generate?, wish?, count? } → Promise<Rezept-Entwürfe[]>.
+ * Liefert nur schema-konforme Rezepte; ungültige werden verworfen.
+ */
+export async function parseBulk({ text = "", generate = false, wish = "", count = 5 } = {}) {
+  if (!FLAGS.captureParse) throw new CaptureDisabledError();
+  if (!generate && !text.trim()) throw new CaptureParseError("Kein Text zum Auslesen angegeben.");
+  const prompt = buildBulkPrompt({ generate, wish, count });
+  const content = generate ? prompt : `${prompt}\n\nTEXT:\n${text}`;
+  const { text: out } = await complete({ messages: [{ role: "user", content }], maxTokens: 4000 });
+  const json = extractJson(out);
+  const arr = json && Array.isArray(json.recipes) ? json.recipes : (Array.isArray(json) ? json : []);
+  const recipes = [];
+  for (const raw of arr) {
+    const { recipe } = coerceRecipe(raw);
+    if (recipe) recipes.push(recipe);
+  }
+  if (!recipes.length) throw new CaptureParseError("Keine gültigen Rezepte erkannt.");
+  return recipes;
+}
+
 async function runAndCoerce(messages, { tools = null } = {}) {
   const { text } = await complete({ messages, model: VISION_MODEL, maxTokens: 2000, tools });
   const json = extractJson(text);

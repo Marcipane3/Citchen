@@ -54,17 +54,18 @@ export function groupPantry(pantry) {
 
 /* ---------- Kühlschrank ---------- */
 
-/** Frischware-Eintrag hinzufügen/aktualisieren (Dedup auf Namen, neue Menge gewinnt). */
-export function addFridgeItem(fridge, name, menge = "") {
+/** Frischware-Eintrag hinzufügen/aktualisieren (Dedup auf Namen, neue Menge gewinnt).
+ *  icon optional (D1: Katalog-Symbol). Bei Dedup gewinnt ein neues Icon, sonst bleibt das alte. */
+export function addFridgeItem(fridge, name, menge = "", icon = "") {
   name = (name || "").trim();
   if (!name) return fridge;
   const i = fridge.findIndex((f) => norm(f.name) === norm(name));
   if (i >= 0) {
     const out = fridge.slice();
-    out[i] = { ...out[i], menge: menge || out[i].menge };
+    out[i] = { ...out[i], menge: menge || out[i].menge, icon: icon || out[i].icon };
     return out;
   }
-  return [...fridge, { name, menge }];
+  return [...fridge, { name, menge, icon }];
 }
 
 export function removeFridgeItem(fridge, name) {
@@ -74,7 +75,7 @@ export function removeFridgeItem(fridge, name) {
 /** Mehrere erkannte Artikel (aus dem Scan) zusammenführen. items = [{name, menge}]. */
 export function mergeFridge(fridge, items) {
   let out = fridge.slice();
-  for (const it of items || []) out = addFridgeItem(out, it.name, it.menge || "");
+  for (const it of items || []) out = addFridgeItem(out, it.name, it.menge || "", it.icon || "");
   return out;
 }
 
