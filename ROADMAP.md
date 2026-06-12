@@ -66,20 +66,23 @@ Marcel: "German, English, **Danish**, Spanish — and the base recipes should al
 | # | Item | Detail & acceptance | Pri | Eff |
 |---|------|---------------------|-----|-----|
 | ✅ **B1** | **Add Danish UI** *(shipped v2.3)* | Added `da` to `LANGS` (flag 🇩🇰) + a full `DICT.da` block in `i18n.js`. Guarded by a new full-recursive key-parity test (every lang must match the DE key set exactly — no gaps, no extras). | P1 | M |
-| B2 | **Translate base recipes** | Today switching language leaves the ~105 seed recipes in German. Decide the model (recommendation below) and implement. **Done:** picking a language shows base recipes in that language. | P1 | L |
-| B3 | **Language switch re-seeds base content** | On first run / language pick, load the base recipes for that language (not always the German snapshot). **Done:** a fresh English user starts with English recipes. | P1 | M |
+| B2 | **Translate base recipes** | Pre-translated bundled snapshots (Marcel's call: base-only, user-added stay as-is). **Pipeline shipped** (see below); **content generation + in-app overlay pending.** | P1 | L |
+| B3 | **Apply translation in-app** | Display-time overlay (NOT stored — see Drive constraint). **Done when:** picking a language shows base recipes in that language; Drive stays German. | P1 | M |
 
-**Recommendation for B2 (this is a fork in the road — decide before building):**
-Don't hand-maintain 4× recipe files. Two viable models:
-- **(a) On-the-fly AI translation, cached** — translate a recipe's display fields the first
-  time it's viewed in a non-German language, cache the result on the recipe object
-  (`i18n: { en: {...}, da: {...} }`). Cheap to ship, needs a key for non-German.
-- **(b) Pre-translated snapshots** — ship `rezepte.snapshot.{de,en,es,da}.json`, generated
-  once by Claude. No key needed, fully offline, but heavier to regenerate when recipes change.
+**B2 decisions made & pipeline (shipped — generation + wiring still to run):**
+- **Model:** pre-translated snapshots, generated once via the Anthropic API (`v2/tools/build-snapshots.mjs`), run by Marcel with his key in an env var. No reusable translation tooling beyond this one-time generator.
+- **Two hard constraints baked into the design:**
+  1. **`category` stays the canonical German enum** in all data (schema validation + cross-language filtering). Only its *display* is translated — already done via `tCat()` (committed `da47728`).
+  2. **Drive `rezepte.json` is canonical German**, shared with v1 + in-project Claude. Translated content is therefore a **display-only overlay** from bundled `rezepte.snapshot.<lang>.json`; it is **never written to IndexedDB/Drive**. Pure logic in `v2/src/data/baseLang.js` (`overlayTranslation`/`localizeRecipes`/`checkTranslation`), unit-tested.
+  3. Marker preservation: `🛒` shopping markers + tip-keywords (`Topping:/Swap:/Alltags-Upgrade:/Technik:`, parsed by `derive.js`) are preserved by the translator prompt + validated by `checkTranslation`.
+- **Remaining steps:** (1) Marcel runs the generator → 3 snapshot files. (2) Wire the in-memory display-overlay: keep `state.recipes` German (persist source), add a localized *view* for read surfaces — `favorite`/`rating`/`cookedCount`/`feedback` mutations must keep hitting the German object so they never persist translated content. (3) Add the 3 files to `sw.js` SHELL + bump CACHE/BUILD. (4) Live-verify.
 
-→ **My pick: (b) for the bundled base set** (offline, no-key, fast) **+ (a) for user-added
-recipes** (translate-on-demand). User content shouldn't force re-translation of the base.
-This needs its own mini-plan — flag before starting.
+> **How Marcel runs the generator (PowerShell):**
+> ```powershell
+> $env:ANTHROPIC_API_KEY = "sk-ant-…"
+> node v2/tools/build-snapshots.mjs           # all three: da, es, en
+> ```
+> Optional: `$env:MODEL = "claude-haiku-4-5"` (cheaper) · `node v2/tools/build-snapshots.mjs da` (one language). Key stays local; a cache (`tools/.translation-cache.json`) makes reruns cheap/resumable.
 
 ---
 
