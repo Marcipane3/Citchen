@@ -1,6 +1,7 @@
 // Tests: i18n.js — Key-Parität DE/EN/ES, Interpolation, Plural, Fallback.
 import { test, assert, assertEqual } from "./runner.js";
-import { t, tn, setLang, getLang, LANGS, DICT } from "../src/i18n.js";
+import { t, tn, tCat, setLang, getLang, LANGS, DICT } from "../src/i18n.js";
+import { CATEGORIES } from "../src/data/schema.js";
 
 // Sammelt alle Punkt-Pfade eines verschachtelten Objekts (Blätter = Strings).
 function leafKeys(obj, prefix = "") {
@@ -47,6 +48,28 @@ test("Volle Key-Parität: jede Sprache hat exakt die DE-Keys (kein Loch, kein Ex
     assertEqual(missing.length, 0, `${lang} fehlen Keys: ${missing.join(", ")}`);
     assertEqual(extra.length, 0, `${lang} hat Extra-Keys: ${extra.join(", ")}`);
   }
+});
+
+test("tCat: DE gibt kanonisch zurück, andere Sprachen übersetzen, Unbekanntes bleibt", () => {
+  setLang("de");
+  assertEqual(tCat("Pasta & Nudeln"), "Pasta & Nudeln");
+  setLang("en");
+  assertEqual(tCat("Pasta & Nudeln"), "Pasta & noodles");
+  setLang("da");
+  assertEqual(tCat("Vegetarische Hauptgerichte"), "Vegetariske hovedretter");
+  // Unbekannte/nicht-kanonische Kategorie → unverändert zurück (kein Absturz)
+  assertEqual(tCat("Phantasie-Kategorie"), "Phantasie-Kategorie");
+  setLang("de");
+});
+
+test("tCat: jede der 16 Kategorien ist in EN/ES/DA übersetzt (keine Lücke)", () => {
+  for (const lang of ["en", "es", "da"]) {
+    setLang(lang);
+    for (const c of CATEGORIES) {
+      assert(tCat(c) !== c, `Kategorie nicht übersetzt in ${lang}: ${c}`);
+    }
+  }
+  setLang("de");
 });
 
 test("Interpolation {n}", () => {

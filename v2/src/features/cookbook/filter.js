@@ -5,7 +5,7 @@
 
 import { CATEGORIES } from "../../data/schema.js";
 import { getTotalMinutes } from "../../data/derive.js";
-import { t } from "../../i18n.js";
+import { t, tCat } from "../../i18n.js";
 
 const SPECIAL_KEYS = {
   "__fav": "chip.fav", "__alltag": "chip.alltag", "__besonders": "chip.besonders",
@@ -24,11 +24,11 @@ export function availableChips(recipes) {
   return chips;
 }
 
-/** Kurz-Label eines Chips. Spezial-Chips i18n; Kategorien bleiben (Schema-Daten). */
+/** Kurz-Label eines Chips. Spezial-Chips i18n; Kategorie-Chips über tCat (Anzeige). */
 export function chipLabel(chip) {
   if (chip === "Alle") return t("chip.all");
   if (SPECIAL_KEYS[chip]) return t(SPECIAL_KEYS[chip]);
-  return chip.split(":")[0].split(" & ")[0].split(" ")[0];
+  return tCat(chip).split(":")[0].split(" & ")[0].split(" ")[0];
 }
 
 function matchesChip(r, chip) {

@@ -54,6 +54,17 @@ export function tn(baseKey, n, params = {}) {
   return t(baseKey + suffix, { n, ...params });
 }
 
+/**
+ * Kategorie-Anzeige übersetzen. WICHTIG: Der GESPEICHERTE Wert bleibt IMMER der
+ * kanonische deutsche Enum-String (Schema-Validierung + sprachübergreifende
+ * Filterung). Übersetzt wird NUR das Label hier. Unbekannt/DE → kanonisch zurück.
+ */
+export function tCat(canonical) {
+  const lang = getLang();
+  const m = CAT_DICT[lang];
+  return (m && m[canonical]) || canonical;
+}
+
 /* ============================================================
    WÖRTERBUCH
    ============================================================ */
@@ -848,5 +859,67 @@ export const DICT = {
       overloaded: "Anthropic-API’en er overbelastet lige nu — prøv igen om lidt.",
       captureDisabled: "Automatisk billede-/URL-analyse er stadig deaktiveret (kommer i en senere opdatering).",
     },
+  },
+};
+
+/* ============================================================
+   KATEGORIE-LABELS — Anzeige-Übersetzung der 16 festen Kategorien.
+   Schlüssel = kanonischer DE-Enum-String (schema.js CATEGORIES).
+   DE braucht keinen Eintrag (Identität via Fallback in tCat).
+   ============================================================ */
+const CAT_DICT = {
+  en: {
+    "Frühstück & Brunch": "Breakfast & brunch",
+    "Schnelle Wochentags-Gerichte": "Quick weekday meals",
+    "Pasta & Nudeln": "Pasta & noodles",
+    "Reis & Getreide": "Rice & grains",
+    "Suppen & Eintöpfe": "Soups & stews",
+    "Salate & leichte Gerichte": "Salads & light meals",
+    "Wochenend-Gerichte": "Weekend dishes",
+    "Vegetarische Hauptgerichte": "Vegetarian mains",
+    "Deutsche Hausmannskost": "German home cooking",
+    "Middle Eastern & Mediterran": "Middle Eastern & Mediterranean",
+    "Asiatisch inspiriert": "Asian-inspired",
+    "Backen: Brot & Herzhaftes": "Baking: bread & savory",
+    "Backen: Süßes & Kuchen": "Baking: sweets & cakes",
+    "Muffins & Kleingebäck": "Muffins & small bakes",
+    "Sourdough & Sauerteig": "Sourdough",
+    "Grundrezepte & Basissoßen": "Basics & base sauces",
+  },
+  es: {
+    "Frühstück & Brunch": "Desayuno y brunch",
+    "Schnelle Wochentags-Gerichte": "Platos rápidos entre semana",
+    "Pasta & Nudeln": "Pasta y fideos",
+    "Reis & Getreide": "Arroz y cereales",
+    "Suppen & Eintöpfe": "Sopas y guisos",
+    "Salate & leichte Gerichte": "Ensaladas y platos ligeros",
+    "Wochenend-Gerichte": "Platos de fin de semana",
+    "Vegetarische Hauptgerichte": "Principales vegetarianos",
+    "Deutsche Hausmannskost": "Cocina casera alemana",
+    "Middle Eastern & Mediterran": "Middle Eastern y mediterráneo",
+    "Asiatisch inspiriert": "De inspiración asiática",
+    "Backen: Brot & Herzhaftes": "Horno: pan y salado",
+    "Backen: Süßes & Kuchen": "Horno: dulces y pasteles",
+    "Muffins & Kleingebäck": "Magdalenas y bollería",
+    "Sourdough & Sauerteig": "Masa madre",
+    "Grundrezepte & Basissoßen": "Básicos y salsas base",
+  },
+  da: {
+    "Frühstück & Brunch": "Morgenmad & brunch",
+    "Schnelle Wochentags-Gerichte": "Hurtige hverdagsretter",
+    "Pasta & Nudeln": "Pasta & nudler",
+    "Reis & Getreide": "Ris & korn",
+    "Suppen & Eintöpfe": "Supper & sammenkogte retter",
+    "Salate & leichte Gerichte": "Salater & lette retter",
+    "Wochenend-Gerichte": "Weekendretter",
+    "Vegetarische Hauptgerichte": "Vegetariske hovedretter",
+    "Deutsche Hausmannskost": "Tysk husmandskost",
+    "Middle Eastern & Mediterran": "Middle Eastern & middelhav",
+    "Asiatisch inspiriert": "Asiatisk inspireret",
+    "Backen: Brot & Herzhaftes": "Bagning: brød & madbrød",
+    "Backen: Süßes & Kuchen": "Bagning: søde sager & kager",
+    "Muffins & Kleingebäck": "Muffins & småkager",
+    "Sourdough & Sauerteig": "Surdej",
+    "Grundrezepte & Basissoßen": "Basisopskrifter & grundsovse",
   },
 };

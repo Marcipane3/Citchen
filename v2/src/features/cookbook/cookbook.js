@@ -11,7 +11,7 @@ import { openDetail } from "./detail.js";
 import { openForm } from "./form.js";
 import { openMenu } from "../menu.js";
 import { BUILD } from "../../version.js";
-import { t, tn } from "../../i18n.js";
+import { t, tn, tCat } from "../../i18n.js";
 
 // Filterzustand überlebt Re-Renders (Modul-Scope)
 let query = "", activeChip = "Alle", fCuisine = "", fSeason = "";
@@ -22,7 +22,7 @@ function cardHTML(r) {
     <div class="rcard" data-id="${esc(r.id)}">
       <button class="card-heart" data-fav="${esc(r.id)}">${r.favorite ? "♥" : "♡"}</button>
       ${hasImg ? `<div class="card-thumb" data-hero="${esc(r.id)}"></div>` : ""}
-      <div class="cat-label">${esc(r.category)}</div>
+      <div class="cat-label">${esc(tCat(r.category))}</div>
       <div class="rname">${esc(r.name)}</div>
       <div class="rmeta">${r.time ? `⏱ ${esc(r.time)}` : ""} ${r.lastCooked ? `· ${esc(r.lastCooked)}` : ""} ${starsMini(r.rating)}</div>
       ${metaBadges(r, true) ? `<div class="card-badges">${metaBadges(r, true)}</div>` : ""}

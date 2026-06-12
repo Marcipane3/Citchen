@@ -8,7 +8,7 @@ import { esc, metaBadges, loadHeroInto, compressImage } from "../../ui/helpers.j
 import { openSheet, closeAllSheets } from "../../ui/sheet.js";
 import { openForm } from "./form.js";
 import { navigate } from "../../router.js";
-import { t, tn } from "../../i18n.js";
+import { t, tn, tCat } from "../../i18n.js";
 
 function tippsHTML(r) {
   if (!r.tips) return "";
@@ -33,7 +33,7 @@ export function openDetail(id) {
 
   const html = `
     <div class="sheet-head">
-      <span class="cat-label">${esc(r.category)}</span>
+      <span class="cat-label">${esc(tCat(r.category))}</span>
       <div class="hd-r">
         <button class="heart" title="Favorit">${r.favorite ? "♥" : "♡"}</button>
         <button class="icon-btn close">✕</button>

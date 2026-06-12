@@ -6,7 +6,7 @@ import { addRecipe, updateRecipe } from "../../store.js";
 import { esc, makeListEditor } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "./detail.js";
-import { t } from "../../i18n.js";
+import { t, tCat } from "../../i18n.js";
 
 /**
  * Neues Rezept / Bearbeiten / Entwurf prüfen.
@@ -21,7 +21,7 @@ export function openForm(existing, { draft = false } = {}) {
     <div class="sheet-head"><span class="cat-label">${draft ? t("form.reviewDraft") : ed ? t("form.editRecipe") : t("form.newRecipe")}</span><button class="icon-btn close">✕</button></div>
     <label>${t("form.name")}</label><input class="f" id="f-name" placeholder="${t("form.namePlaceholder")}" />
     <label>${t("form.category")}</label>
-    <select class="f" id="f-cat">${CATEGORIES.map((c) => `<option ${prefill && prefill.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
+    <select class="f" id="f-cat">${CATEGORIES.map((c) => `<option value="${esc(c)}" ${prefill && prefill.category === c ? "selected" : ""}>${esc(tCat(c))}</option>`).join("")}</select>
     <div style="display:flex;gap:10px">
       <div style="flex:1"><label>${t("form.time")}</label><input class="f" id="f-time" placeholder="25 Min" /></div>
       <div style="flex:1"><label>${t("form.servings")}</label><input class="f" id="f-serv" value="~4" /></div>
