@@ -8,6 +8,7 @@ import * as db from "../../data/db.js";
 import { parseMinutes, parseTipps, hasStructuredTipps, scaleIngredient, parseServings } from "../../data/derive.js";
 import { esc } from "../../ui/helpers.js";
 import { navigate } from "../../router.js";
+import { t, tn } from "../../i18n.js";
 
 /* ---------- Wake Lock ---------- */
 let wakeLock = null;
@@ -92,7 +93,7 @@ export function renderCook(container, id) {
       }
       let m = mins;
       if (!m) {
-        const v = prompt("Countdown – wie viele Minuten?", "5");
+        const v = prompt(t("cooking.timerPrompt"), "5");
         m = parseInt(v, 10);
         if (!m || m <= 0) return;
       }
@@ -105,7 +106,7 @@ export function renderCook(container, id) {
         if (rem <= 0) {
           clearInterval(iv); intervals = intervals.filter((x) => x !== iv); iv = null;
           btn.classList.remove("running"); btn.classList.add("fired");
-          btn.textContent = "✓ fertig!";
+          btn.textContent = t("cooking.timerDone");
           alarm();
           return;
         }
@@ -122,20 +123,20 @@ export function renderCook(container, id) {
   function scalerHTML() {
     if (!ings.length) return "";
     const display = baseServings !== null
-      ? `${target} ${target === 1 ? "Portion" : "Portionen"}`
+      ? tn("cooking.portion", target)
       : `×${String(factor).replace(".", ",")}`;
     return `<div class="scaler">
-      <span class="lbl">Portionen</span>
+      <span class="lbl">${t("cooking.portions")}</span>
       <button data-scale="-">−</button>
       <span class="val">${esc(display)}</span>
       <button data-scale="+">+</button>
-      ${factor !== 1 ? `<span class="note">Mengen angepasst</span>` : ""}
+      ${factor !== 1 ? `<span class="note">${t("cooking.amountsAdjusted")}</span>` : ""}
     </div>`;
   }
 
   function ingredientsBlock() {
     if (!ings.length) return "";
-    return `<div class="cook-sec foldhead" data-fold="ing">Zutaten <span class="chev">${ingOpen ? "▾" : "▸"}</span></div>
+    return `<div class="cook-sec foldhead" data-fold="ing">${t("cooking.ingredients")} <span class="chev">${ingOpen ? "▾" : "▸"}</span></div>
       <div class="foldbody-ing"${ingOpen ? "" : ' style="display:none"'}>
         ${ings.map((txt, idx) => `<div class="cook-ing ${prog.ings[idx] ? "done" : ""}" data-ing="${idx}"><span class="tick"></span><span>${esc(factor !== 1 ? scaleIngredient(txt, factor) : txt)}</span></div>`).join("")}
       </div>`;
@@ -152,7 +153,7 @@ export function renderCook(container, id) {
           tipps.rest ? esc(tipps.rest) : "",
         ].filter(Boolean).join("<br>")
       : esc(tipps.rest || r.tips);
-    return `<div class="cook-sec foldhead" data-fold="tipp">Tipps <span class="chev">${tippOpen ? "▾" : "▸"}</span></div>
+    return `<div class="cook-sec foldhead" data-fold="tipp">${t("cooking.tips")} <span class="chev">${tippOpen ? "▾" : "▸"}</span></div>
       <div class="foldbody-tipp"${tippOpen ? "" : ' style="display:none"'}>
         <div class="cook-tipp" style="margin-top:4px">${inner}</div>
       </div>`;
@@ -161,7 +162,7 @@ export function renderCook(container, id) {
   function bodyHTML() {
     if (mode === "list") {
       return `${scalerHTML()}${ingredientsBlock()}${tippsBlock()}
-        ${steps.length ? `<div class="cook-sec">Zubereitung</div>${steps.map((s, i) => {
+        ${steps.length ? `<div class="cook-sec">${t("cooking.steps")}</div>${steps.map((s, i) => {
           const mins = parseMinutes(s);
           return `<div class="cook-step ${prog.steps[i] ? "done" : ""}" data-step="${i}">
             <span class="cook-num">${i + 1}</span>
@@ -179,7 +180,7 @@ export function renderCook(container, id) {
       : "";
     return `${scalerHTML()}${ingredientsBlock()}${tippsBlock()}
       <div class="pager">
-        <div class="pager-count">Schritt ${cur + 1} / ${steps.length}</div>
+        <div class="pager-count">${t("cooking.step", { a: cur + 1, b: steps.length })}</div>
         <div class="pager-step ${prog.steps[cur] ? "done" : ""}">
           <span class="cook-num big">${cur + 1}</span>
           <div class="pager-text">${esc(s)}</div>
@@ -188,7 +189,7 @@ export function renderCook(container, id) {
         ${upgradeHint}
         <div class="pager-nav">
           <button class="btn-sec pg-prev" ${cur === 0 ? "disabled" : ""}>←</button>
-          <button class="btn-sec pg-check">${prog.steps[cur] ? "✓ erledigt" : "Abhaken"}</button>
+          <button class="btn-sec pg-check">${prog.steps[cur] ? t("cooking.checked") : t("cooking.check")}</button>
           <button class="btn-primary pg-next" ${cur >= steps.length - 1 ? "disabled" : ""}>→</button>
         </div>
       </div>`;
@@ -198,19 +199,19 @@ export function renderCook(container, id) {
     clearTimers();
     view.innerHTML = `
       <div class="cook-top">
-        <span class="ct">Kochmodus</span>
+        <span class="ct">${t("cooking.title")}</span>
         <div style="display:flex;gap:8px;align-items:center">
           <div class="modeswitch">
-            <button class="ms ${mode === "list" ? "on" : ""}" data-mode="list">Übersicht</button>
-            <button class="ms ${mode === "pager" ? "on" : ""}" data-mode="pager">Schritt für Schritt</button>
+            <button class="ms ${mode === "list" ? "on" : ""}" data-mode="list">${t("cooking.overview")}</button>
+            <button class="ms ${mode === "pager" ? "on" : ""}" data-mode="pager">${t("cooking.pager")}</button>
           </div>
           <button class="icon-btn close">✕</button>
         </div>
       </div>
       <h2>${esc(r.name)}</h2>
-      <div class="wakeinfo">📱 Bildschirm bleibt an. Fortschritt wird gemerkt.<button class="reset-prog">zurücksetzen</button></div>
+      <div class="wakeinfo">${t("cooking.screenOn")}<button class="reset-prog">${t("cooking.reset")}</button></div>
       ${bodyHTML()}
-      <button class="cook-done-btn done-btn">Fertig — zurück</button>`;
+      <button class="cook-done-btn done-btn">${t("cooking.finish")}</button>`;
     wire();
   }
 
@@ -222,7 +223,7 @@ export function renderCook(container, id) {
     });
     const rp = view.querySelector(".reset-prog");
     if (rp) rp.onclick = () => {
-      if (confirm("Abgehakten Fortschritt zurücksetzen?")) { prog = { steps: {}, ings: {} }; saveProg(); paint(); }
+      if (confirm(t("cooking.resetConfirm"))) { prog = { steps: {}, ings: {} }; saveProg(); paint(); }
     };
 
     // Scaler: −/+ ändert Ziel-Portionen bzw. Faktor (Repaint nötig — Timer gehen
@@ -272,7 +273,7 @@ export function renderCook(container, id) {
     view.querySelectorAll(".step-timer, .pager-timer").forEach((btn) => {
       const m = parseInt(btn.dataset.mins, 10) || null;
       const isPager = btn.classList.contains("pager-timer");
-      const base = isPager ? ("⏱ Countdown" + (m ? ` (${m} Min)` : "")) : ("⏱" + (m ? ` ${m}′` : ""));
+      const base = isPager ? (t("cooking.countdown") + (m ? ` (${m} Min)` : "")) : ("⏱" + (m ? ` ${m}′` : ""));
       attachTimer(btn, m, base);
     });
   }

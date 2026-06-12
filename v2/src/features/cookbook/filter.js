@@ -5,14 +5,11 @@
 
 import { CATEGORIES } from "../../data/schema.js";
 import { getTotalMinutes } from "../../data/derive.js";
+import { t } from "../../i18n.js";
 
-export const SPECIAL_LABELS = {
-  "__fav": "♥ Favoriten",
-  "__alltag": "⚡ Alltag",
-  "__besonders": "✨ Besonders",
-  "__mealprep": "🍱 Meal-Prep",
-  "__totry": "🆕 Probieren",
-  "__quick": "⏱ ≤ 30 Min",
+const SPECIAL_KEYS = {
+  "__fav": "chip.fav", "__alltag": "chip.alltag", "__besonders": "chip.besonders",
+  "__mealprep": "chip.mealprep", "__totry": "chip.totry", "__quick": "chip.quick",
 };
 
 /** Chip-Liste abhängig von den Daten (v1-Verhalten: nur, was vorkommt). */
@@ -27,10 +24,10 @@ export function availableChips(recipes) {
   return chips;
 }
 
-/** Kurz-Label eines Chips (v1: erstes Wort der Kategorie). */
+/** Kurz-Label eines Chips. Spezial-Chips i18n; Kategorien bleiben (Schema-Daten). */
 export function chipLabel(chip) {
-  if (chip === "Alle") return "Alle";
-  if (SPECIAL_LABELS[chip]) return SPECIAL_LABELS[chip];
+  if (chip === "Alle") return t("chip.all");
+  if (SPECIAL_KEYS[chip]) return t(SPECIAL_KEYS[chip]);
   return chip.split(":")[0].split(" & ")[0].split(" ")[0];
 }
 

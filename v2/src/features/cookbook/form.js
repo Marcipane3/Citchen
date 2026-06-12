@@ -6,6 +6,7 @@ import { addRecipe, updateRecipe } from "../../store.js";
 import { esc, makeListEditor } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "./detail.js";
+import { t } from "../../i18n.js";
 
 /**
  * Neues Rezept / Bearbeiten / Entwurf prüfen.
@@ -17,33 +18,33 @@ export function openForm(existing, { draft = false } = {}) {
   const ed = draft ? null : prefill;      // nur echte Rezepte werden aktualisiert
 
   const html = `
-    <div class="sheet-head"><span class="cat-label">${draft ? "Rezept-Entwurf prüfen" : ed ? "Rezept bearbeiten" : "Neues Rezept"}</span><button class="icon-btn close">✕</button></div>
-    <label>Name</label><input class="f" id="f-name" placeholder="z.B. Linsensuppe" />
-    <label>Kategorie</label>
+    <div class="sheet-head"><span class="cat-label">${draft ? t("form.reviewDraft") : ed ? t("form.editRecipe") : t("form.newRecipe")}</span><button class="icon-btn close">✕</button></div>
+    <label>${t("form.name")}</label><input class="f" id="f-name" placeholder="${t("form.namePlaceholder")}" />
+    <label>${t("form.category")}</label>
     <select class="f" id="f-cat">${CATEGORIES.map((c) => `<option ${prefill && prefill.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
     <div style="display:flex;gap:10px">
-      <div style="flex:1"><label>Zeit</label><input class="f" id="f-time" placeholder="25 Min" /></div>
-      <div style="flex:1"><label>Portionen</label><input class="f" id="f-serv" value="~4" /></div>
+      <div style="flex:1"><label>${t("form.time")}</label><input class="f" id="f-time" placeholder="25 Min" /></div>
+      <div style="flex:1"><label>${t("form.servings")}</label><input class="f" id="f-serv" value="~4" /></div>
     </div>
     <div style="display:flex;gap:10px">
-      <div style="flex:1"><label>Aufwand</label>
-        <select class="f" id="f-effort"><option value="">—</option><option value="alltag">⚡ Alltag</option><option value="besonders">✨ Besonders</option></select>
+      <div style="flex:1"><label>${t("form.effort")}</label>
+        <select class="f" id="f-effort"><option value="">${t("form.effortNone")}</option><option value="alltag">${t("form.effortAlltag")}</option><option value="besonders">${t("form.effortBesonders")}</option></select>
       </div>
-      <div style="flex:1"><label>Schwierigkeit</label>
-        <select class="f" id="f-diff"><option value="">—</option>${DIFFICULTY_VALUES.filter(Boolean).map((d) => `<option>${d}</option>`).join("")}</select>
+      <div style="flex:1"><label>${t("form.difficulty")}</label>
+        <select class="f" id="f-diff"><option value="">${t("form.effortNone")}</option>${DIFFICULTY_VALUES.filter(Boolean).map((d) => `<option>${d}</option>`).join("")}</select>
       </div>
     </div>
     <div style="display:flex;gap:10px">
-      <div style="flex:1"><label>Küche</label><input class="f" id="f-cuisine" placeholder="z.B. Italienisch" /></div>
-      <div style="flex:1"><label>Saison</label><input class="f" id="f-season" placeholder="optional" /></div>
+      <div style="flex:1"><label>${t("form.cuisine")}</label><input class="f" id="f-cuisine" placeholder="${t("form.cuisinePlaceholder")}" /></div>
+      <div style="flex:1"><label>${t("form.season")}</label><input class="f" id="f-season" placeholder="${t("form.seasonPlaceholder")}" /></div>
     </div>
-    <label class="check" style="margin-top:12px"><input type="checkbox" id="f-mealprep"/> 🍱 Meal-Prep (hält ~4 Tage)</label>
-    <label class="check"><input type="checkbox" id="f-totry"/> 🆕 Zu probieren (noch nie gekocht)</label>
-    <label>Bild-URL (optional)</label><input class="f" id="f-image" placeholder="https://… (Titelbild)" />
-    <label>Zutaten</label><div id="f-ing"></div>
-    <label>Zubereitung</label><div id="f-steps"></div>
-    <label>Tipps (optional)</label><textarea class="f" id="f-tips" rows="3" placeholder="Konvention: Topping: … Swap: … Alltags-Upgrade: …"></textarea>
-    <button class="save-btn">Speichern</button>
+    <label class="check" style="margin-top:12px"><input type="checkbox" id="f-mealprep"/> ${t("form.mealprep")}</label>
+    <label class="check"><input type="checkbox" id="f-totry"/> ${t("form.totry")}</label>
+    <label>${t("form.imageUrl")}</label><input class="f" id="f-image" placeholder="https://…" />
+    <label>${t("form.ingredients")}</label><div id="f-ing"></div>
+    <label>${t("form.steps")}</label><div id="f-steps"></div>
+    <label>${t("form.tips")}</label><textarea class="f" id="f-tips" rows="3" placeholder="${t("form.tipsPlaceholder")}"></textarea>
+    <button class="save-btn">${t("common.save")}</button>
   `;
 
   const { el, close } = openSheet(html);
@@ -61,18 +62,18 @@ export function openForm(existing, { draft = false } = {}) {
     el.querySelector("#f-mealprep").checked = !!prefill.mealPrep;
     el.querySelector("#f-totry").checked = !!prefill.toTry;
   }
-  const getIng = makeListEditor(el.querySelector("#f-ing"), prefill ? prefill.ingredients : [], "z.B. 2 Eier", false);
-  const getSteps = makeListEditor(el.querySelector("#f-steps"), prefill ? prefill.steps : [], "Schritt beschreiben…", true);
+  const getIng = makeListEditor(el.querySelector("#f-ing"), prefill ? prefill.ingredients : [], t("form.ingPlaceholder"), false);
+  const getSteps = makeListEditor(el.querySelector("#f-steps"), prefill ? prefill.steps : [], t("form.stepPlaceholder"), true);
 
   let submitting = false;
   const saveBtn = el.querySelector(".save-btn");
   saveBtn.onclick = async () => {
     if (submitting) return;
     const name = el.querySelector("#f-name").value.trim();
-    if (!name) { alert("Name fehlt"); return; }
+    if (!name) { alert(t("form.nameMissing")); return; }
     submitting = true;
     saveBtn.disabled = true;
-    saveBtn.textContent = "Speichere…";
+    saveBtn.textContent = t("common.saving");
 
     const fields = {
       name,
@@ -104,8 +105,8 @@ export function openForm(existing, { draft = false } = {}) {
     } catch (err) {
       submitting = false;
       saveBtn.disabled = false;
-      saveBtn.textContent = "Speichern";
-      alert("Speichern fehlgeschlagen: " + err.message);
+      saveBtn.textContent = t("common.save");
+      alert(t("form.saveFailed", { e: err.message }));
     }
   };
 }

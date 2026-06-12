@@ -14,7 +14,11 @@ import { renderPlanner } from "./features/planner/planner.js";
 import { renderAssistant } from "./features/assistant/assistant.js";
 import { renderSettings } from "./features/settings/settings.js";
 import { renderCapture } from "./features/capture/capture.js";
+import { renderLager } from "./features/lager/lager.js";
+import { renderGuide } from "./features/guide/guide.js";
 import { initTheme } from "./data/settings.js";
+import { getLang, hasLang, onLangChange } from "./i18n.js";
+import { showLanguageModal } from "./features/onboarding/language.js";
 import { closeAllSheets } from "./ui/sheet.js";
 import { esc } from "./ui/helpers.js";
 import { BUILD } from "./version.js";
@@ -40,6 +44,13 @@ async function boot() {
   }
 
   initTheme(); // Theme früh anwenden (kein Flackern)
+  document.documentElement.setAttribute("lang", getLang());
+
+  // Sprachwechsel → aktuelle Ansicht neu rendern (ohne Reload)
+  onLangChange(() => router.reload());
+
+  // Erststart ohne Sprache → Auswahl-Overlay
+  if (!hasLang()) showLanguageModal({ onPick: () => router.reload() });
 
   // 1. Lokal laden (instant, offline)
   const { recipes, meta } = await sync.loadLocal();
@@ -53,6 +64,8 @@ async function boot() {
   router.register("planner", () => mount("planner", renderPlanner));
   router.register("assistant", () => mount("assistant", renderAssistant));
   router.register("capture", () => mount("capture", renderCapture));
+  router.register("lager", () => mount("lager", renderLager));
+  router.register("guide", () => mount("guide", renderGuide));
   router.register("settings", () => mount("settings", renderSettings));
   router.setNotFound(() => router.navigate("cookbook"));
   router.start();

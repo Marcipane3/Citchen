@@ -9,6 +9,12 @@ import { getKey, getModel } from "./gate.js";
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 
+// Vision-Aufgaben (Foto-/Kühlschrank-Scan) laufen immer auf einem vision-fähigen
+// Modell, unabhängig von der Textmodell-Wahl des Nutzers.
+export const VISION_MODEL = "claude-sonnet-4-6";
+// Server-Tool für URL-Import: Anthropic holt die Seite serverseitig (kein CORS).
+export const WEB_FETCH_TOOL = { type: "web_fetch_20260209", name: "web_fetch", max_uses: 3 };
+
 export class AiError extends Error {
   constructor(msg, kind) { super(msg); this.kind = kind; } // "nokey"|"offline"|"auth"|"ratelimit"|"overloaded"|"api"
 }
@@ -32,36 +38,69 @@ async function throwForStatus(r) {
 }
 
 /**
- * Eine Messages-Anfrage. messages = [{role, content}], system optional.
- * Gibt den Text der Antwort zurück (erste Text-Blöcke zusammengefügt).
+ * Eine Messages-Anfrage. messages = [{role, content}], system optional,
+ * tools optional (z.B. WEB_FETCH_TOOL). Bei Server-Tools wird pause_turn
+ * automatisch fortgesetzt (max. 4 Runden). Gibt den finalen Text zurück.
  */
-export async function complete({ system, messages, maxTokens = 4096, model = null }) {
+export async function complete({ system, messages, maxTokens = 4096, model = null, tools = null }) {
   const key = getKey();
   if (!key) throw new AiError("Kein API-Schlüssel hinterlegt (Einstellungen → KI).", "nokey");
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
     throw new AiError("Offline — KI braucht eine Internetverbindung.", "offline");
   }
 
-  let r;
-  try {
-    r = await fetch(API_URL, {
-      method: "POST",
-      headers: headers(key),
-      body: JSON.stringify({
-        model: model || getModel(),
-        max_tokens: maxTokens,
-        system: system || undefined,
-        messages,
-      }),
-    });
-  } catch (e) {
-    throw new AiError("Keine Verbindung zur Anthropic-API (offline oder blockiert).", "offline");
-  }
-  if (!r.ok) await throwForStatus(r);
+  const convo = messages.slice();
+  let data = null;
+  for (let round = 0; round < 4; round++) {
+    let r;
+    try {
+      r = await fetch(API_URL, {
+        method: "POST",
+        headers: headers(key),
+        body: JSON.stringify({
+          model: model || getModel(),
+          max_tokens: maxTokens,
+          system: system || undefined,
+          messages: convo,
+          tools: tools || undefined,
+        }),
+      });
+    } catch (e) {
+      throw new AiError("Keine Verbindung zur Anthropic-API (offline oder blockiert).", "offline");
+    }
+    if (!r.ok) await throwForStatus(r);
+    data = await r.json();
 
-  const data = await r.json();
+    // Server-Tool (web_fetch) hat das Iterationslimit erreicht → fortsetzen.
+    if (data.stop_reason === "pause_turn") {
+      convo.push({ role: "assistant", content: data.content });
+      continue;
+    }
+    break;
+  }
+
   const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
   return { text, usage: data.usage || null, stopReason: data.stop_reason };
+}
+
+/** Baut einen User-Turn mit Bild-Blöcken + Text (Vision). images = [base64Jpeg]. */
+export function visionMessage(images, text) {
+  const content = images.map((b64) => ({
+    type: "image",
+    source: { type: "base64", media_type: "image/jpeg", data: b64 },
+  }));
+  content.push({ type: "text", text });
+  return { role: "user", content };
+}
+
+/** Blob → reiner base64-String (ohne data:-Präfix). */
+export function blobToBase64(blob) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onerror = rej;
+    fr.onload = () => res(String(fr.result).split(",")[1] || "");
+    fr.readAsDataURL(blob);
+  });
 }
 
 /**

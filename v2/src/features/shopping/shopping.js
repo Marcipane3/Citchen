@@ -8,6 +8,7 @@ import { openMenu } from "../menu.js";
 import { CATALOG, SECTION_ORDER, sectionIcon } from "./catalog.js";
 import { itemKey, itemLabel } from "./logic.js";
 import { BUILD } from "../../version.js";
+import { t } from "../../i18n.js";
 
 const LIST_ID = "current";
 let ITEMS = [];           // [{name, amount, unit, cat, icon, qty, done}]
@@ -47,17 +48,17 @@ export function renderShopping(container) {
       <div class="brand">
         <div class="brand-l">
           <span style="font-size:24px">🛒</span>
-          <div><h1>Einkaufsliste</h1><div class="sub" id="shop-sub"></div></div>
+          <div><h1>${t("shopping.title")}</h1><div class="sub" id="shop-sub"></div></div>
         </div>
-        <button class="icon-btn" id="menuBtn" title="Menü">☰</button>
+        <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
       </div>
       <div class="search-wrap">
         <span>🔍</span>
-        <input id="shop-search" placeholder="Artikel suchen…" value="${esc(search)}" />
+        <input id="shop-search" placeholder="${t("shopping.searchPlaceholder")}" value="${esc(search)}" />
       </div>
       <div class="shop-add">
-        <input id="shop-custom" placeholder="Eigenes hinzufügen…" />
-        <button class="add-custom">+ Hinzufügen</button>
+        <input id="shop-custom" placeholder="${t("shopping.customPlaceholder")}" />
+        <button class="add-custom">${t("shopping.addBtn")}</button>
       </div>
     </header>
     <main class="app-main">
@@ -86,10 +87,10 @@ function paintList(container) {
   const doneCount = ITEMS.filter((x) => x.done).length;
   const openCount = ITEMS.length - doneCount;
   const sub = container.querySelector("#shop-sub");
-  if (sub) sub.textContent = ITEMS.length ? `${openCount} offen${doneCount ? ` · ${doneCount} erledigt` : ""}` : "leer";
+  if (sub) sub.textContent = ITEMS.length ? (doneCount ? t("shopping.openDone", { n: openCount, d: doneCount }) : t("shopping.open", { n: openCount })) : t("shopping.empty");
 
   if (!ITEMS.length) {
-    el.innerHTML = `<p class="empty">Liste ist leer.<br>Tippe unten auf Artikel, füge oben eigene hinzu —<br>oder erzeuge sie aus dem <a href="#/planner">Wochenplan</a>.</p>`;
+    el.innerHTML = `<p class="empty">${t("shopping.emptyList")}</p>`;
     return;
   }
 
@@ -98,7 +99,7 @@ function paintList(container) {
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
   });
 
-  let html = `<div class="sl-top"><div class="sl-title">Meine Liste</div>${doneCount ? `<button class="sl-clear">Erledigte entfernen</button>` : ""}</div>`;
+  let html = `<div class="sl-top"><div class="sl-title">${t("shopping.myList")}</div>${doneCount ? `<button class="sl-clear">${t("shopping.clearDone")}</button>` : ""}</div>`;
   for (const cat of cats) {
     html += `<div class="sl-cat">${sectionIcon(cat)} ${esc(cat)}</div>`;
     ITEMS.forEach((it, i) => {
@@ -153,11 +154,11 @@ function paintCatalog(container) {
   if (q) {
     const matches = [];
     CATALOG.forEach((sec) => sec.items.forEach((it) => { if (it.name.toLowerCase().includes(q)) matches.push({ it, sec }); }));
-    el.innerHTML = `<h3>Suchergebnisse</h3>` + (matches.length
+    el.innerHTML = `<h3>${t("shopping.results")}</h3>` + (matches.length
       ? `<div class="cat-grid">${matches.map((m) => catItemHTML(m.it.name, m.sec.name, m.it.icon || m.sec.icon)).join("")}</div>`
-      : `<p class="empty" style="margin-top:18px">Nichts gefunden.<br>Nutze „Eigenes hinzufügen" oben.</p>`);
+      : `<p class="empty" style="margin-top:18px">${t("shopping.nothingFound")}</p>`);
   } else {
-    el.innerHTML = `<h3>Hinzufügen</h3>` + CATALOG.map((sec) => {
+    el.innerHTML = `<h3>${t("shopping.addHeading")}</h3>` + CATALOG.map((sec) => {
       const open = openSection === sec.name;
       return `<div class="cat-sec">
         <button class="cat-head" data-sec="${esc(sec.name)}">${sec.icon} ${esc(sec.name)} <span class="chev">${open ? "▾" : "▸"}</span></button>

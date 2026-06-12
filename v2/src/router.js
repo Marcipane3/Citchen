@@ -47,3 +47,6 @@ export function start() {
   window.addEventListener("hashchange", resolve);
   resolve();
 }
+
+/** Aktuelle Route neu rendern (z.B. nach Sprachwechsel). */
+export function reload() { resolve(); }

@@ -109,3 +109,25 @@ Do not implement in this build.
 - AI features work **only** via the user's own key; owner's tokens never used by others.
 - Deterministic logic covered by passing unit tests; main views vision-checked; offline verified.
 - `rezepte.json` migrated losslessly; in-app Drive save updates the file in place.
+
+
+## Backlog (manually added in here by Marcel)
+- Languages (German, English, Danish, Spanish)
+- Bug fixes
+- Has pictures in the app of the food
+- Photo upload for storage
+- AI background promt right now optimized for me. Promt needs to be adjusted and more flexible
+- Baue aktuell: Kühlschrank / Lager
+- Einkaufszettel löschen button / per photo löschen, das nur ein paar sachen raus nimmt?
+- Viel mehr optionen beim Einkaufen und nach Supermarkt sortierung sortieren button
+- Mehr Gerichte / Eigene Option viele Gerichte nach eigenem Geschmack genereieren zu können?
+- Build skills and Agents which can run over my code with DREAM functionality to find bugs and list them as well as writing a new backlog / more items. One just bug fixes, one obvious stuff, and one super creative, Run backlog promt again to make more ideas
+- Double filter options / multi filter - filter pane to filter down the receipes AND OR Filter categories - fish or meat, but fish and has to be nordic / mediteranian AND every day meal
+- When I write receipes adjustment and comments for claude, then the user has to also be able / claude be able to control the receipe file and update it fully.
+- Tinder gold "yes" options - I want to swipe them again or see them next to each other in a different way
+- V3:
+   - Full build to upload into Google apps
+   - Payment option if Private API is not possible. Payed double. Think of payment options
+   - Must have all bug fixes incorporated. (Pictures, )
+   - Architecture - where files are stored - does local drive work? What receipes, What language the code is written in, Is it fast enough and slim enough and also well designed? 
+   -

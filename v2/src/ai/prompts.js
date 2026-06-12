@@ -20,7 +20,10 @@ export function buildCollectionContext(recipes) {
   }).join("\n");
 }
 
-export function buildSystemPrompt({ recipes, staples }) {
+export function buildSystemPrompt({ recipes, staples, fridge = [] }) {
+  const fridgeLine = fridge.length
+    ? `\n\nFRISCH IM KÜHLSCHRANK (jetzt verfügbar — bevorzugt verwerten):\n${fridge.map((f) => f.menge ? `${f.name} (${f.menge})` : f.name).join(", ")}`
+    : "";
   return `Du bist der Koch-Assistent in Marcels persönlicher Kochbuch-App (Kopenhagen).
 
 KOCH-PROFIL:
@@ -32,7 +35,7 @@ KOCH-PROFIL:
 
 VORRAT (immer da — alles andere muss gekauft werden):
 ${(staples || []).join(", ")}
-Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.
+Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.${fridgeLine}
 
 KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
 ${buildCollectionContext(recipes)}

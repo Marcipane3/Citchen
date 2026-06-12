@@ -10,6 +10,7 @@ import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "../cookbook/detail.js";
 import { openMenu } from "../menu.js";
 import { BUILD } from "../../version.js";
+import { t, tn } from "../../i18n.js";
 
 const MATCH_KEY = "matches";
 const WEEKEND_CATS = ["Wochenend-Gerichte", "Backen: Süßes & Kuchen", "Sourdough & Sauerteig", "Backen: Brot & Herzhaftes"];
@@ -34,8 +35,8 @@ function saveMatches() { db.kvSet(MATCH_KEY, swipeMatches).catch(() => {}); }
 /** Wochentags- vs. Wochenend-Gericht fürs Karten-Badge (v1-Logik, totalTime-bewusst). */
 export function dishKind(r) {
   const m = getTotalMinutes(r);
-  if (WEEKEND_CATS.includes(r.category) || (m !== null && m > 40)) return { label: "Wochenende", icon: "🍷" };
-  return { label: "Wochentags", icon: "⚡" };
+  if (WEEKEND_CATS.includes(r.category) || (m !== null && m > 40)) return { label: t("match.weekend"), icon: "🍷" };
+  return { label: t("match.weekday"), icon: "⚡" };
 }
 
 function scardHTML(r, behind) {
@@ -53,11 +54,11 @@ function scardHTML(r, behind) {
       <div class="scard-meta">
         ${r.time ? `<span>⏱ ${esc(r.time)}</span>` : ""}
         ${r.rating ? `<span class="st">${"★".repeat(r.rating)}</span>` : ""}
-        <span>🥗 ${(r.ingredients || []).length} Zutaten</span>
+        <span>${t("match.ingredientsN", { n: (r.ingredients || []).length })}</span>
       </div>
     </div>
-    <div class="scard-stamp like">Lecker</div>
-    <div class="scard-stamp nope">Nö</div>
+    <div class="scard-stamp like">${t("match.stampLike")}</div>
+    <div class="scard-stamp nope">${t("match.stampNope")}</div>
   </div>`;
 }
 
@@ -67,22 +68,22 @@ export function renderMatch(container) {
       <div class="brand">
         <div class="brand-l">
           <span style="font-size:24px">🔥</span>
-          <div><h1>Koch-Match</h1><div class="sub">Swipe dich durch deine Rezepte</div></div>
+          <div><h1>${t("match.title")}</h1><div class="sub">${t("match.subtitle")}</div></div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          <button class="match-stack" id="matchStack" title="Deine Matches">🔥 <span class="ms-count">0</span></button>
-          <button class="icon-btn" id="menuBtn" title="Menü">☰</button>
+          <button class="match-stack" id="matchStack" title="${t("match.viewMatches")}">🔥 <span class="ms-count">0</span></button>
+          <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
         </div>
       </div>
     </header>
     <main class="swipe-wrap">
       <div class="swipe-deck" id="deck"></div>
       <div class="swipe-actions" id="swipeActions">
-        <button class="sw-btn undo" id="swUndo" title="Zurück">↩︎</button>
-        <button class="sw-btn nope" id="swNope" title="Nö">✕</button>
-        <button class="sw-btn like" id="swLike" title="Lecker!">🔥</button>
+        <button class="sw-btn undo" id="swUndo" title="${t("common.back")}">↩︎</button>
+        <button class="sw-btn nope" id="swNope" title="${t("match.stampNope")}">✕</button>
+        <button class="sw-btn like" id="swLike" title="${t("match.stampLike")}">🔥</button>
       </div>
-      <div class="swipe-hint">Nach rechts wischen = Match · nach links = weiter</div>
+      <div class="swipe-hint">${t("match.hint")}</div>
     </main>
     <div class="sync-line">${esc(sync.getStatus())}</div>
     <div class="build-line">Build ${esc(BUILD)}</div>`;
@@ -113,10 +114,10 @@ function paintSwipe(container) {
   if (swipeIdx >= swipeOrder.length) {
     if (sa) sa.style.display = "none";
     deck.innerHTML = `<div class="swipe-empty">
-      <h3>Alles durchgeswipt! 🎉</h3>
-      <p>${swipeMatches.length} Match${swipeMatches.length === 1 ? "" : "es"} in deinem Stapel.</p>
-      <button class="btn-primary" id="swShowMatches" style="margin-top:16px">🔥 Matches ansehen</button>
-      <button class="btn-sec" id="swRestart" style="margin-top:10px">↻ Nochmal von vorn</button>
+      <h3>${t("match.done")}</h3>
+      <p>${tn("match.matchCount", swipeMatches.length)}</p>
+      <button class="btn-primary" id="swShowMatches" style="margin-top:16px">${t("match.viewMatches")}</button>
+      <button class="btn-sec" id="swRestart" style="margin-top:10px">${t("match.restart")}</button>
     </div>`;
     const sm = deck.querySelector("#swShowMatches");
     if (sm) sm.onclick = openMatches;
@@ -214,7 +215,7 @@ function undoSwipe(container) {
 function openMatches() {
   const list = swipeMatches.map((id) => state.recipes.find((r) => r.id === id)).filter(Boolean);
   const html = `
-    <div class="sheet-head"><span class="cat-label">🔥 Deine Matches (${list.length})</span><button class="icon-btn close">✕</button></div>
+    <div class="sheet-head"><span class="cat-label">${t("match.yourMatches", { n: list.length })}</span><button class="icon-btn close">✕</button></div>
     ${list.length ? list.map((r) => {
       const hasImg = (r.photos && r.photos.length) || r.image;
       const k = dishKind(r);
@@ -222,9 +223,9 @@ function openMatches() {
         <div class="match-thumb ${hasImg ? "has-img" : ""}" data-hero="${esc(r.id)}">${hasImg ? "" : "🍽"}</div>
         <div class="match-info"><div class="mn">${esc(r.name)}</div>
           <div class="mm">${esc(r.category)} · ${k.icon} ${k.label}${r.time ? ` · ⏱ ${esc(r.time)}` : ""}${r.rating ? ` · ${"★".repeat(r.rating)}` : ""}</div></div>
-        <button class="match-rm" data-rm="${esc(r.id)}" title="Entfernen">✕</button>
+        <button class="match-rm" data-rm="${esc(r.id)}" title="${t("common.remove")}">✕</button>
       </div>`;
-    }).join("") : `<p class="empty" style="margin-top:30px">Noch keine Matches.<br>Swipe Rezepte nach rechts.</p>`}
+    }).join("") : `<p class="empty" style="margin-top:30px">${t("match.noMatches")}</p>`}
   `;
   const { el, close } = openSheet(html);
   hydrateHeroes(el, state.recipes);

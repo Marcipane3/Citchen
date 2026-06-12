@@ -266,3 +266,44 @@ label.check input { width: auto; }
 .set-note { font-size: 13px; color: var(--muted-strong); line-height: 1.55; margin-bottom: 8px; }
 .set-card label.check { margin-top: 8px; }
 .set-card code { background: var(--badge-bg); border-radius: 6px; padding: 1px 5px; }
+
+/* ---------- Sprachauswahl ---------- */
+.lang-overlay { align-items: center; }
+.lang-modal { background: var(--paper); border-radius: var(--radius-xl); padding: 28px 24px; width: 100%; max-width: 380px; margin: 0 16px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+.lang-modal h2 { font-size: 22px; margin-bottom: 2px; }
+.lang-sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+.lang-grid { display: flex; flex-direction: column; gap: 10px; }
+.lang-btn { display: flex; align-items: center; gap: 14px; background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius-m); padding: 14px 18px; font-weight: 700; font-size: 16px; color: var(--ink); }
+.lang-btn.on { border-color: var(--accent); color: var(--accent); }
+.lang-flag { font-size: 24px; }
+.lang-toggle { display: flex; gap: 8px; }
+.lang-toggle .lang-btn { flex: 1; justify-content: center; padding: 12px 8px; font-size: 14px; }
+
+/* ---------- Lager ---------- */
+.lager-sec { margin-bottom: 16px; }
+.lager-cat { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin: 14px 0 6px; }
+.stock-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+.stock-chip { padding: 7px 13px; border-radius: 20px; border: 1.5px solid var(--line); background: transparent; font-weight: 600; font-size: 13px; color: var(--muted-strong); white-space: nowrap; }
+.stock-chip.on { background: var(--badge-alltag-bg); color: var(--badge-alltag-fg); border-color: var(--badge-alltag-fg); }
+.stock-chip .x { margin-left: 6px; opacity: .5; }
+.fridge-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.fridge-item .fi-name { flex: 1; font-size: 15px; }
+.fridge-item .fi-qty { font-size: 13px; color: var(--muted); }
+.fridge-item .fi-used { background: transparent; border: 1.5px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--ok); }
+.fridge-item .fi-del { background: none; border: none; color: var(--danger); font-size: 15px; padding: 6px; }
+.fridge-add { display: flex; gap: 8px; margin-top: 10px; }
+.fridge-add input { border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 15px; background: var(--card); color: var(--ink); outline: none; }
+.fridge-add .fa-name { flex: 2; }
+.fridge-add .fa-qty { flex: 1; min-width: 0; }
+.stage-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.stage-item input { flex: 1; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--card); color: var(--ink); }
+.cap-thumb { width: 100%; max-height: 220px; object-fit: contain; border-radius: 14px; margin-top: 10px; background: var(--line-soft); }
+.cap-thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.cap-thumbs img { width: 90px; height: 90px; object-fit: cover; border-radius: 12px; }
+
+/* ---------- Guide ---------- */
+.guide-feat { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+.guide-feat .gf-t { font-family: var(--font-display); font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+.guide-feat .gf-b { font-size: 14px; color: var(--muted-strong); line-height: 1.5; }
+.guide-changelog { font-size: 14px; line-height: 1.7; color: var(--muted-strong); }
+.guide-changelog li { margin-bottom: 2px; }

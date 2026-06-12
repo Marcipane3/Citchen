@@ -8,6 +8,8 @@ import "./test-planner.js";
 import "./test-shopping.js";
 import "./test-ai.js";
 import "./test-capture.js";
+import "./test-lager.js";
+import "./test-i18n.js";
 import { run } from "./runner.js";
 
 const { fail } = await run();

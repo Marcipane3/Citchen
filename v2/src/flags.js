@@ -6,5 +6,5 @@ export const FLAGS = Object.freeze({
   // Modul, Route und Review-vor-Speichern existieren; nur der Parse-Schritt
   // ist deaktiviert. Beim Scharfschalten: parseCapture in
   // features/capture/parse.js implementieren (ai/client.js, Vision-Input).
-  captureParse: false,
+  captureParse: true,
 });

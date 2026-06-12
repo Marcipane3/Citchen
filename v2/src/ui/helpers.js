@@ -1,6 +1,7 @@
 // helpers.js — kleine geteilte UI-Bausteine (Escaping, Badges, Sterne, Bilder).
 
 import * as drive from "../data/drive.js";
+import { t } from "../i18n.js";
 
 export const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -12,12 +13,12 @@ export function starsMini(n) {
 /** Badges aus den v3-Metadaten. compact=true für Karten (weniger Badges). */
 export function metaBadges(r, compact = false) {
   const b = [];
-  if (r.effort === "alltag") b.push(`<span class="badge alltag">⚡ Alltag</span>`);
-  else if (r.effort === "besonders") b.push(`<span class="badge besonders">✨ Besonders</span>`);
+  if (r.effort === "alltag") b.push(`<span class="badge alltag">${t("badge.alltag")}</span>`);
+  else if (r.effort === "besonders") b.push(`<span class="badge besonders">${t("badge.besonders")}</span>`);
   if (r.difficulty) b.push(`<span class="badge">${esc(r.difficulty)}</span>`);
   if (!compact && r.cuisine) b.push(`<span class="badge">${esc(r.cuisine)}</span>`);
-  if (r.mealPrep) b.push(`<span class="badge prep">🍱 Meal-Prep</span>`);
-  if (r.toTry) b.push(`<span class="badge totry">🆕 Zu probieren</span>`);
+  if (r.mealPrep) b.push(`<span class="badge prep">${t("badge.mealprep")}</span>`);
+  if (r.toTry) b.push(`<span class="badge totry">${t("badge.totry")}</span>`);
   if (!compact && r.season) b.push(`<span class="badge">${esc(r.season)}</span>`);
   return b.join("");
 }

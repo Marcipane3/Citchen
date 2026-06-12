@@ -11,6 +11,7 @@ import { openDetail } from "./detail.js";
 import { openForm } from "./form.js";
 import { openMenu } from "../menu.js";
 import { BUILD } from "../../version.js";
+import { t, tn } from "../../i18n.js";
 
 // Filterzustand überlebt Re-Renders (Modul-Scope)
 let query = "", activeChip = "Alle", fCuisine = "", fSeason = "";
@@ -33,9 +34,7 @@ function paintCards(container) {
   if (!el) return;
   const filtered = filterRecipes(state.recipes, { query, chip: activeChip, cuisine: fCuisine || null, season: fSeason || null });
   el.innerHTML = filtered.length === 0
-    ? `<p class="empty">${activeChip === "__fav"
-        ? "Noch keine Favoriten.<br>Öffne ein Rezept und tippe auf ♥."
-        : "Keine Rezepte gefunden.<br>Filter anpassen oder mit + ein neues anlegen."}</p>`
+    ? `<p class="empty">${activeChip === "__fav" ? t("cookbook.emptyFav") : t("cookbook.emptyNone")}</p>`
     : filtered.map(cardHTML).join("");
 
   el.querySelectorAll(".rcard").forEach((c) => { c.onclick = () => openDetail(c.dataset.id); });
@@ -63,26 +62,26 @@ export function renderCookbook(container) {
         <div class="brand-l">
           <span style="font-size:24px">🍳</span>
           <div>
-            <h1>Mein Kochbuch</h1>
-            <div class="sub">${state.recipes.length} ${state.recipes.length === 1 ? "Rezept" : "Rezepte"}</div>
+            <h1>${t("cookbook.title")}</h1>
+            <div class="sub">${tn("cookbook.count", state.recipes.length)}</div>
           </div>
         </div>
-        <button class="icon-btn" id="menuBtn" title="Menü">☰</button>
+        <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
       </div>
       <div class="search-wrap">
         <span>🔍</span>
-        <input id="search" placeholder="Suchen nach Name oder Zutat…" value="${esc(query)}" />
+        <input id="search" placeholder="${t("cookbook.searchPlaceholder")}" value="${esc(query)}" />
       </div>
       <div class="chips" id="chips">
         ${chips.map((c) => `<button class="chip ${activeChip === c ? "active" : ""}" data-chip="${esc(c)}">${esc(chipLabel(c))}</button>`).join("")}
       </div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <select class="f" id="fCuisine" style="flex:1;padding:8px 10px">
-          <option value="">Küche: alle</option>
+          <option value="">${t("cookbook.cuisineAll")}</option>
           ${cuisines.map((c) => `<option ${fCuisine === c ? "selected" : ""}>${esc(c)}</option>`).join("")}
         </select>
         <select class="f" id="fSeason" style="flex:1;padding:8px 10px">
-          <option value="">Saison: alle</option>
+          <option value="">${t("cookbook.seasonAll")}</option>
           ${seasons.map((s) => `<option ${fSeason === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
         </select>
       </div>
@@ -107,6 +106,7 @@ export function renderCookbook(container) {
   container.querySelector("#fCuisine").onchange = (e) => { fCuisine = e.target.value; paintCards(container); };
   container.querySelector("#fSeason").onchange = (e) => { fSeason = e.target.value; paintCards(container); };
   container.querySelector("#menuBtn").onclick = () => openMenu("cookbook");
+  container.querySelector("#addBtn").title = t("cookbook.newRecipe");
   container.querySelector("#addBtn").onclick = () => openForm();
 
   paintCards(container);

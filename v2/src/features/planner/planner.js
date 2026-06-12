@@ -14,6 +14,7 @@ import { generatePlan, planRecipeIds, mondayOf, DAYS, MEAL_CATEGORIES } from "./
 import { aggregateIngredients } from "../shopping/logic.js";
 import { addItemsToList } from "../shopping/shopping.js";
 import { BUILD } from "../../version.js";
+import { t } from "../../i18n.js";
 
 const PLAN_ID = "current";
 const RECENT_KEY = "plannerRecent";
@@ -93,10 +94,10 @@ function dayDate(weekOf, idx) {
 function dayCardHTML(entry, idx) {
   const r = entry.recipeId ? getRecipe(entry.recipeId) : null;
   const slotBadge = entry.leftoverOf
-    ? `<span class="badge prep">🍱 Reste von ${esc(entry.leftoverOf)}</span>`
+    ? `<span class="badge prep">${t("planner.leftoverOf", { d: esc(entry.leftoverOf) })}</span>`
     : entry.slot === "besonders"
-      ? `<span class="badge besonders">✨ Besonders</span>`
-      : `<span class="badge alltag">⚡ Alltag</span>`;
+      ? `<span class="badge besonders">${t("badge.besonders")}</span>`
+      : `<span class="badge alltag">${t("badge.alltag")}</span>`;
   const mins = r ? getTotalMinutes(r) : null;
   return `
     <div class="plan-day ${entry.locked ? "locked" : ""}" data-day="${entry.day}">
@@ -108,12 +109,12 @@ function dayCardHTML(entry, idx) {
         <button class="pd-recipe" data-open="${esc(r.id)}">
           <span class="pd-name">${esc(r.name)}</span>
           <span class="pd-meta">${mins ? `⏱ ${mins} Min` : ""}${r.cuisine ? ` · ${esc(r.cuisine)}` : ""}${r.mealPrep ? " · 🍱" : ""}</span>
-        </button>` : `<p class="pd-empty">— kein Rezept —</p>`}
+        </button>` : `<p class="pd-empty">${t("planner.noRecipe")}</p>`}
       ${entry.leftoverOf ? "" : `
       <div class="pd-actions">
-        <button class="icon-btn pd-lock" title="${entry.locked ? "Entsperren" : "Tag sperren"}">${entry.locked ? "🔒" : "🔓"}</button>
-        <button class="icon-btn pd-reroll" title="Neu würfeln">🔄</button>
-        <button class="icon-btn pd-pick" title="Aus Kochbuch wählen">📖</button>
+        <button class="icon-btn pd-lock" title="${entry.locked ? t("planner.unlock") : t("planner.lock")}">${entry.locked ? "🔒" : "🔓"}</button>
+        <button class="icon-btn pd-reroll" title="${t("planner.reroll")}">🔄</button>
+        <button class="icon-btn pd-pick" title="${t("planner.pick")}">📖</button>
       </div>`}
     </div>`;
 }
@@ -124,15 +125,15 @@ export function renderPlanner(container) {
       <div class="brand">
         <div class="brand-l">
           <span style="font-size:24px">🗓</span>
-          <div><h1>Wochenplan</h1><div class="sub" id="plan-sub">Abendessen, deterministisch geplant</div></div>
+          <div><h1>${t("planner.title")}</h1><div class="sub" id="plan-sub">${t("planner.subtitle")}</div></div>
         </div>
-        <button class="icon-btn" id="menuBtn" title="Menü">☰</button>
+        <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
       </div>
       <div class="plan-controls">
-        <button class="btn-primary" id="genBtn">♻ Neue Woche</button>
-        <button class="btn-sec" id="shopBtn">🛒 Einkaufsliste erstellen</button>
-        <button class="btn-sec" id="aiBtn" style="display:none">✨ KI-Wunsch</button>
-        <label class="check" style="margin:0"><input type="checkbox" id="leftoverChk" /> 🍱 Reste-Tage</label>
+        <button class="btn-primary" id="genBtn">${t("planner.newWeek")}</button>
+        <button class="btn-sec" id="shopBtn">${t("planner.makeShopping")}</button>
+        <button class="btn-sec" id="aiBtn" style="display:none">${t("planner.aiWish")}</button>
+        <label class="check" style="margin:0"><input type="checkbox" id="leftoverChk" /> ${t("planner.leftovers")}</label>
       </div>
     </header>
     <main class="app-main">
@@ -161,7 +162,7 @@ export function renderPlanner(container) {
   };
 
   container.querySelector("#shopBtn").onclick = async (e) => {
-    if (!PLAN) { alert("Erst einen Wochenplan erzeugen."); return; }
+    if (!PLAN) { alert(t("planner.needPlan")); return; }
     const btn = e.currentTarget;
     btn.disabled = true;
     const { getStaples } = await import("../../data/settings.js");
@@ -170,10 +171,8 @@ export function renderPlanner(container) {
     const { items, skipped } = aggregateIngredients(recipes, { staples });
     await addItemsToList(items);
     btn.disabled = false;
-    if (confirm(`${items.length} Artikel auf die Einkaufsliste übernommen` +
-      (skipped ? ` (${skipped} Zutaten bereits im Vorrat).` : ".") + `\nZur Liste wechseln?`)) {
-      navigate("shopping");
-    }
+    const msg = t("detail.addedToShopping", { n: items.length }) + (skipped ? t("detail.inStockSkipped", { n: skipped }) : "") + ".\n" + t("detail.switchToList");
+    if (confirm(msg)) navigate("shopping");
   };
 
   // Optionaler KI-Hook (Premium): Wochenplan per Wunsch anpassen
@@ -184,10 +183,10 @@ export function renderPlanner(container) {
     aiBtn.style.display = "";
     aiBtn.onclick = async () => {
       if (!PLAN) { alert("Erst einen Wochenplan erzeugen."); return; }
-      const wish = prompt('Wie soll ich den Plan anpassen? (z.B. „leichter", „mehr Middle Eastern", „nutze meine Kichererbsen")');
+      const wish = prompt(t("planner.aiWishPrompt"));
       if (!wish) return;
       aiBtn.disabled = true;
-      aiBtn.textContent = "✨ Denke…";
+      aiBtn.textContent = t("planner.aiThinking");
       try {
         const [{ complete }, { buildSystemPrompt, planUserPrompt }, { extractJson, coercePlanDays }, { getStaples }] = await Promise.all([
           import("../../ai/client.js"), import("../../ai/prompts.js"), import("../../ai/parse.js"), import("../../data/settings.js"),
@@ -199,7 +198,7 @@ export function renderPlanner(container) {
           messages: [{ role: "user", content: planUserPrompt({ wish, plan: PLAN, lockedDays }) }],
         });
         const parsed = coercePlanDays(extractJson(text), new Set(state.recipes.map((r) => r.id)));
-        if (!parsed) { alert("Die KI-Antwort war nicht verwertbar — Plan unverändert."); return; }
+        if (!parsed) { alert(t("planner.aiBad")); return; }
         for (const d of PLAN.days) {
           if (d.locked || !parsed.days[d.day]) continue;
           d.recipeId = parsed.days[d.day];
@@ -209,10 +208,10 @@ export function renderPlanner(container) {
         paintDays(container);
         if (parsed.note) alert("✨ " + parsed.note);
       } catch (e) {
-        alert("KI-Anpassung fehlgeschlagen: " + e.message);
+        alert(t("planner.aiFailed", { e: e.message }));
       } finally {
         aiBtn.disabled = false;
-        aiBtn.textContent = "✨ KI-Wunsch";
+        aiBtn.textContent = t("planner.aiWish");
       }
     };
   });
@@ -222,7 +221,7 @@ function paintDays(container) {
   const el = container.querySelector("#plan-days");
   if (!el) return;
   if (!PLAN) {
-    el.innerHTML = `<p class="empty">Noch kein Wochenplan.<br>Tippe oben auf „♻ Neue Woche".</p>`;
+    el.innerHTML = `<p class="empty">${t("planner.noPlan")}</p>`;
     return;
   }
   el.innerHTML = PLAN.days.map((d, i) => dayCardHTML(d, i)).join("");
@@ -263,8 +262,8 @@ function openPicker(day, container) {
     </div>`;
   };
   const { el, close } = openSheet(`
-    <div class="sheet-head"><span class="cat-label">Rezept für ${esc(day)} wählen</span><button class="icon-btn close">✕</button></div>
-    <div class="search-wrap"><span>🔍</span><input id="pick-search" placeholder="Suchen…" /></div>
+    <div class="sheet-head"><span class="cat-label">${t("planner.pickFor", { d: esc(day) })}</span><button class="icon-btn close">✕</button></div>
+    <div class="search-wrap"><span>🔍</span><input id="pick-search" placeholder="${t("common.search")}" /></div>
     <div id="pick-list">${pool.map(rowHTML).join("")}</div>
   `);
   const wire = () => {

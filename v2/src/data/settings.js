@@ -3,25 +3,20 @@
 // gate.js) — die kv-Daten könnten später synchronisiert werden, der Key nie.
 
 import * as db from "./db.js";
-import { DEFAULT_STAPLES } from "../features/shopping/logic.js";
+import { getInStock } from "./lager.js";
 
-const STAPLES_KEY = "pantryStaples";
 const THEME_KEY = "theme"; // "system" | "light" | "dark"
 
+// Selbstverständliche Basics, die immer als "vorhanden" gelten (Öl/Wasser/Salz …).
+const ALWAYS = ["Öl", "Olivenöl", "Wasser", "Salz", "Pfeffer"];
+
+/**
+ * Vorhandene Zutaten für die Einkaufslisten-Subtraktion: alles im Lager
+ * (Vorrat on + Kühlschrank) plus selbstverständliche Basics.
+ */
 export async function getStaples() {
-  const list = await db.kvGet(STAPLES_KEY, null);
-  return Array.isArray(list) && list.length ? list : DEFAULT_STAPLES;
-}
-
-export async function setStaples(list) {
-  const clean = (list || []).map((s) => String(s).trim()).filter(Boolean);
-  await db.kvSet(STAPLES_KEY, clean);
-  return clean;
-}
-
-export async function resetStaples() {
-  await db.kvDel(STAPLES_KEY);
-  return DEFAULT_STAPLES;
+  const inStock = await getInStock();
+  return [...new Set([...inStock, ...ALWAYS])];
 }
 
 export async function getTheme() {
