@@ -1,6 +1,17 @@
 // Tests: i18n.js — Key-Parität DE/EN/ES, Interpolation, Plural, Fallback.
 import { test, assert, assertEqual } from "./runner.js";
-import { t, tn, setLang, getLang, LANGS } from "../src/i18n.js";
+import { t, tn, setLang, getLang, LANGS, DICT } from "../src/i18n.js";
+
+// Sammelt alle Punkt-Pfade eines verschachtelten Objekts (Blätter = Strings).
+function leafKeys(obj, prefix = "") {
+  const out = [];
+  for (const [k, v] of Object.entries(obj)) {
+    const path = prefix ? `${prefix}.${k}` : k;
+    if (v && typeof v === "object") out.push(...leafKeys(v, path));
+    else out.push(path);
+  }
+  return out;
+}
 
 // Zugriff aufs interne DICT über t() — wir prüfen Parität strukturell, indem
 // wir eine repräsentative Key-Liste in allen Sprachen auflösen.
@@ -24,6 +35,18 @@ test("Alle Beispiel-Keys in DE/EN/ES vorhanden (kein Key-Echo)", () => {
     }
   }
   setLang("de");
+});
+
+test("Volle Key-Parität: jede Sprache hat exakt die DE-Keys (kein Loch, kein Extra)", () => {
+  const deKeys = leafKeys(DICT.de).sort();
+  for (const lang of LANGS.map((l) => l.code)) {
+    if (lang === "de") continue;
+    const langKeys = leafKeys(DICT[lang]).sort();
+    const missing = deKeys.filter((k) => !langKeys.includes(k));
+    const extra = langKeys.filter((k) => !deKeys.includes(k));
+    assertEqual(missing.length, 0, `${lang} fehlen Keys: ${missing.join(", ")}`);
+    assertEqual(extra.length, 0, `${lang} hat Extra-Keys: ${extra.join(", ")}`);
+  }
 });
 
 test("Interpolation {n}", () => {

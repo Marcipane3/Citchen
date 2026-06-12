@@ -65,7 +65,7 @@ Marcel: "German, English, **Danish**, Spanish — and the base recipes should al
 
 | # | Item | Detail & acceptance | Pri | Eff |
 |---|------|---------------------|-----|-----|
-| B1 | **Add Danish UI** | Add `da` to `LANGS` + a full `DICT.da` block in `i18n.js`; flag 🇩🇰. **Done:** Danish selectable on first run + in Settings, no missing-key fallbacks. | P1 | M |
+| ✅ **B1** | **Add Danish UI** *(shipped v2.3)* | Added `da` to `LANGS` (flag 🇩🇰) + a full `DICT.da` block in `i18n.js`. Guarded by a new full-recursive key-parity test (every lang must match the DE key set exactly — no gaps, no extras). | P1 | M |
 | B2 | **Translate base recipes** | Today switching language leaves the ~105 seed recipes in German. Decide the model (recommendation below) and implement. **Done:** picking a language shows base recipes in that language. | P1 | L |
 | B3 | **Language switch re-seeds base content** | On first run / language pick, load the base recipes for that language (not always the German snapshot). **Done:** a fresh English user starts with English recipes. | P1 | M |
 
