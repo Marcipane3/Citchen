@@ -12,6 +12,11 @@ const SPECIAL_KEYS = {
   "__mealprep": "chip.mealprep", "__totry": "chip.totry", "__quick": "chip.quick",
 };
 
+/** Ist der Chip ein Spezial-Chip (♥/⚡/✨/🍱/🆕/≤30) statt einer Kategorie? */
+export function isSpecialChip(chip) {
+  return Object.prototype.hasOwnProperty.call(SPECIAL_KEYS, chip);
+}
+
 /** Chip-Liste abhängig von den Daten (v1-Verhalten: nur, was vorkommt). */
 export function availableChips(recipes) {
   const chips = ["Alle", "__fav"];
@@ -51,18 +56,55 @@ function matchesQuery(r, q) {
   return (r.ingredients || []).join(" ").toLowerCase().includes(needle);
 }
 
-/** Erweiterte Filter (v2): cuisine / season — null = aus. */
-function matchesExtra(r, { cuisine, season }) {
-  if (cuisine && r.cuisine !== cuisine) return false;
-  if (season && r.season !== season) return false;
-  return true;
+/**
+ * Auswahl normalisieren — akzeptiert sowohl die alte Einzel-Signatur
+ * ({ chip, cuisine, season }) als auch die neue Mehrfach-Auswahl
+ * ({ chips, cuisines, seasons }). Liefert Facetten-Gruppen für den Filter.
+ *
+ * Facetten-Modell (F2): innerhalb einer Facette ODER ("Fisch ODER Fleisch"),
+ * über Facetten hinweg UND (mode "and") bzw. ODER (mode "or", reine Vereinigung).
+ */
+function normalizeSelection({ chip = "Alle", cuisine = null, season = null,
+  chips = null, cuisines = null, seasons = null } = {}) {
+  let chipSel = chips ? chips.slice() : (chip && chip !== "Alle" ? [chip] : []);
+  chipSel = chipSel.filter((c) => c && c !== "Alle");
+  const cuisineSel = cuisines ? cuisines.filter(Boolean) : (cuisine ? [cuisine] : []);
+  const seasonSel = seasons ? seasons.filter(Boolean) : (season ? [season] : []);
+  return {
+    cats: chipSel.filter((c) => !isSpecialChip(c)),
+    specials: chipSel.filter(isSpecialChip),
+    cuisineSel,
+    seasonSel,
+  };
 }
 
 /**
- * Hauptfilter: query (Name/Zutat) + chip (Kategorie/Spezial) + optionale Extras.
+ * Hauptfilter: query (Name/Zutat) immer als UND-Bedingung, dazu bis zu vier
+ * Facetten (Kategorien / Spezial-Chips / Küche / Saison). `mode` bestimmt, wie
+ * die *belegten* Facetten verknüpft werden: "and" (Default) oder "or".
+ * Rückwärtskompatibel zur alten Einzel-Signatur.
  */
-export function filterRecipes(recipes, { query = "", chip = "Alle", cuisine = null, season = null } = {}) {
-  return recipes.filter((r) => matchesChip(r, chip) && matchesQuery(r, query) && matchesExtra(r, { cuisine, season }));
+export function filterRecipes(recipes, opts = {}) {
+  const { query = "", mode = "and" } = opts;
+  const { cats, specials, cuisineSel, seasonSel } = normalizeSelection(opts);
+
+  const facets = [];
+  if (cats.length) facets.push((r) => cats.includes(r.category));
+  if (specials.length) facets.push((r) => specials.some((s) => matchesChip(r, s)));
+  if (cuisineSel.length) facets.push((r) => cuisineSel.includes(r.cuisine));
+  if (seasonSel.length) facets.push((r) => seasonSel.includes(r.season));
+
+  return recipes.filter((r) => {
+    if (!matchesQuery(r, query)) return false;
+    if (!facets.length) return true;
+    return mode === "or" ? facets.some((f) => f(r)) : facets.every((f) => f(r));
+  });
+}
+
+/** Wie viele Facetten-Werte sind aktiv? (für UI: Modus-Toggle/Reset einblenden). */
+export function activeFilterCount(opts = {}) {
+  const { cats, specials, cuisineSel, seasonSel } = normalizeSelection(opts);
+  return cats.length + specials.length + cuisineSel.length + seasonSel.length;
 }
 
 /** Vorhandene Küchen/Saisons für Filter-Dropdowns. */

@@ -1,6 +1,6 @@
 // Tests: filter.js — Suche & Filter (pur, gegen echte Daten) + export.js.
 import { test, assert, assertEqual } from "./runner.js";
-import { availableChips, chipLabel, filterRecipes, distinctValues } from "../src/features/cookbook/filter.js";
+import { availableChips, chipLabel, filterRecipes, distinctValues, isSpecialChip, activeFilterCount } from "../src/features/cookbook/filter.js";
 import { exportMarkdown } from "../src/features/cookbook/export.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -97,6 +97,57 @@ test("distinctValues: Küchen alphabetisch, ohne Leerwerte", () => {
   assertEqual(c.length, 8);
   assertEqual(c[0], "Asiatisch");
   assert(!c.includes(""));
+});
+
+/* ---------- F2: Mehrfach-Auswahl + UND/ODER ---------- */
+
+test("isSpecialChip: Spezial vs. Kategorie", () => {
+  assert(isSpecialChip("__fav") && isSpecialChip("__quick"));
+  assert(!isSpecialChip("Pasta & Nudeln") && !isSpecialChip("Alle"));
+});
+
+test("Multi-Kategorie: ODER innerhalb der Facette", () => {
+  const a = filterRecipes(R, { chip: "Pasta & Nudeln" }).length;
+  const b = filterRecipes(R, { chip: "Backen: Süßes & Kuchen" }).length;
+  const both = filterRecipes(R, { chips: ["Pasta & Nudeln", "Backen: Süßes & Kuchen"] });
+  assertEqual(both.length, a + b); // disjunkte Kategorien → Summe
+  assert(both.every((r) => r.category === "Pasta & Nudeln" || r.category === "Backen: Süßes & Kuchen"));
+});
+
+test("Facetten kombiniert: (Kategorie) UND (Spezial) — Schnittmenge", () => {
+  const cat = filterRecipes(R, { chips: ["Pasta & Nudeln"] });
+  const andQuick = filterRecipes(R, { chips: ["Pasta & Nudeln", "__quick"] }); // mode default "and"
+  assert(andQuick.length <= cat.length, "UND verengt die Menge");
+  assert(andQuick.every((r) => r.category === "Pasta & Nudeln"));
+});
+
+test("mode 'or': Vereinigung über Facetten hinweg", () => {
+  const pasta = filterRecipes(R, { chips: ["Pasta & Nudeln"] }).length;
+  const quick = filterRecipes(R, { chips: ["__quick"] }).length;
+  const orSet = filterRecipes(R, { chips: ["Pasta & Nudeln", "__quick"], mode: "or" });
+  // |A ∪ B| = |A| + |B| − |A ∩ B|
+  const inter = filterRecipes(R, { chips: ["Pasta & Nudeln", "__quick"], mode: "and" }).length;
+  assertEqual(orSet.length, pasta + quick - inter);
+});
+
+test("Multi-Küche: (Italienisch ODER Asiatisch) als ODER innerhalb der Küche-Facette", () => {
+  const it = filterRecipes(R, { cuisine: "Italienisch" }).length;
+  const as = filterRecipes(R, { cuisine: "Asiatisch" }).length;
+  const both = filterRecipes(R, { cuisines: ["Italienisch", "Asiatisch"] });
+  assertEqual(both.length, it + as);
+  assert(both.every((r) => r.cuisine === "Italienisch" || r.cuisine === "Asiatisch"));
+});
+
+test("query bleibt immer UND — auch im ODER-Modus", () => {
+  const hits = filterRecipes(R, { chips: ["Pasta & Nudeln", "__quick"], mode: "or", query: "pasta" });
+  assert(hits.length > 0);
+  assert(hits.every((r) => (r.name + " " + (r.ingredients || []).join(" ")).toLowerCase().includes("pasta")));
+});
+
+test("activeFilterCount zählt belegte Facetten-Werte", () => {
+  assertEqual(activeFilterCount({}), 0);
+  assertEqual(activeFilterCount({ chip: "Alle" }), 0);
+  assertEqual(activeFilterCount({ chips: ["Pasta & Nudeln", "__quick"], cuisines: ["Italienisch"] }), 3);
 });
 
 /* ---------- Export ---------- */

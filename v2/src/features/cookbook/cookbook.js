@@ -1,12 +1,14 @@
-// cookbook.js — Hauptansicht: Suche, Filter-Chips, Küche/Saison-Filter, Rezeptkarten.
+// cookbook.js — Hauptansicht: Suche, Mehrfach-Filter (F2), Rezeptkarten.
 // v1-Parität: P3.1–P3.6 (siehe V1_FEATURE_INVENTORY.md).
+// F2: Chips sind mehrfach wählbar (ODER innerhalb einer Facette), Facetten werden
+// per UND/ODER-Schalter verknüpft; Küche/Saison im ausklappbaren „Mehr Filter“-Panel.
 
 import { state } from "../../store.js";
 import * as sync from "../../data/sync.js";
 import * as drive from "../../data/drive.js";
 import { updateRecipe } from "../../store.js";
 import { esc, starsMini, metaBadges, hydrateHeroes } from "../../ui/helpers.js";
-import { availableChips, chipLabel, filterRecipes, distinctValues } from "./filter.js";
+import { availableChips, chipLabel, filterRecipes, distinctValues, activeFilterCount } from "./filter.js";
 import { openDetail } from "./detail.js";
 import { openForm } from "./form.js";
 import { openMenu } from "../menu.js";
@@ -14,7 +16,21 @@ import { BUILD } from "../../version.js";
 import { t, tn, tCat } from "../../i18n.js";
 
 // Filterzustand überlebt Re-Renders (Modul-Scope)
-let query = "", activeChip = "Alle", fCuisine = "", fSeason = "";
+let query = "";
+let activeChips = [];     // Kategorien + Spezial-Chips (mehrfach)
+let activeCuisines = [];
+let activeSeasons = [];
+let filterMode = "and";   // "and" | "or" — wie die Facetten verknüpft werden
+let moreOpen = false;
+
+function filterOpts() {
+  return { query, chips: activeChips, cuisines: activeCuisines, seasons: activeSeasons, mode: filterMode };
+}
+
+function toggleIn(arr, val) {
+  const i = arr.indexOf(val);
+  if (i >= 0) arr.splice(i, 1); else arr.push(val);
+}
 
 function cardHTML(r) {
   const hasImg = (r.photos && r.photos.length) || r.image;
@@ -32,9 +48,9 @@ function cardHTML(r) {
 function paintCards(container) {
   const el = container.querySelector("#cards");
   if (!el) return;
-  const filtered = filterRecipes(state.recipes, { query, chip: activeChip, cuisine: fCuisine || null, season: fSeason || null });
+  const filtered = filterRecipes(state.recipes, filterOpts());
   el.innerHTML = filtered.length === 0
-    ? `<p class="empty">${activeChip === "__fav" ? t("cookbook.emptyFav") : t("cookbook.emptyNone")}</p>`
+    ? `<p class="empty">${activeChips.includes("__fav") ? t("cookbook.emptyFav") : t("cookbook.emptyNone")}</p>`
     : filtered.map(cardHTML).join("");
 
   el.querySelectorAll(".rcard").forEach((c) => { c.onclick = () => openDetail(c.dataset.id); });
@@ -51,11 +67,94 @@ function paintCards(container) {
   hydrateHeroes(el, state.recipes);
 }
 
-export function renderCookbook(container) {
+/** HTML der Filterleiste (Chips + Mehr-Panel + Zusammenfassung). */
+function controlsHTML() {
   const chips = availableChips(state.recipes);
   const cuisines = distinctValues(state.recipes, "cuisine");
   const seasons = distinctValues(state.recipes, "season");
+  const nActive = activeFilterCount(filterOpts());
+  const matchN = filterRecipes(state.recipes, filterOpts()).length;
 
+  const chipRow = chips.map((c) => {
+    const active = c === "Alle" ? activeChips.length === 0 : activeChips.includes(c);
+    return `<button class="chip ${active ? "active" : ""}" data-chip="${esc(c)}">${esc(chipLabel(c))}</button>`;
+  }).join("");
+
+  const extraN = activeCuisines.length + activeSeasons.length;
+  const hasExtra = cuisines.length || seasons.length;
+  const moreBtn = hasExtra
+    ? `<button class="chip more-toggle ${moreOpen || extraN ? "active" : ""}" id="moreToggle">${t("cookbook.moreFilters")} ${moreOpen ? "▴" : "▾"}${extraN ? ` · ${extraN}` : ""}</button>`
+    : "";
+
+  const groupHTML = (label, items, attr, selected) => `
+    <div class="filter-group">
+      <span class="fg-label">${label}</span>
+      <div class="fg-chips">
+        ${items.map((v) => `<button class="chip mini ${selected.includes(v) ? "active" : ""}" data-${attr}="${esc(v)}">${esc(v)}</button>`).join("")}
+      </div>
+    </div>`;
+
+  const morePanel = moreOpen ? `
+    <div class="more-panel">
+      ${cuisines.length ? groupHTML(t("cookbook.cuisineLabel"), cuisines, "cuisine", activeCuisines) : ""}
+      ${seasons.length ? groupHTML(t("cookbook.seasonLabel"), seasons, "season", activeSeasons) : ""}
+    </div>` : "";
+
+  const seg = nActive >= 2 ? `
+    <div class="seg" id="modeSeg" title="${esc(t("cookbook.filterModeHint"))}">
+      <button class="seg-btn ${filterMode === "and" ? "on" : ""}" data-mode="and">${t("cookbook.filterAnd")}</button>
+      <button class="seg-btn ${filterMode === "or" ? "on" : ""}" data-mode="or">${t("cookbook.filterOr")}</button>
+    </div>` : "";
+
+  const summary = nActive > 0 ? `
+    <div class="filter-summary">
+      ${seg}
+      <span class="match-count">${tn("cookbook.matchCount", matchN)}</span>
+      <button class="link-btn" id="clearFilters">✕ ${t("cookbook.clearFilters")}</button>
+    </div>` : "";
+
+  return `<div class="chips" id="chips">${chipRow}${moreBtn}</div>${morePanel}${summary}`;
+}
+
+/** Filterleiste neu zeichnen + Handler binden + Karten neu malen. */
+function refreshControls(container) {
+  const host = container.querySelector("#filterControls");
+  if (!host) return;
+  host.innerHTML = controlsHTML();
+  wireControls(container);
+  paintCards(container);
+}
+
+function wireControls(container) {
+  const host = container.querySelector("#filterControls");
+
+  host.querySelectorAll("[data-chip]").forEach((b) => {
+    b.onclick = () => {
+      const c = b.dataset.chip;
+      if (c === "Alle") activeChips = []; else toggleIn(activeChips, c);
+      refreshControls(container);
+    };
+  });
+  const moreBtn = host.querySelector("#moreToggle");
+  if (moreBtn) moreBtn.onclick = () => { moreOpen = !moreOpen; refreshControls(container); };
+
+  host.querySelectorAll("[data-cuisine]").forEach((b) => {
+    b.onclick = () => { toggleIn(activeCuisines, b.dataset.cuisine); refreshControls(container); };
+  });
+  host.querySelectorAll("[data-season]").forEach((b) => {
+    b.onclick = () => { toggleIn(activeSeasons, b.dataset.season); refreshControls(container); };
+  });
+  host.querySelectorAll("[data-mode]").forEach((b) => {
+    b.onclick = () => { filterMode = b.dataset.mode; refreshControls(container); };
+  });
+  const clearBtn = host.querySelector("#clearFilters");
+  if (clearBtn) clearBtn.onclick = () => {
+    activeChips = []; activeCuisines = []; activeSeasons = []; filterMode = "and";
+    refreshControls(container);
+  };
+}
+
+export function renderCookbook(container) {
   container.innerHTML = `
     <header class="app-header">
       <div class="brand">
@@ -72,19 +171,7 @@ export function renderCookbook(container) {
         <span>🔍</span>
         <input id="search" placeholder="${t("cookbook.searchPlaceholder")}" value="${esc(query)}" />
       </div>
-      <div class="chips" id="chips">
-        ${chips.map((c) => `<button class="chip ${activeChip === c ? "active" : ""}" data-chip="${esc(c)}">${esc(chipLabel(c))}</button>`).join("")}
-      </div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <select class="f" id="fCuisine" style="flex:1;padding:8px 10px">
-          <option value="">${t("cookbook.cuisineAll")}</option>
-          ${cuisines.map((c) => `<option ${fCuisine === c ? "selected" : ""}>${esc(c)}</option>`).join("")}
-        </select>
-        <select class="f" id="fSeason" style="flex:1;padding:8px 10px">
-          <option value="">${t("cookbook.seasonAll")}</option>
-          ${seasons.map((s) => `<option ${fSeason === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
-        </select>
-      </div>
+      <div id="filterControls">${controlsHTML()}</div>
     </header>
     <main class="app-main">
       <div id="cards"></div>
@@ -95,19 +182,11 @@ export function renderCookbook(container) {
   `;
 
   const search = container.querySelector("#search");
-  search.oninput = () => { query = search.value; paintCards(container); };
-  container.querySelectorAll(".chip").forEach((b) => {
-    b.onclick = () => {
-      activeChip = b.dataset.chip;
-      container.querySelectorAll(".chip").forEach((x) => x.classList.toggle("active", x === b));
-      paintCards(container);
-    };
-  });
-  container.querySelector("#fCuisine").onchange = (e) => { fCuisine = e.target.value; paintCards(container); };
-  container.querySelector("#fSeason").onchange = (e) => { fSeason = e.target.value; paintCards(container); };
+  search.oninput = () => { query = search.value; refreshControls(container); };
   container.querySelector("#menuBtn").onclick = () => openMenu("cookbook");
   container.querySelector("#addBtn").title = t("cookbook.newRecipe");
   container.querySelector("#addBtn").onclick = () => openForm();
 
+  wireControls(container);
   paintCards(container);
 }

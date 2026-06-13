@@ -133,7 +133,7 @@ Marcel: more dishes / taste-based generation, multi-filter AND/OR, Match "gold" 
 | # | Item | Detail & acceptance | Pri | Eff |
 |---|------|---------------------|-----|-----|
 | F1 | **Generate many dishes to taste** | "Give me 10 dishes I'd like" → batch generation tuned by the cook profile (A3), reviewed and saved via the C1 batch flow. **Done:** one ask → many on-taste drafts → batch save. | P2 | M |
-| F2 | **Multi-filter (AND/OR)** | A filter pane combining categories with AND/OR: e.g. *(fish OR meat) AND (nordic OR mediterranean) AND everyday*. **Done:** stackable filters with explicit AND/OR, result count live. | P2 | L |
+| ✅ **F2** | **Multi-filter (AND/OR)** *(shipped v2.4)* | Faceted filtering: chips are multi-select (OR *within* a facet — categories/specials/cuisine/season), facets combine via an explicit UND/ODER toggle (AND default = intersection, OR = union). Cuisine & season moved into a collapsible "Mehr Filter" panel as multi-select chips. Live `{n} Treffer` count + "Filter zurücksetzen". `filterRecipes` extended (back-compatible single-`chip` signature kept) + `activeFilterCount`/`isSpecialChip`; 7 new unit tests. Verified live: 7→4 (AND) / 48 (OR). | P2 | L |
 | F3 | **Match "gold" / compare** | Re-surface "yes"-swiped recipes: re-swipe them, or see liked recipes side-by-side to choose between them. **Done:** a "liked" view with re-swipe + compare. | P2 | M |
 
 ---
