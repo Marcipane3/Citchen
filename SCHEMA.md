@@ -164,3 +164,59 @@ ungefragt Rezepte umschreiben. Niemals `feedback` ohne Einarbeiten löschen.
 9. Titelbild über **`image`** (URL) setzen, nicht über `photos`.
 10. Neue optionale Felder (`rating`, `favorite`, `cookedCount`) müssen nicht gesetzt werden —
     die App ergänzt Defaults. Wenn gesetzt, Typen einhalten (`rating` 0–5).
+11. **Ganze Datei schreiben.** Die Datei enthält **alle** Rezepte in `recipes`. Beim Editieren
+    eines einzelnen Rezepts bleiben **alle anderen Rezepte unverändert** erhalten — niemals das
+    Array kürzen oder Rezepte verlieren. (Verlustfrei: die App reicht unbekannte/ungenutzte
+    Felder unangetastet durch und entfernt beim Speichern nichts.)
+12. **App-eigene Felder eines bestehenden Rezepts durchreichen:** `photos`, `rating`,
+    `favorite`, `cookedCount` gehören der App. Beim Editieren **unverändert übernehmen**,
+    nicht zurücksetzen.
+
+## Re-Sync & Konfliktmodell (Last-Write-Wins) — entscheidend für G1
+
+Die App hält eine **eigene lokale Kopie** (IndexedDB) und gleicht mit Drive über die
+**`updated`-Marke der ganzen Datei** ab (Last-Write-Wins, kein Feld-Merge):
+
+1. Beim Öffnen lädt die App sofort lokal und liest dann Drive im Hintergrund.
+2. **Neuere `updated`-Marke gewinnt.** Ist Drive neuer als die lokale Kopie, **ersetzt die App
+   ihre lokale Sammlung komplett** durch die Drive-Version — Claudes Edits erscheinen.
+3. `updated` ist **ISO-8601-UTC mit Millisekunden** (`2026-06-13T12:30:00.000Z`); die App
+   vergleicht die Strings direkt. Schreib das Format **exakt so**.
+
+**Damit Claudes Edit ankommt:**
+- Beim Schreiben `updated` **auf jetzt** setzen (= später als jede bisherige Änderung) → Drive
+  gewinnt, die App zieht beim nächsten Öffnen nach.
+- **Reihenfolge gegen Race-Verlust** (Single-User, ein aktiver Editor zur Zeit):
+  1. App **einmal online öffnen**, bis „Synchronisiert ✓“ — so sind alle App-Änderungen
+     (Favorit/Bewertung/neue Rezepte) nach Drive gepusht.
+  2. **Dann** bittet der Nutzer Claude zu editieren (Claude liest die frische Datei, schreibt
+     in place, bumpt `updated`).
+  3. App **neu öffnen** → sie erkennt die neuere `updated`-Marke und übernimmt.
+- ⚠️ Hat der Nutzer in der App noch **nicht gepushte** Änderungen mit *neuerer* `updated`-Marke,
+  überschreibt der nächste App-Push Claudes Drive-Edit. Deshalb Schritt 1 nicht überspringen.
+
+### Worked Example — bestehendes Rezept anpassen (Feedback einarbeiten)
+
+```jsonc
+// Vorher (Auszug aus rezepte.json, von der App geschrieben):
+{ "id": "r01", "name": "Süßkartoffel-Curry", "category": "Vegetarische Hauptgerichte",
+  "ingredients": ["2 Süßkartoffeln", "1 Dose Kichererbsen"],
+  "steps": ["Reis aufsetzen.", "Curry köcheln."], "tips": "Joghurt drüber.",
+  "rating": 4, "favorite": true, "cookedCount": 3,
+  "photos": [{ "id": "drive-abc-123", "added": "2026-06-01T10:00:00.000Z" }],
+  "feedback": "Mehr Schärfe und brauchte 10 Min länger." }
+
+// Nachher (Claude arbeitet das feedback ein):
+{ "id": "r01", "name": "Süßkartoffel-Curry", "category": "Vegetarische Hauptgerichte",
+  "ingredients": ["2 Süßkartoffeln", "1 Dose Kichererbsen", "1 rote Chili, fein 🛒"],
+  "steps": ["Reis aufsetzen.", "Curry 25 Min köcheln (statt 15)."],
+  "tips": "Joghurt drüber. Swap: Chili durch Sambal Oelek.",
+  "rating": 4, "favorite": true, "cookedCount": 3,          // ← unverändert durchgereicht
+  "photos": [{ "id": "drive-abc-123", "added": "2026-06-01T10:00:00.000Z" }],  // ← nicht angefasst
+  "feedback": "" }                                          // ← erledigt, geleert
+```
+
+Dazu auf Datei-Ebene **`updated` neu stempeln** (`"updated": "<jetzt als ISO-UTC>"`), alle
+übrigen Rezepte unverändert lassen, `version: 3` behalten. Genau dieser Round-Trip ist in
+`v2/tests/test-migrate.js` (Block „G1“) abgesichert: Edit bleibt erhalten, `photos`/Bewertung
+unangetastet, Datei validiert sauber, erneutes Laden ist idempotent.

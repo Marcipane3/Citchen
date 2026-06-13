@@ -144,7 +144,7 @@ Marcel: "When I write recipe adjustments/comments for Claude, Claude should be a
 
 | # | Item | Detail & acceptance | Pri | Eff |
 |---|------|---------------------|-----|-----|
-| G1 | **Full-file edit contract** | Document + verify the round-trip: Marcel leaves notes → Claude (project instance) reads `rezepte.json` from Drive, edits any field of any recipe, writes back schema-valid. Tighten `SCHEMA.md` as the contract; ensure the app re-syncs cleanly after an external write. **Done:** Claude can change an existing recipe (not just append) and the app shows it after sync. | P2 | M |
+| ✅ **G1** | **Full-file edit contract** *(shipped 2026-06-13)* | `SCHEMA.md` tightened: new **Re-Sync & Konfliktmodell (Last-Write-Wins)** section + a worked edit-existing-recipe example; rules 11–12 (write whole file, pass app-owned fields `photos`/`rating`/`favorite`/`cookedCount` through). Round-trip proven by 2 new `test-migrate.js` cases (edit existing + append) — edit preserved, photos/ratings untouched, validates clean, idempotent. App re-sync path confirmed in `sync.js` (clean local + differing remote `updated` → remote replaces local). **Done.** | P2 | M |
 
 ---
 
