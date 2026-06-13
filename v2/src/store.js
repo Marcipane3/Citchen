@@ -51,6 +51,13 @@ export function setSignedIn(v) { state.signedIn = v; emit(); }
 /** Anzeige-Rezept (lokalisiert) per id. */
 export function getRecipe(id) { return state.recipes.find((r) => r.id === id); }
 
+/**
+ * KANONISCH DEUTSCHES Rezept per id. Für Logik, die gegen deutsche Konstanten
+ * matcht (Einkaufs-Katalog/Gänge/Icons, Vorrats-Abgleich) — die Zutaten-Texte
+ * müssen deutsch sein, sonst greift das Matching nicht. Anzeige bleibt lokalisiert.
+ */
+export function getRecipeDe(id) { return recipesDe.find((r) => r.id === id); }
+
 /** Persistiert die KANONISCH DEUTSCHE Sammlung (IndexedDB sofort, Drive danach). */
 async function persist() {
   const meta = await sync.saveCollection(recipesDe);

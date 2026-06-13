@@ -2,7 +2,7 @@
 // Tag sperren / neu würfeln / manuell wählen, Reste-Tage, "Einkaufsliste erstellen".
 // Persistenz: 'plans' (id "current") + kv 'plannerRecent' (Rotation über Wochen).
 
-import { state, getRecipe } from "../../store.js";
+import { state, getRecipe, getRecipeDe } from "../../store.js";
 import * as db from "../../data/db.js";
 import { getTotalMinutes } from "../../data/derive.js";
 import { esc } from "../../ui/helpers.js";
@@ -167,7 +167,8 @@ export function renderPlanner(container) {
     btn.disabled = true;
     const { getStaples } = await import("../../data/settings.js");
     const staples = await getStaples();
-    const recipes = planRecipeIds(PLAN).map((id) => getRecipe(id)).filter(Boolean);
+    // Einkaufsliste matcht gegen den deutschen Katalog → deutsche Rezepte aggregieren.
+    const recipes = planRecipeIds(PLAN).map((id) => getRecipeDe(id)).filter(Boolean);
     const { items, skipped } = aggregateIngredients(recipes, { staples });
     await addItemsToList(items);
     btn.disabled = false;

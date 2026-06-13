@@ -1,7 +1,7 @@
 // detail.js — Rezept-Detailansicht (Bottom-Sheet). v1-Parität P5.1–P5.13
 // plus v2: strukturierte Tipps prominent (Priorität laut Spec).
 
-import { state, getRecipe, updateRecipe, deleteRecipe } from "../../store.js";
+import { state, getRecipe, getRecipeDe, updateRecipe, deleteRecipe } from "../../store.js";
 import * as drive from "../../data/drive.js";
 import { parseTipps, hasStructuredTipps } from "../../data/derive.js";
 import { esc, metaBadges, loadHeroInto, compressImage } from "../../ui/helpers.js";
@@ -153,7 +153,8 @@ export function openDetail(id) {
       import("../shopping/shopping.js"),
       import("../../data/settings.js"),
     ]);
-    const { items, skipped } = aggregateIngredients([r], { staples: await getStaples() });
+    // Einkaufsliste matcht gegen den deutschen Katalog → deutsches Rezept aggregieren.
+    const { items, skipped } = aggregateIngredients([getRecipeDe(r.id) || r], { staples: await getStaples() });
     if (!items.length) { alert(skipped ? t("detail.allInStock") : t("detail.nothingToAdd")); return; }
     await addItemsToList(items);
     const msg = t("detail.addedToShopping", { n: items.length }) + (skipped ? t("detail.inStockSkipped", { n: skipped }) : "") + ".\n" + t("detail.switchToList");
