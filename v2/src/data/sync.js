@@ -13,6 +13,29 @@ import { loadCollection, toFileString } from "./migrate.js";
 const META_KEY = "collection";       // { version, updated, fileId, dirty, lastSync, source }
 const SNAPSHOT_URL = new URL("../../data/rezepte.snapshot.json", import.meta.url);
 
+function langSnapshotUrl(lang) {
+  return new URL(`../../data/rezepte.snapshot.${lang}.json`, import.meta.url);
+}
+
+/**
+ * Lädt die ÜBERSETZTEN Basis-Rezepte einer Sprache (reine Anzeige-Quelle).
+ * de oder fehlende Datei → null (Aufrufer nutzt dann das deutsche Original).
+ * Schreibt NICHTS — der deutsche Snapshot bleibt die kanonische Quelle.
+ */
+export async function fetchLangRecipes(lang) {
+  if (!lang || lang === "de") return null;
+  try {
+    const res = await fetch(langSnapshotUrl(lang));
+    if (!res.ok) return null;
+    const json = await res.json();
+    const { collection } = loadCollection(json);
+    return collection.recipes;
+  } catch (e) {
+    console.warn("Sprach-Snapshot nicht ladbar:", lang, e);
+    return null;
+  }
+}
+
 let statusListeners = new Set();
 let status = "";
 

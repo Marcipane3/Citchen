@@ -5,7 +5,7 @@
 import * as router from "./router.js";
 import * as sync from "./data/sync.js";
 import * as drive from "./data/drive.js";
-import { state, onState, setRecipes, setSignedIn } from "./store.js";
+import { state, onState, setRecipes, setSignedIn, applyLanguageOverlay } from "./store.js";
 import { renderCookbook } from "./features/cookbook/cookbook.js";
 import { renderMatch } from "./features/match/match.js";
 import { renderCook } from "./features/cooking/cooking.js";
@@ -46,15 +46,21 @@ async function boot() {
   initTheme(); // Theme früh anwenden (kein Flackern)
   document.documentElement.setAttribute("lang", getLang());
 
-  // Sprachwechsel → aktuelle Ansicht neu rendern (ohne Reload)
-  onLangChange(() => router.reload());
+  // Sprachwechsel → Basis-Rezept-Overlay neu laden, dann Ansicht neu rendern
+  onLangChange(async () => {
+    document.documentElement.setAttribute("lang", getLang());
+    await applyLanguageOverlay(getLang());
+    router.reload();
+  });
 
   // Erststart ohne Sprache → Auswahl-Overlay
   if (!hasLang()) showLanguageModal({ onPick: () => router.reload() });
 
-  // 1. Lokal laden (instant, offline)
+  // 1. Lokal laden (instant, offline) — Basis bleibt kanonisch deutsch
   const { recipes, meta } = await sync.loadLocal();
   setRecipes(recipes, meta);
+  // 1b. Anzeige-Overlay für die aktive Sprache (Basis-Rezepte übersetzt; nur Anzeige)
+  await applyLanguageOverlay(getLang());
 
   // 2. Routen
   router.register("cookbook", () => mount("cookbook", renderCookbook));

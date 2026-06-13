@@ -6,7 +6,7 @@
 //  - Fonts (fonts.googleapis.com / fonts.gstatic.com): cache-first zur Laufzeit,
 //    damit die Typo auch offline stimmt.
 
-const CACHE = "koch-v2.3-1";
+const CACHE = "koch-v2.3-2";
 
 const SHELL = [
   "./",
@@ -59,6 +59,9 @@ const SHELL = [
   "./src/data/lager.js",
   "./src/features/guide/guide.js",
   "./data/rezepte.snapshot.json",
+  "./data/rezepte.snapshot.da.json",
+  "./data/rezepte.snapshot.es.json",
+  "./data/rezepte.snapshot.en.json",
 ];
 
 self.addEventListener("install", (e) => {

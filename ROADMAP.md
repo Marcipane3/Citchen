@@ -66,8 +66,8 @@ Marcel: "German, English, **Danish**, Spanish — and the base recipes should al
 | # | Item | Detail & acceptance | Pri | Eff |
 |---|------|---------------------|-----|-----|
 | ✅ **B1** | **Add Danish UI** *(shipped v2.3)* | Added `da` to `LANGS` (flag 🇩🇰) + a full `DICT.da` block in `i18n.js`. Guarded by a new full-recursive key-parity test (every lang must match the DE key set exactly — no gaps, no extras). | P1 | M |
-| B2 | **Translate base recipes** | Pre-translated bundled snapshots (Marcel's call: base-only, user-added stay as-is). **Pipeline shipped** (see below); **content generation + in-app overlay pending.** | P1 | L |
-| B3 | **Apply translation in-app** | Display-time overlay (NOT stored — see Drive constraint). **Done when:** picking a language shows base recipes in that language; Drive stays German. | P1 | M |
+| ✅ **B2** | **Translate base recipes** *(shipped v2.3)* | Pre-translated bundled snapshots `rezepte.snapshot.{da,es,en}.json` (105 recipes each), generated via `tools/build-snapshots.mjs`, validated by `tools/check-snapshots.mjs` (0 schema errors, 0 marker/length warnings, 0 genuine fallbacks). User-added recipes stay in their input language. | P1 | L |
+| ✅ **B3** | **Apply translation in-app** *(shipped v2.3)* | Display-time overlay: `state.recipes` is the localized view; private German canonical (`recipesDe`) feeds persistence so Drive stays German. Switching language re-fetches the bundled snapshot + re-renders; no DB write. Verified end-to-end (DE→DA→DE, category stays canonical, user-state preserved). | P1 | M |
 
 **B2 decisions made & pipeline (shipped — generation + wiring still to run):**
 - **Model:** pre-translated snapshots, generated once via the Anthropic API (`v2/tools/build-snapshots.mjs`), run by Marcel with his key in an env var. No reusable translation tooling beyond this one-time generator.
