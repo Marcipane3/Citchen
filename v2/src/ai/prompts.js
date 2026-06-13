@@ -84,6 +84,17 @@ export function leftoverUserPrompt(ingredients) {
   return `Reste verwerten: Ich habe ${ingredients}. Was kann ich damit kochen? Bevorzugt Rezepte aus meinem Kochbuch, sonst 1–2 neue Ideen. Gib suggestions-JSON.`;
 }
 
+/** „Koch aus dem, was ich hab“: nutzt Vorrat + Kühlschrank (stehen schon im
+ *  System-Prompt). Frische Sachen werden hier nochmal betont — bevorzugt
+ *  verwerten, bevor sie schlecht werden. */
+export function fromStockUserPrompt({ fridge = [] } = {}) {
+  const fresh = (fridge || []).map((f) => f.name).filter(Boolean);
+  const freshLine = fresh.length
+    ? ` Verwerte bevorzugt die frischen Sachen aus dem Kühlschrank (${fresh.join(", ")}), bevor sie schlecht werden.`
+    : "";
+  return `Koch aus dem, was ich gerade habe: Schlage Gerichte vor, die möglichst nur Zutaten aus meinem Vorrat und Kühlschrank brauchen — höchstens 1–2 Dinge, die ich noch zukaufen müsste.${freshLine} Bevorzugt Rezepte aus meinem Kochbuch, sonst 1–2 neue Ideen. Gib suggestions-JSON.`;
+}
+
 export function generateUserPrompt(wish) {
   return `Erfinde ein neues Rezept für mein Kochbuch: ${wish}. Es darf kein Duplikat eines vorhandenen Rezepts sein. Gib recipe-JSON (vollständig, schema-konform, toTry=true).`;
 }

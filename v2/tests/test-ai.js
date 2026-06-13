@@ -3,7 +3,7 @@
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import * as gate from "../src/ai/gate.js";
 import { extractJson, coerceRecipe, coerceSuggestions, coercePlanDays, tippsToString } from "../src/ai/parse.js";
-import { buildSystemPrompt, buildCollectionContext, suggestUserPrompt, planUserPrompt } from "../src/ai/prompts.js";
+import { buildSystemPrompt, buildCollectionContext, suggestUserPrompt, fromStockUserPrompt, planUserPrompt } from "../src/ai/prompts.js";
 import { validateRecipe } from "../src/data/schema.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -37,6 +37,19 @@ test("gate: Modell-Default haiku, Wechsel nur auf bekannte IDs", () => {
 test("gate: looksLikeKey", () => {
   assert(gate.looksLikeKey("sk-ant-api03-abc"));
   assert(!gate.looksLikeKey("hello"));
+});
+
+test("gate: aiUnavailableReason — nokey vs. offline vs. nutzbar (#3)", () => {
+  gate.clearKey();
+  assertEqual(gate.aiUnavailableReason(), "nokey");
+  gate.setKey("sk-ant-test-123");
+  assertEqual(gate.aiUnavailableReason(), ""); // Node-navigator hat kein onLine:false → online
+  // navigator ist in Node ein konfigurierbares Global → für den Offline-Fall umdefinieren.
+  const prev = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  Object.defineProperty(globalThis, "navigator", { value: { onLine: false }, configurable: true });
+  assertEqual(gate.aiUnavailableReason(), "offline"); // Key vorhanden, aber offline
+  if (prev) Object.defineProperty(globalThis, "navigator", prev); else delete globalThis.navigator;
+  gate.clearKey();
 });
 
 /* ---------- extractJson ---------- */
@@ -175,6 +188,15 @@ test("buildBulkPrompt: Text-Modus vs. Generieren, recipes-Array, 16 Kategorien (
   const gen = buildBulkPrompt({ generate: true, wish: "schnelle Pasta", count: 4 });
   assert(gen.includes("Erfinde 4"));
   assert(gen.includes("schnelle Pasta"));
+});
+
+test("fromStockUserPrompt: Vorrat-Modus, Frischware wird betont (#1)", () => {
+  const empty = fromStockUserPrompt({ fridge: [] });
+  assert(empty.includes("Vorrat") && empty.includes("suggestions-JSON"));
+  assert(!empty.includes("Kühlschrank ("), "ohne Frischware keine Klammer-Liste");
+  const withFresh = fromStockUserPrompt({ fridge: [{ name: "Zucchini" }, { name: "Feta" }] });
+  assert(withFresh.includes("Zucchini") && withFresh.includes("Feta"), "Frischware steht im Prompt");
+  assert(fromStockUserPrompt().includes("Vorrat"), "ohne Argument kein Crash");
 });
 
 test("suggestUserPrompt: Wochentag vs. Wochenende", () => {

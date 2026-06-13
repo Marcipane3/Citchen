@@ -15,7 +15,12 @@ import { BUILD } from "../../version.js";
 import { t } from "../../i18n.js";
 
 export function renderCapture(container) {
-  const hasKey = gate.isPremium();
+  const reason = gate.aiUnavailableReason();
+  const aiNote = reason === "offline"
+    ? `🟡 ${t("capture.offlineNote")}`
+    : reason === "nokey"
+      ? `${t("capture.lockedNote")} (<a href="#/settings">${t("nav.settings")}</a>)`
+      : t("capture.keyOk");
   let photoFile = null;
 
   container.innerHTML = `
@@ -30,7 +35,7 @@ export function renderCapture(container) {
       <div class="card set-card">
         <h3>${t("capture.howHeading")}</h3>
         <p class="set-note">${t("capture.howBody")}</p>
-        <p class="set-note">${hasKey ? t("capture.keyOk") : `${t("capture.lockedNote")} (<a href="#/settings">${t("nav.settings")}</a>)`} · ${esc(VISION_MODEL)}</p>
+        <p class="set-note">${aiNote} · ${esc(VISION_MODEL)}</p>
       </div>
 
       <div class="card set-card">
@@ -78,8 +83,11 @@ export function renderCapture(container) {
   const urlInput = container.querySelector("#cap-url");
 
   function requireKey() {
-    if (gate.isPremium()) return true;
-    status.innerHTML = `🔒 ${t("capture.lockedNote")} — <a href="#/settings">${t("nav.settings")}</a>`;
+    const r = gate.aiUnavailableReason();
+    if (!r) return true;
+    status.innerHTML = r === "offline"
+      ? `📡 ${t("capture.offlineNote")}`
+      : `🔒 ${t("capture.lockedNote")} — <a href="#/settings">${t("nav.settings")}</a>`;
     return false;
   }
 

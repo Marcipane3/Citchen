@@ -192,8 +192,11 @@ function paintCatalog(container) {
 /* ---------- KI-Kühlschrank-Scan ---------- */
 
 function startScan(container) {
-  if (!gate.isPremium()) {
-    container.querySelector("#scan-area").innerHTML = `<p class="set-note">${t("lager.scanLocked")} <a href="#/settings">${t("nav.settings")}</a></p>`;
+  const reason = gate.aiUnavailableReason();
+  if (reason) {
+    container.querySelector("#scan-area").innerHTML = reason === "offline"
+      ? `<p class="set-note">📡 ${t("lager.scanOffline")}</p>`
+      : `<p class="set-note">${t("lager.scanLocked")} <a href="#/settings">${t("nav.settings")}</a></p>`;
     return;
   }
   const inp = document.createElement("input");

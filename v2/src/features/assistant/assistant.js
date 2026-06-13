@@ -7,7 +7,7 @@
 import { state, addRecipe } from "../../store.js";
 import * as gate from "../../ai/gate.js";
 import { complete, AiError } from "../../ai/client.js";
-import { buildSystemPrompt, suggestUserPrompt, leftoverUserPrompt, generateUserPrompt, elaborateUserPrompt } from "../../ai/prompts.js";
+import { buildSystemPrompt, suggestUserPrompt, leftoverUserPrompt, fromStockUserPrompt, generateUserPrompt, elaborateUserPrompt } from "../../ai/prompts.js";
 import { extractJson, coerceRecipe, coerceSuggestions } from "../../ai/parse.js";
 import { getStaples, getProfile } from "../../data/settings.js";
 import { esc } from "../../ui/helpers.js";
@@ -22,7 +22,16 @@ let history = [];   // [{role, content}] — API-Verlauf (Session, nicht persist
 let chatLog = [];   // gerenderte Einträge {who:"user"|"ai", html}
 let busy = false;
 
-function noKeyView(container) {
+// KI nicht nutzbar: ehrlich erklären, warum (kein Key vs. offline), statt nur
+// fehlzuschlagen. Offline = vorübergehend → „Erneut versuchen“ statt Einstellungen.
+function unavailableView(container, reason) {
+  const offline = reason === "offline";
+  const icon = offline ? "📡" : "🔐";
+  const title = offline ? t("assistant.offlineTitle") : t("assistant.lockedTitle");
+  const body = offline ? t("assistant.offlineBody") : t("assistant.lockedBody");
+  const btn = offline
+    ? `<button class="btn-primary" id="retry">${t("assistant.retry")}</button>`
+    : `<button class="btn-primary" id="goSettings">${t("assistant.goSettings")}</button>`;
   container.innerHTML = `
     <header class="app-header">
       <div class="brand">
@@ -32,19 +41,23 @@ function noKeyView(container) {
     </header>
     <main class="app-main">
       <div class="card" style="text-align:center;padding:28px 20px">
-        <div style="font-size:40px;margin-bottom:10px">🔐</div>
-        <h3 style="color:var(--accent);margin-bottom:8px">${t("assistant.lockedTitle")}</h3>
-        <p style="color:var(--muted-strong);line-height:1.6;margin-bottom:16px">${t("assistant.lockedBody")}</p>
-        <button class="btn-primary" id="goSettings">${t("assistant.goSettings")}</button>
+        <div style="font-size:40px;margin-bottom:10px">${icon}</div>
+        <h3 style="color:var(--accent);margin-bottom:8px">${title}</h3>
+        <p style="color:var(--muted-strong);line-height:1.6;margin-bottom:16px">${body}</p>
+        ${btn}
       </div>
     </main>
     <div class="build-line">Build ${esc(BUILD)}</div>`;
   container.querySelector("#menuBtn").onclick = () => openMenu("assistant");
-  container.querySelector("#goSettings").onclick = () => navigate("settings");
+  const gs = container.querySelector("#goSettings");
+  if (gs) gs.onclick = () => navigate("settings");
+  const rt = container.querySelector("#retry");
+  if (rt) rt.onclick = () => renderAssistant(container);
 }
 
 export function renderAssistant(container) {
-  if (!gate.isPremium()) { noKeyView(container); return; }
+  const reason = gate.aiUnavailableReason();
+  if (reason) { unavailableView(container, reason); return; }
 
   container.innerHTML = `
     <header class="app-header">
@@ -54,6 +67,7 @@ export function renderAssistant(container) {
       </div>
       <div class="ai-tools">
         <button class="chip" data-tool="suggest">${t("assistant.toolSuggest")}</button>
+        <button class="chip" data-tool="fromStock">${t("assistant.toolFromStock")}</button>
         <button class="chip" data-tool="leftover">${t("assistant.toolLeftover")}</button>
         <button class="chip" data-tool="generate">${t("assistant.toolGenerate")}</button>
       </div>
@@ -82,6 +96,11 @@ export function renderAssistant(container) {
       if (tool === "suggest") {
         const wd = new Date().getDay();
         ask(container, "Was koche ich heute?", suggestUserPrompt({ isWeekend: wd === 0 || wd === 6 }));
+      } else if (tool === "fromStock") {
+        import("../../data/lager.js").then(async ({ getFridge }) => {
+          const fridge = await getFridge();
+          ask(container, t("assistant.toolFromStock"), fromStockUserPrompt({ fridge }));
+        });
       } else if (tool === "leftover") {
         const ing = prompt(t("assistant.leftoverPrompt"));
         if (ing) ask(container, `${t("assistant.toolLeftover")}: ${ing}`, leftoverUserPrompt(ing));

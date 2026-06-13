@@ -35,6 +35,22 @@ export function clearKey() { setKey(""); }
 /** Premium = eigener Anthropic-Key vorhanden. Kein Key → Free-Tier, keine KI. */
 export function isPremium() { return getKey().length > 0; }
 
+/** Aktuell offline? (KI braucht Internet — Drive/Offline-Kern laufen weiter.) */
+export function isOffline() {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+/**
+ * Warum sind KI-Funktionen gerade NICHT nutzbar? "" = nutzbar.
+ * Reihenfolge: erst Key (dauerhaft), dann Netz (vorübergehend).
+ * UI nutzt das, um KI-Einstiege ehrlich zu erklären statt sie nur fehlschlagen zu lassen.
+ */
+export function aiUnavailableReason() {
+  if (!isPremium()) return "nokey";
+  if (isOffline()) return "offline";
+  return "";
+}
+
 /** Plausibilitätscheck fürs UI (kein echter Test — der geht über client.testKey). */
 export function looksLikeKey(k) { return /^sk-ant-/.test((k || "").trim()); }
 

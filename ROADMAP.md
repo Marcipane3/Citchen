@@ -189,13 +189,16 @@ forward the photo bug and German-only content just relocates the problems.
 Marcel asked for extra ideas on top. These are cheap, fit the existing architecture, and
 sharpen the app without waiting for the rebuild:
 
-1. **"Cook from what I have"** — one button: Lager fridge contents → AI suggests recipes
-   using mostly on-hand items. The data (fridge list + pantry) and the prompt seam already
-   exist; it's wiring, not new infrastructure. *(P1, S)*
+1. ✅ **"Cook from what I have"** *(shipped v2.5)* — assistant tool "🥕 Aus Vorrat kochen":
+   pulls the Lager fridge (+ pantry, already in the system prompt) and asks for dishes needing
+   mostly on-hand items, prioritising perishables. `fromStockUserPrompt` in `prompts.js`,
+   4th tool button in `assistant.js`. *(P1, S)*
 2. **Servings memory per recipe** — remember the last portion scale per recipe so the cooking
    mode opens at the size you actually cook. *(P2, S)*
-3. **Offline AI honesty** — when there's no key/offline, AI entry points should explain *why*
-   they're disabled inline, not just hide. Reduces "is it broken?" confusion. *(P1, S)*
+3. ✅ **Offline AI honesty** *(shipped v2.5)* — shared `gate.aiUnavailableReason()` ("nokey" /
+   "offline" / ""). Assistant shows a reason-specific view (offline → "Erneut versuchen", no-key →
+   Settings); capture status note + gate and the Lager fridge-scan now distinguish offline from
+   no-key inline instead of just failing. *(P1, S)*
 4. **Duplicate guard on capture** — warn before saving a recipe whose name closely matches an
    existing one (URL imports especially). *(P2, S)*
 5. **Shopping list "snapshot" to Lager** — when you check off bought items, optionally push the
