@@ -55,7 +55,12 @@ The "make the existing app not feel broken" pass. Small, high-impact.
 | A1 | ✅ **Capture photo not cleared** *(shipped v2.2)* | On save/cancel the held `photoFile`, preview, URL field, busy + status now reset — re-entering capture is a clean slate. | P0 | S |
 | A2 | ✅ **"AI is working" is invisible** *(shipped v2.2)* | Capture now shows a spinner + two-step "Reading the recipe…" → "Building the recipe…" busy banner during the vision call. | P0 | S |
 | A3 | ✅ **AI prompt is Marcel-only** *(shipped v2.2)* | Cook profile (level/diet/servings/weekday/weekend/shopping/equipment/spices/notes) lifted into Settings → IndexedDB, fed into `buildSystemPrompt`; Marcel's values are the defaults. AI responses now also follow the selected UI language. | P1 | M |
-| A4 | **General bug sweep** | Run the DREAM bug-finder agent (see §8) before/after this cycle and fold its P0/P1 findings in here. | P1 | — |
+| ✅ **A4** | **General bug sweep** *(done 2026-06-13)* | Read-only sweep after the B3 overlay refactor. Found + fixed 1 P1 regression (shopping list lost aisle/icons in non-DE UI — now aggregates from German via `getRecipeDe`, commit `7467e35`). Verified clean: no Drive-corruption path, cooking-mode cleanup correct, i18n key-parity guarded. Cosmetic backlog below. | P1 | — |
+
+**Bug-sweep findings still open (low priority, 2026-06-13):**
+- **S1 · Untranslated display fields in non-DE UI** — `time` ("35 Min"), `lastCooked` ("Mai 2026"), and the cuisine/season filter values stay German (only name/ingredients/steps/tips are translated). Cosmetic; filtering still works (canonical). P3·S.
+- **S2 · Mixed-language Markdown export** — `exportMarkdown` keeps German section headers + field labels but the recipe bodies are now localized. Works; slightly inconsistent. Decide: all-German export (use `recipesDe`) vs. fully-localized. P3·S.
+- **S3 · Localized shopping item names** — shopping list items are currently German (so the German aisle-catalog matches). To show item names in the UI language *and* keep aisle/icon matching, pass both arrays (1:1 guaranteed) into `aggregateIngredients` and match on the German one. P2·M.
 
 ---
 
