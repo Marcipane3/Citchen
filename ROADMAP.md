@@ -169,22 +169,50 @@ Marcel: build skills/agents that sweep the code with "DREAM" functionality — o
 
 ## 10. Epic I — Sharing & collaboration on the shopping list *(P2–P3 · Marcel's ask)*
 
-Marcel: "Share the shopping list with other members, and collaborate on a **shared list that
-updates when you refresh the page**."
+Marcel's **two end goals** (now explicit — they are different problems, not one feature):
+1. **Couples / household** — a **persistent shared shopping list across two *different* accounts**
+   (Marcel + partner), where both add/check items and a refresh shows the other's changes. Possibly
+   later a shared *recipe* store too ("connected storage for couples").
+2. **Friends contribute** — let **other people drop items onto my list** ("can you add oat milk?"),
+   where the friend may **not** have the app or a Google account. This is the harder, open-audience case.
 
-**Architecture reality (read before estimating):** the shopping list is **local-only today.**
-Only `recipes` round-trips to Drive — the list lives in IndexedDB (`shopping.js`) and is never
-synced (`store.js`/`sync.js` only know the recipe collection). So this epic is **not a UI tweak;
-it's a new synced data object.** Two honest sub-features:
+**Architecture reality (read before estimating).** The shopping list is **local-only today**: only
+`recipes` round-trips to Drive; the list lives in IndexedDB (`shopping.js`) and is never synced
+(`store.js`/`sync.js` only know the recipe collection). And the app deliberately uses the
+**privacy-minimal `drive.file` scope** (`drive.js:9`) — it can only see files **it** created. So
+real sharing is **a new synced data object plus a cross-account access model**, not a UI tweak.
+
+### The storage-model decision (this gates everything below)
+
+| Model | How a 2nd account gets in | Backend? | Friends w/o Google? | Verdict |
+|-------|---------------------------|----------|---------------------|---------|
+| **A. Shared Drive file + Picker** | A creates `einkaufsliste.json`, shares it to B's Google account; B opens it **once via the Google Picker** → `drive.file` then covers that file for B too. Both read/write the same file. | **None** ✅ | **No** ❌ | **Best fit for couples.** Stays in-scope, free, no server. Needs Picker integration + a one-time share handshake. *(Verified: `drive.file` reaches a file another user shared **only** after the Picker grants it — discovery without the Picker would need a broader scope.)* |
+| **B. Broader Drive scope (`drive`)** | App lists all of Drive, finds the shared file by id/name — no Picker. | None | No | **Avoid.** Breaks the privacy-minimal promise, triggers Google's verification/consent friction, app can read the user's entire Drive. Not worth it. |
+| **C. Minimal backend (Firebase/Supabase free tier)** | Each list gets an id + invite link; anyone with the link writes via a tiny web form — no Google, no app install. | **Yes** (free tier) | **Yes** ✅ | **The only model that satisfies "friends".** Real-time-ish, link-based, account-less. Cost: violates the current "no server / no SaaS" constraint; adds auth/hosting/maintenance. A **V3-scale decision**. |
+
+**Cross-cutting data-model decision (do this once, reuse everywhere):** store the list as an
+**item-level merge set** — each item `{id, name, qty, aisle, checked, updated, author, deleted}` —
+and merge by **union + last-writer-per-item**, *not* whole-file Last-Write-Wins. Whole-file LWW
+makes two simultaneous editors clobber each other (exactly the K2 conflict, now multiplied per item).
+Item-merge makes "two people each add something" just *work* on the next refresh. This model is
+transport-agnostic: it works over Drive (A) **and** over a backend (C), so designing it now means
+the friends step doesn't force a rewrite.
 
 | # | Item | Detail & acceptance | Pri | Eff |
 |---|------|---------------------|-----|-----|
-| I1 | **Share the list (one-way)** | Quick win, no new sync engine: a "Teilen" action that emits the current list as plain text (Web Share API / copy-to-clipboard) so a housemate can receive it in any messenger. **Done:** one tap → shareable text list (aisle-grouped, respects checked state). | P2 | S |
-| I2 | **Collaborative shared list (two-way, refresh-to-sync)** | Persist the list to its **own Drive file** (`einkaufsliste.json`), Last-Write-Wins on an `updated` stamp, **pulled on app load + a manual "🔄 Aktualisieren" button** (matches Marcel's "updates on refresh" model — not real-time). Two devices editing the same file converge after a refresh; offline edits queue + push like recipes. **Key design decision to make first:** with the privacy-friendly `drive.file` scope the app only sees files **it** created, so true cross-account sharing needs one of: (a) the other member opens the *same* shared Drive file through the app (shared-folder model), (b) a broader Drive scope, or (c) item-level merge instead of LWW so two people's edits don't clobber each other. **Prereq:** generalise `sync.js` from "the recipe collection" to a **collection-agnostic sync** (file id + meta per object) — see architecture findings in `qa/`. **Done:** list survives reload; a second signed-in device sees added items after refresh; conflicts resolve predictably; offline → queued → pushed. | P3 | L |
+| I1 | **Share the list (one-way, ship now)** | No sync engine: a "Teilen" action emits the current list as plain text (Web Share API / clipboard) so anyone receives it in any messenger. Already covers the *cheap* half of "friends". **Done:** one tap → shareable text list (aisle-grouped, respects checked state). | P2 | S |
+| I2 | **Couples: two-way shared list (Model A — shared Drive file, refresh-to-sync)** | Promote `sync.js` to **collection-agnostic** (file id + meta per object — the `decideSync()` extraction in **K2** is the seam, now done ✅), then persist the list to its **own** `einkaufsliste.json` with the **item-level merge** model above, pulled on app load + a manual "🔄 Aktualisieren" button (Marcel's "updates on refresh" model, not real-time). Cross-account via **Google Picker**: partner opens the shared file once. **Decisions to lock first:** (1) item-merge schema + a pure `mergeList(local, remote)` (unit-tested like `decideSync`); (2) Picker integration + the share handshake UX; (3) what happens offline (queue + push, like recipes). **Done:** list survives reload; partner on a different account sees added items after refresh; two concurrent adds both survive; offline → queued → pushed. **Prereq for safety:** one sync core — don't bolt a second ad-hoc Drive writer next to the recipe one or the Drive-corruption surface doubles. | P3 | L |
+| I3 | **Friends: open contribution (Model C — needs the backend decision)** | The real end goal: a shareable **link** that lets someone **without the app or a Google account** add an item to my list. This is **not reachable inside `drive.file`** (a non-Google friend can't touch a Drive file). Honest options: **(a)** constrain "friends" to "people who also run the app + Google" → then it's just I2 with a multi-party share (no new tech); **(b)** stand up a **minimal free-tier backend** (Firebase/Supabase) holding the list behind an invite link + a tiny add-item web form, with the same item-merge model. **This is a deliberate architecture decision, almost certainly V3** (it reverses the "no server" constraint). **Done:** decision recorded (a vs b); if (b), a spike proving link → friend adds item → owner sees it after refresh. | P3 | L |
 
-> Sequencing: ship **I1 now** (cheap, real value), treat **I2 as its own mini-plan** gated on the
-> `sync.js` generalisation. Don't bolt a second ad-hoc Drive writer next to the recipe one —
-> refactor to one sync core first, or the Drive-corruption surface doubles.
+> **Sequencing & honesty:**
+> 1. **I1 now** — real value, trivial, also the pragmatic "friends" answer for today.
+> 2. **I2 next as its own mini-plan** — couples is fully achievable **with no backend** (Model A +
+>    item-merge), and K2 already laid the sync seam. Biggest new pieces: the Picker handshake and
+>    `mergeList()`.
+> 3. **I3 is a fork in the road, not a sprint task.** The friends-with-no-account end goal genuinely
+>    collides with "no server / free / no SaaS". Be honest with yourself: either redefine "friends"
+>    as app-users (cheap, Model A) or accept a minimal backend (Model C, V3). Don't half-build it on
+>    Drive — `drive.file` structurally can't let a non-Google friend write.
 
 ---
 
