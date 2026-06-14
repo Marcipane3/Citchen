@@ -7,20 +7,14 @@ import { testKey, AiError } from "../../ai/client.js";
 import * as drive from "../../data/drive.js";
 import * as sync from "../../data/sync.js";
 import { getTheme, setTheme, getProfile, setProfile, resetProfile } from "../../data/settings.js";
-import { esc } from "../../ui/helpers.js";
-import { openMenu } from "../menu.js";
+import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { navigate } from "../../router.js";
 import { BUILD } from "../../version.js";
 import { t, LANGS, getLang, setLang } from "../../i18n.js";
 
 export function renderSettings(container) {
   container.innerHTML = `
-    <header class="app-header">
-      <div class="brand">
-        <div class="brand-l"><span style="font-size:24px">⚙️</span><div><h1>${t("settings.title")}</h1></div></div>
-        <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
-      </div>
-    </header>
+    ${appHeader({ icon: "⚙️", title: t("settings.title"), source: "settings" })}
     <main class="app-main">
 
       <div class="card set-card">
@@ -102,7 +96,7 @@ export function renderSettings(container) {
 
     </main>`;
 
-  container.querySelector("#menuBtn").onclick = () => openMenu("settings");
+  wireHeader(container, "settings");
   container.querySelector("#open-lager").onclick = () => navigate("lager");
   container.querySelector("#open-guide").onclick = () => navigate("guide");
 

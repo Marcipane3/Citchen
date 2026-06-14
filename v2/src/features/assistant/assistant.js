@@ -10,10 +10,9 @@ import { complete, AiError } from "../../ai/client.js";
 import { buildSystemPrompt, suggestUserPrompt, leftoverUserPrompt, fromStockUserPrompt, generateUserPrompt, elaborateUserPrompt } from "../../ai/prompts.js";
 import { extractJson, coerceRecipe, coerceSuggestions } from "../../ai/parse.js";
 import { getStaples, getProfile } from "../../data/settings.js";
-import { esc } from "../../ui/helpers.js";
+import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "../cookbook/detail.js";
-import { openMenu } from "../menu.js";
 import { navigate } from "../../router.js";
 import { BUILD } from "../../version.js";
 import { t, getLang } from "../../i18n.js";
@@ -33,12 +32,7 @@ function unavailableView(container, reason) {
     ? `<button class="btn-primary" id="retry">${t("assistant.retry")}</button>`
     : `<button class="btn-primary" id="goSettings">${t("assistant.goSettings")}</button>`;
   container.innerHTML = `
-    <header class="app-header">
-      <div class="brand">
-        <div class="brand-l"><span style="font-size:24px">✨</span><div><h1>${t("assistant.title")}</h1><div class="sub">${t("assistant.premiumSub")}</div></div></div>
-        <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
-      </div>
-    </header>
+    ${appHeader({ icon: "✨", title: t("assistant.title"), sub: t("assistant.premiumSub"), source: "assistant" })}
     <main class="app-main">
       <div class="card" style="text-align:center;padding:28px 20px">
         <div style="font-size:40px;margin-bottom:10px">${icon}</div>
@@ -48,7 +42,7 @@ function unavailableView(container, reason) {
       </div>
     </main>
     <div class="build-line">Build ${esc(BUILD)}</div>`;
-  container.querySelector("#menuBtn").onclick = () => openMenu("assistant");
+  wireHeader(container, "assistant");
   const gs = container.querySelector("#goSettings");
   if (gs) gs.onclick = () => navigate("settings");
   const rt = container.querySelector("#retry");
@@ -60,18 +54,19 @@ export function renderAssistant(container) {
   if (reason) { unavailableView(container, reason); return; }
 
   container.innerHTML = `
-    <header class="app-header">
-      <div class="brand">
-        <div class="brand-l"><span style="font-size:24px">✨</span><div><h1>${t("assistant.title")}</h1><div class="sub">${esc(gate.getModel())}</div></div></div>
-        <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
-      </div>
+    ${appHeader({
+      icon: "✨",
+      title: t("assistant.title"),
+      sub: esc(gate.getModel()),
+      source: "assistant",
+      extra: `
       <div class="ai-tools">
         <button class="chip" data-tool="suggest">${t("assistant.toolSuggest")}</button>
         <button class="chip" data-tool="fromStock">${t("assistant.toolFromStock")}</button>
         <button class="chip" data-tool="leftover">${t("assistant.toolLeftover")}</button>
         <button class="chip" data-tool="generate">${t("assistant.toolGenerate")}</button>
-      </div>
-    </header>
+      </div>`,
+    })}
     <main class="app-main">
       <div id="chat"></div>
       <div id="ai-busy" style="display:none" class="ai-busy">${t("assistant.thinking")}</div>
@@ -82,7 +77,7 @@ export function renderAssistant(container) {
     </div>
     <div class="build-line" style="padding-bottom:90px"></div>`;
 
-  container.querySelector("#menuBtn").onclick = () => openMenu("assistant");
+  wireHeader(container, "assistant");
   paintChat(container);
 
   const input = container.querySelector("#ai-input");

@@ -5,10 +5,9 @@ import { state } from "../../store.js";
 import * as db from "../../data/db.js";
 import * as sync from "../../data/sync.js";
 import { getTotalMinutes } from "../../data/derive.js";
-import { esc, hydrateHeroes } from "../../ui/helpers.js";
+import { esc, hydrateHeroes, appHeader, wireHeader } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "../cookbook/detail.js";
-import { openMenu } from "../menu.js";
 import { BUILD } from "../../version.js";
 import { t, tn } from "../../i18n.js";
 
@@ -64,18 +63,13 @@ function scardHTML(r, behind) {
 
 export function renderMatch(container) {
   container.innerHTML = `
-    <header class="app-header">
-      <div class="brand">
-        <div class="brand-l">
-          <span style="font-size:24px">🔥</span>
-          <div><h1>${t("match.title")}</h1><div class="sub">${t("match.subtitle")}</div></div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="match-stack" id="matchStack" title="${t("match.viewMatches")}">🔥 <span class="ms-count">0</span></button>
-          <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
-        </div>
-      </div>
-    </header>
+    ${appHeader({
+      icon: "🔥",
+      title: t("match.title"),
+      sub: t("match.subtitle"),
+      source: "match",
+      right: `<button class="match-stack" id="matchStack" title="${t("match.viewMatches")}">🔥 <span class="ms-count">0</span></button>`,
+    })}
     <main class="swipe-wrap">
       <div class="swipe-deck" id="deck"></div>
       <div class="swipe-actions" id="swipeActions">
@@ -88,7 +82,7 @@ export function renderMatch(container) {
     <div class="sync-line">${esc(sync.getStatus())}</div>
     <div class="build-line">Build ${esc(BUILD)}</div>`;
 
-  container.querySelector("#menuBtn").onclick = () => openMenu("match");
+  wireHeader(container, "match");
   container.querySelector("#matchStack").onclick = openMatches;
 
   loadMatches().then((m) => {

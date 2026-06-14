@@ -19,6 +19,14 @@ edit app code or the roadmap. Marcel reads the reports and promotes what's worth
 | `koch-simplifier` | Reuse, dead code, duplication, over-engineering | sonnet | `qa/findings/simplifier.md` |
 | `koch-ux-curator` | A11y, navigation, touch targets, empty/error states, copy — **plus creative ideas** | sonnet | `qa/findings/ux-curator.md` |
 | `koch-test-warden` | Coverage gaps, missing edge cases, forward tests for upcoming work | sonnet | `qa/findings/test-warden.md` |
+| `koch-release-captain` | **Pre-release gate (GO/NO-GO):** BUILD bumped, SW cache bumped, every `src` module in the SW shell, suite green, no committed secrets | sonnet | `qa/findings/release-captain.md` |
+| `koch-data-guardian` | The Drive `rezepte.json`: round-trip / field-loss, id integrity, the canonical-German invariant, malformed-external-write resistance | **opus** (data is irreplaceable) | `qa/findings/data-guardian.md` |
+
+> **The last two are gates, not nightly auditors.** `release-captain` runs **before a push/deploy** (it
+> answers one question — safe to ship?); `data-guardian` runs **when the data layer or `SCHEMA.md`
+> changes**, or before a release. Keep them out of the nightly routine — they earn their cost at the
+> moments data or the deploy is actually at risk. On 2026-06-14 `release-captain`'s shell-completeness
+> check already paid for itself: `data/baseLang.js` was missing from `sw.js` (would 404 offline) — fixed.
 
 **Why two models?** Defect-hunting and architecture reward deeper reasoning → Opus. Simplicity,
 UX and coverage are more pattern-driven → Sonnet, which keeps a full fleet run cheap. That routing
@@ -68,29 +76,47 @@ to refill itself while you sleep.
 - Findings use a shared shape (severity/impact · `file:line` · why · suggested fix · effort) so they
   drop cleanly into `ROADMAP.md` as new rows.
 
-## Future agents worth adding (ranked by value for "a perfect app")
+## Toward full orchestration — the next agents
 
-The current five cover *quality, structure, simplicity, UX, tests*. The biggest gaps are **the data
-and the deploy** — the two places where this app can actually hurt itself. In rough priority:
+Seven agents exist (five auditors + two gates). To make this a *full orchestration* that costs **less**
+per run and produces **better, less noisy** output, the next additions split into two buckets: a thin
+**control layer** (the biggest token lever) and a few **specialist auditors**.
 
-1. **`koch-release-captain`** *(highest value)* — a **pre-release gate**, not an auditor. Verifies the
-   things this project repeatedly trips on: `BUILD` in `version.js` bumped, `CACHE` in `sw.js` bumped,
-   **every `src/**/*.js` present in the SHELL list**, changelog updated, full fleet green. Run it before
-   every push. Directly attacks the recurring "stale service worker serves old modules" pain.
-2. **`koch-data-guardian`** — guards the most precious asset: the Drive `rezepte.json`. Round-trips the
-   file through `migrate.js`, asserts no field loss, unique ids, the **canonical-German invariant**, and
-   that a malformed *external* write (v1 or project-Claude share this file) can't corrupt the store.
-3. **`koch-i18n-sentinel`** — the app is DE/EN/ES/DA; this is a recurring failure class. Catches
-   hardcoded strings that bypass `t()` (the K5 leak), key-parity drift, and snapshot length/marker
-   integrity. Cheap to run, prevents whole categories of regressions.
-4. **`koch-security-auditor`** — enforces the "no backend, no tracking" promise: BYOK key never logged
-   or synced to Drive, `drive.file` scope stays minimal, all user-supplied content is `esc()`-d before
-   render (XSS), nothing leaves the device except to Anthropic/Drive.
-5. **`koch-perf-scout`** *(save for V3)* — measures the "no-bundler tax": module/request count, cache
-   weight, first paint as the recipe count grows. Feeds the V3 "is no-build still right?" decision.
+### Build next — the control layer (this is where the token savings live)
 
-`release-captain` + `data-guardian` are the two I'd build next — they protect the deploy and the data,
-which the current five don't. Each is a new `.claude/agents/koch-*.md` in the same read-only mould.
+1. **`koch-conductor`** *(highest leverage for cost)* — a cheap **router/meta-agent**, model `sonnet`,
+   that runs first and decides *who else runs*. It reads `git diff --name-only <last>..HEAD` and maps
+   changed paths → relevant agents (touched `i18n.js` → i18n-sentinel; touched `data/` or `SCHEMA.md`
+   → data-guardian; touched a view → ux + simplifier; touched `sync.js` → bug-hunter + test-warden).
+   Nothing relevant changed → it spawns **nobody** and writes one line. This is the difference between
+   "always run 5–7 agents" and "run the 1–2 that the diff actually implicates" — easily a 3–5× cost cut
+   on a typical change, and it means you can schedule the *whole* fleet because it self-prunes.
+2. **`koch-curator`** *(highest leverage for output quality)* — runs **last**, model `sonnet`. Reads all
+   fresh `qa/findings/*.md`, **dedups** items the same issue raised from three angles (the header dup hit
+   3 agents — you want *one* roadmap row, not three), ranks by severity×effort, **suppresses anything
+   already marked "verified clean" or already in `ROADMAP.md`**, and emits a single deduped, roadmap-ready
+   `FLEET-REPORT.md`. Turns five raw reports into one decision list — less to read, nothing double-counted.
+
+> Together these are the orchestration: **conductor** decides *what runs* (saves tokens up front),
+> **curator** decides *what you read* (saves your attention at the end). The five auditors become
+> interchangeable workers the conductor schedules — that's "full orchestration" rather than a fixed batch.
+
+### Build when the matching surface grows — specialist auditors
+
+3. **`koch-i18n-sentinel`** *(cheap, schedulable)* — DE/EN/ES/DA is a recurring failure class. Catches
+   hardcoded strings bypassing `t()` (the K5 leak), key-parity drift, snapshot length/marker integrity.
+   Small scope = small cost; ideal for the conductor to fire whenever `i18n.js` or a view changes.
+4. **`koch-security-auditor`** — enforces the "no backend, no tracking" promise: BYOK key never logged or
+   synced to Drive, `drive.file` scope stays minimal, all user content `esc()`-d before render (XSS),
+   nothing leaves the device except to Anthropic/Drive. Run on changes to `ai/*`, `data/drive.js`, or any
+   new `innerHTML` sink.
+5. **`koch-perf-scout`** *(defer to V3)* — measures the "no-bundler tax": module/request count, cache
+   weight, first paint as recipes grow. Feeds the V3 "is no-build still right?" decision. Low value until
+   the catalog is much larger.
+
+Each is a new `.claude/agents/koch-*.md` in the same read-only mould. **Recommended order:** `conductor`
++ `curator` first (they make every future run cheaper and clearer), then `i18n-sentinel`, then
+`security-auditor`. `perf-scout` waits for V3.
 
 ## Boundaries (do not relax without asking Marcel)
 - Agents are **read-only on app code and the roadmap**. They write only under `qa/findings/`.

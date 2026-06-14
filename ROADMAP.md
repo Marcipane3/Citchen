@@ -56,7 +56,7 @@ The "make the existing app not feel broken" pass. Small, high-impact.
 | A2 | ✅ **"AI is working" is invisible** *(shipped v2.2)* | Capture now shows a spinner + two-step "Reading the recipe…" → "Building the recipe…" busy banner during the vision call. | P0 | S |
 | A3 | ✅ **AI prompt is Marcel-only** *(shipped v2.2)* | Cook profile (level/diet/servings/weekday/weekend/shopping/equipment/spices/notes) lifted into Settings → IndexedDB, fed into `buildSystemPrompt`; Marcel's values are the defaults. AI responses now also follow the selected UI language. | P1 | M |
 | ✅ **A4** | **General bug sweep** *(done 2026-06-13)* | Read-only sweep after the B3 overlay refactor. Found + fixed 1 P1 regression (shopping list lost aisle/icons in non-DE UI — now aggregates from German via `getRecipeDe`, commit `7467e35`). Verified clean: no Drive-corruption path, cooking-mode cleanup correct, i18n key-parity guarded. Cosmetic backlog below. | P1 | — |
-| A5 | **🍳 logo → home (Marcel)** | The poached-egg app symbol in the top-left should tap back to the main page (cookbook). Today the 🍳 lives **only** in `cookbook.js:162` and is non-interactive; every other view renders an `app-header` with just a ☰ button (`menu.js`), so there is no "home" affordance off the main screen. Fix: make the brand a shared, tappable element across all `app-header`s → `navigate("cookbook")`. Acceptance: from any view, tapping 🍳 returns to the cookbook; it carries `role="button"`/`aria-label`, ≥44px touch target, and a visible focus ring. See **Epic J** for the broader navigation pattern this belongs to. | P1 | S |
+| ✅ **A5** | **🍳 logo → home (Marcel)** *(shipped 2026-06-14, via K1)* | Shipped as part of the shared-header extraction (**K1**). The brand symbol on every view is now a real `<button class="brand-home">` → `navigate("cookbook")`, with `aria-label="Startseite"` (i18n DE/EN/ES/DA), a ≥44px touch target and a `:focus-visible` ring. Verified in-browser from cookbook/lager/match/guide. `guide.js` keeps its ← back button (no home button) by design; `match.js`'s extra action coexists. | P1 | S |
 
 **Bug-sweep findings still open (low priority, 2026-06-13):**
 - **S1 · Untranslated display fields in non-DE UI** — `time` ("35 Min"), `lastCooked` ("Mai 2026"), and the cuisine/season filter values stay German (only name/ingredients/steps/tips are translated). Cosmetic; filtering still works (canonical). P3·S.
@@ -194,7 +194,7 @@ Spun out of the 🍳-logo ask (A5) because it points at a bigger, evidence-backe
 
 | # | Item | Detail & acceptance | Pri | Eff |
 |---|------|---------------------|-----|-----|
-| J1 | ✅→ **🍳 logo → home** *(= A5, Marcel)* | Tracked as **A5**; listed here too because it's the first step of a coherent nav model. | P1 | S |
+| ✅ **J1** | **🍳 logo → home** *(= A5, Marcel — shipped 2026-06-14)* | Done with K1/A5: home affordance now on every view. First step of the nav model below. | P1 | S |
 | J2 | **Bottom tab bar for primary sections** *(Claude addition — research-backed)* | Today navigation is **hamburger-only** (`menu.js`, ☰ on every header). Nielsen Norman Group: hidden menus cut task completion ~21%; teams that moved core destinations to a **visible bottom tab bar** saw feature discovery +30%. Best practice for ≤5 primary sections: a persistent bottom tab bar (Kochbuch · Match · Lager · Einkauf · Planer), thumb-reachable, with the ☰ retained for secondary items (Capture, Assistant, Settings, Export). The 🍳 home affordance (A5) folds into this. **Done:** primary sections reachable in one thumb-tap from anywhere; ☰ holds the long tail; a11y labels + active-state. *Idea only — not committed; Marcel decides.* | P2 | M |
 
 > Why this is in the roadmap and not just done: it changes the app's shell on every screen and
@@ -212,10 +212,10 @@ converged independently** — trust those most.
 
 | # | Item | From | Detail & acceptance | Pri | Eff |
 |---|------|------|---------------------|-----|-----|
-| ★ **K1** | **Build A5 (🍳→home) *as* a shared `renderHeader()`** | simplifier + ux + (bug-hunter) | The `app-header` + `#menuBtn` + `openMenu()` block is hand-rolled **10× across 9 files**. Extract one parameterised `renderHeader()` into `ui/helpers.js`; make the 🍳 a real home button living inside it. One change ships Marcel's A5 ask **and** removes the app's biggest duplication (~40–55 lines). Absorb the two variants: `guide.js` (back button), `match.js` (extra action). **Done:** every view's header comes from one helper; 🍳 taps home from anywhere; net lines down; behaviour unchanged. | **P1** | M |
+| ✅ ★ **K1** | **Build A5 (🍳→home) *as* a shared `appHeader()`** *(shipped 2026-06-14)* | simplifier + ux + (bug-hunter) | Done. The 10× hand-rolled `app-header` block is now one parameterised `appHeader({icon,title,sub,subId,source,right,extra,left})` + `wireHeader()` in `ui/helpers.js`. All 9 view files + both assistant states route through it; the two variants are absorbed via the `left` slot (guide back button) and `right` slot (match action). The 🍳 (and each view icon) is a real home button → cookbook. Suite still 145/145; i18n parity green (new `common.home` key ×4). Net markup down ~80 lines. | **P1** | M |
 | ★ **K2** | **Extract a pure `decideSync()` + pin the offline-overwrite** | bug-hunter + test-warden + architect | Lift the Last-Write-Wins decision out of `sync.js`'s async I/O into a pure `decideSync({localUpdated, remoteUpdated, dirty, source}) → "push"\|"pull"\|"noop"\|"create"`. This (a) exposes and lets you **decide** the silent discard of an offline `dirty` edit when Drive is newer (`sync.js:101-119` — currently lost with no warning), (b) is the exact seam **Epic I2** (shared shopping list) needs to go collection-agnostic, (c) makes the conflict rule an executable spec before it's multiplied across a second synced object. **Done:** pure helper + unit-tested decision matrix; the offline-edit case is either preserved or explicitly, intentionally chosen. **Do this before I2.** | **P1** | M |
 | K3 | **Accessibility pass** | ux-curator | `aria-label` on every icon-only button (☰ / ✕ / 🍳 / swipe / planner 🔒🔄📖 — they use `title` only, which mobile screen readers skip); global `:focus-visible` outline; keyboard-operable recipe cards (clickable `<div>`s today); sheet Escape-to-close + focus trap/restore in `ui/sheet.js`; bump `.icon-btn` (~30px) and shopping `+/−` steppers to a 44px hit area. **Done:** every interactive element is labelled, focusable, ≥44px. | P2 | S–M |
-| K4 | **Two invariant guard-tests** | architect | (a) **SHELL-coverage test:** glob `v2/src/**/*.js`, fail if any module is missing from the `sw.js` SHELL list (the "no-build tax" made safe — a forgotten module = a broken offline install). (b) **Persistence-canonicality test:** assert only `recipesDe` content can reach Drive (guards the German-canonical invariant against a future regression). Cheap insurance for already-correct architecture. | P3 | S |
+| K4 | **Two invariant guard-tests** | architect | ⚠️ **Not hypothetical:** on 2026-06-14 `data/baseLang.js` (imported by `store.js`) was found **missing** from the `sw.js` SHELL list — it would 404 on a fresh offline install. Fixed in the same commit; now `koch-release-captain` guards this class. (a) **SHELL-coverage test:** glob `v2/src/**/*.js`, fail if any module is missing from the `sw.js` SHELL list (the "no-build tax" made safe — a forgotten module = a broken offline install). (b) **Persistence-canonicality test:** assert only `recipesDe` content can reach Drive (guards the German-canonical invariant against a future regression). Cheap insurance for already-correct architecture. | P3 | S |
 | K5 | **i18n leak fix** | ux-curator | Two hardcoded German strings bypass `t()`: `assistant.js:187`, `detail.js:118`. Route through i18n. | P3 | S |
 
 > Also surfaced and already tracked: **J2** (bottom tab bar) and **Epic I** (shopping-list sharing).
@@ -287,10 +287,10 @@ Eat, Samsung Food, Clove) — features that are now table-stakes and fit this ar
 
 A pragmatic order — fix what's visibly broken, then the high-value asks, then breadth.
 
-**▶ Right now (post-fleet, 2026-06-14):** the two highest-leverage picks are **K1** (build A5 🍳→home
-as the shared `renderHeader()` — ships your ask + kills the biggest duplication) and **K2** (extract
-`decideSync()` + pin the offline-overwrite — unblocks the shared shopping list safely). Do K1 first
-(small, visible, low-risk), then K2 before starting **Epic I2**.
+**▶ Right now (post-fleet, 2026-06-14):** ✅ **K1 shipped** (A5 🍳→home via the shared `appHeader()` —
+ask delivered + biggest duplication removed; also caught & fixed a real SW-shell gap, see K4). **Next is
+K2** (extract `decideSync()` + pin the offline-overwrite — unblocks the shared shopping list safely).
+Do K2 before starting **Epic I2**. Then K3 (a11y) and K4 (the two guard-tests) as cheap insurance.
 
 **Days 1–2 — stop the bleeding (P0):**
 A1 photo-clear · A2 AI busy state · E1 clear-list button · #3 offline AI honesty.

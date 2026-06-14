@@ -5,11 +5,10 @@ import * as gate from "../../ai/gate.js";
 import { VISION_MODEL } from "../../ai/client.js";
 import { AiError } from "../../ai/client.js";
 import { parseCapture, draftFromInput, parseBulk, CaptureDisabledError, CaptureParseError } from "./parse.js";
-import { esc } from "../../ui/helpers.js";
+import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { addRecipe } from "../../store.js";
 import { getTotalMinutes } from "../../data/derive.js";
 import { openForm } from "../cookbook/form.js";
-import { openMenu } from "../menu.js";
 import { navigate } from "../../router.js";
 import { BUILD } from "../../version.js";
 import { t } from "../../i18n.js";
@@ -24,12 +23,7 @@ export function renderCapture(container) {
   let photoFile = null;
 
   container.innerHTML = `
-    <header class="app-header">
-      <div class="brand">
-        <div class="brand-l"><span style="font-size:24px">📸</span><div><h1>${t("capture.title")}</h1><div class="sub">${t("capture.subtitle")}</div></div></div>
-        <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
-      </div>
-    </header>
+    ${appHeader({ icon: "📸", title: t("capture.title"), sub: t("capture.subtitle"), source: "capture" })}
     <main class="app-main">
 
       <div class="card set-card">
@@ -75,7 +69,7 @@ export function renderCapture(container) {
     </main>
     <div class="build-line">Build ${esc(BUILD)}</div>`;
 
-  container.querySelector("#menuBtn").onclick = () => openMenu("capture");
+  wireHeader(container, "capture");
   const status = container.querySelector("#cap-status");
   const preview = container.querySelector("#cap-preview");
   const busy = container.querySelector("#cap-busy");

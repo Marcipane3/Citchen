@@ -74,7 +74,7 @@ export const DICT = {
     common: {
       save: "Speichern", saving: "Speichere…", cancel: "Abbrechen", delete: "Löschen",
       edit: "Bearbeiten", close: "Schließen", back: "Zurück", add: "Hinzufügen",
-      search: "Suchen…", menu: "Menü", preview: "Vorschau", done: "Fertig",
+      search: "Suchen…", menu: "Menü", home: "Startseite", preview: "Vorschau", done: "Fertig",
       offline: "Offline", remove: "Entfernen", saved: "✓ Gespeichert!",
     },
     nav: {
@@ -278,7 +278,7 @@ export const DICT = {
     common: {
       save: "Save", saving: "Saving…", cancel: "Cancel", delete: "Delete",
       edit: "Edit", close: "Close", back: "Back", add: "Add",
-      search: "Search…", menu: "Menu", preview: "Preview", done: "Done",
+      search: "Search…", menu: "Menu", home: "Home", preview: "Preview", done: "Done",
       offline: "Offline", remove: "Remove", saved: "✓ Saved!",
     },
     nav: {
@@ -482,7 +482,7 @@ export const DICT = {
     common: {
       save: "Guardar", saving: "Guardando…", cancel: "Cancelar", delete: "Eliminar",
       edit: "Editar", close: "Cerrar", back: "Atrás", add: "Añadir",
-      search: "Buscar…", menu: "Menú", preview: "Vista previa", done: "Listo",
+      search: "Buscar…", menu: "Menú", home: "Inicio", preview: "Vista previa", done: "Listo",
       offline: "Sin conexión", remove: "Quitar", saved: "✓ ¡Guardado!",
     },
     nav: {
@@ -686,7 +686,7 @@ export const DICT = {
     common: {
       save: "Gem", saving: "Gemmer…", cancel: "Annuller", delete: "Slet",
       edit: "Rediger", close: "Luk", back: "Tilbage", add: "Tilføj",
-      search: "Søg…", menu: "Menu", preview: "Forhåndsvisning", done: "Færdig",
+      search: "Søg…", menu: "Menu", home: "Forside", preview: "Forhåndsvisning", done: "Færdig",
       offline: "Offline", remove: "Fjern", saved: "✓ Gemt!",
     },
     nav: {

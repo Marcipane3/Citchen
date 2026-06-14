@@ -5,8 +5,7 @@
 import * as gate from "../../ai/gate.js";
 import { complete, visionMessage, blobToBase64, VISION_MODEL, AiError } from "../../ai/client.js";
 import { extractJson } from "../../ai/parse.js";
-import { compressImage, esc } from "../../ui/helpers.js";
-import { openMenu } from "../menu.js";
+import { compressImage, esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { BUILD } from "../../version.js";
 import { t } from "../../i18n.js";
 import * as store from "../../data/lager.js";
@@ -29,12 +28,7 @@ function fridgeIcon(f) {
 
 export function renderLager(container) {
   container.innerHTML = `
-    <header class="app-header">
-      <div class="brand">
-        <div class="brand-l"><span style="font-size:24px">📦</span><div><h1>${t("lager.title")}</h1><div class="sub">${t("lager.subtitle")}</div></div></div>
-        <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
-      </div>
-    </header>
+    ${appHeader({ icon: "📦", title: t("lager.title"), sub: t("lager.subtitle"), source: "lager" })}
     <main class="app-main">
       <div class="card lager-sec">
         <h3>${t("lager.stockHeading")} <span class="sub" id="stock-count" style="font-weight:400"></span></h3>
@@ -69,7 +63,7 @@ export function renderLager(container) {
     </main>
     <div class="build-line">Build ${esc(BUILD)}</div>`;
 
-  container.querySelector("#menuBtn").onclick = () => openMenu("lager");
+  wireHeader(container, "lager");
 
   Promise.all([store.getPantry(), store.getFridge()]).then(([p, f]) => {
     pantry = p; fridge = f;
