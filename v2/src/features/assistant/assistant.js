@@ -179,7 +179,7 @@ function renderAnswer(text) {
           <button class="btn-sec" data-preview-recipe="${payload}">${t("assistant.lookFirst")}</button>
         </div>`;
     }
-    return `<p>Das Rezept war leider nicht schema-konform (${esc(errors.join("; "))}). Formuliere den Wunsch nochmal — ich versuche es erneut.</p>`;
+    return `<p>${t("assistant.schemaFail", { errors: esc(errors.join("; ")) })}</p>`;
   }
 
   if (json && json.type === "text") return `<p>${esc(json.text)}</p>`;

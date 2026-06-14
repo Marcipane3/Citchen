@@ -107,6 +107,7 @@ export const DICT = {
       toShopping: "🛒 Zutaten zur Einkaufsliste", cookMode: "👨‍🍳 Kochmodus",
       cookedToday: "✓ Heute gekocht", cookedDone: "✓ Eingetragen!",
       addPhoto: "📷 Foto aufnehmen oder hochladen",
+      photoFail: "Foto fehlgeschlagen: {msg}",
       noteTitle: "💬 Notiz für Claude",
       notePlaceholder: "Was hat gefehlt oder wie war’s? z.B. „zu wenig Schärfe“, „brauchte 10 Min länger“ …",
       noteSave: "Notiz speichern",
@@ -184,6 +185,7 @@ export const DICT = {
       leftoverPrompt: "Welche Zutaten hast du übrig? (z.B. „½ Zucchini, Feta, 200g Kichererbsen“)",
       generatePrompt: "Was für ein Rezept soll ich erfinden? (z.B. „Bazaar-Bowl mit Granatapfel“)",
       toSettings: "Zu den Einstellungen", previewTitle: "{cat} · Vorschau",
+      schemaFail: "Das Rezept war leider nicht schema-konform ({errors}). Formuliere den Wunsch nochmal — ich versuche es erneut.",
     },
     capture: {
       title: "Rezept erfassen", subtitle: "Foto oder URL → Kochbuch",
@@ -311,6 +313,7 @@ export const DICT = {
       toShopping: "🛒 Ingredients to shopping list", cookMode: "👨‍🍳 Cooking mode",
       cookedToday: "✓ Cooked today", cookedDone: "✓ Logged!",
       addPhoto: "📷 Take or upload a photo",
+      photoFail: "Photo failed: {msg}",
       noteTitle: "💬 Note for Claude",
       notePlaceholder: "What was missing or how was it? e.g. “needs more spice”, “took 10 min longer” …",
       noteSave: "Save note",
@@ -388,6 +391,7 @@ export const DICT = {
       leftoverPrompt: "Which ingredients do you have left? (e.g. “½ zucchini, feta, 200g chickpeas”)",
       generatePrompt: "What recipe should I invent? (e.g. “bazaar bowl with pomegranate”)",
       toSettings: "Go to Settings", previewTitle: "{cat} · preview",
+      schemaFail: "Sorry, the recipe wasn't schema-valid ({errors}). Rephrase your request — I'll try again.",
     },
     capture: {
       title: "Capture recipe", subtitle: "Photo or URL → cookbook",
@@ -515,6 +519,7 @@ export const DICT = {
       toShopping: "🛒 Ingredientes a la lista", cookMode: "👨‍🍳 Modo cocina",
       cookedToday: "✓ Cocinado hoy", cookedDone: "✓ ¡Registrado!",
       addPhoto: "📷 Hacer o subir una foto",
+      photoFail: "Error con la foto: {msg}",
       noteTitle: "💬 Nota para Claude",
       notePlaceholder: "¿Qué faltó o qué tal estuvo? p. ej. “más picante”, “tardó 10 min más” …",
       noteSave: "Guardar nota",
@@ -592,6 +597,7 @@ export const DICT = {
       leftoverPrompt: "¿Qué ingredientes te sobran? (p. ej. “½ calabacín, feta, 200g garbanzos”)",
       generatePrompt: "¿Qué receta invento? (p. ej. “bowl de bazaar con granada”)",
       toSettings: "Ir a Ajustes", previewTitle: "{cat} · vista previa",
+      schemaFail: "La receta no cumplió el esquema ({errors}). Reformula tu petición y lo intento de nuevo.",
     },
     capture: {
       title: "Capturar receta", subtitle: "Foto o URL → recetario",
@@ -719,6 +725,7 @@ export const DICT = {
       toShopping: "🛒 Ingredienser til indkøbsliste", cookMode: "👨‍🍳 Kogetilstand",
       cookedToday: "✓ Lavet i dag", cookedDone: "✓ Registreret!",
       addPhoto: "📷 Tag eller upload et foto",
+      photoFail: "Foto mislykkedes: {msg}",
       noteTitle: "💬 Note til Claude",
       notePlaceholder: "Hvad manglede, eller hvordan var det? f.eks. „mere krydderi“, „tog 10 min længere“ …",
       noteSave: "Gem note",
@@ -796,6 +803,7 @@ export const DICT = {
       leftoverPrompt: "Hvilke ingredienser har du tilovers? (f.eks. „½ squash, feta, 200g kikærter“)",
       generatePrompt: "Hvilken opskrift skal jeg finde på? (f.eks. „bazaar-bowl med granatæble“)",
       toSettings: "Til Indstillinger", previewTitle: "{cat} · forhåndsvisning",
+      schemaFail: "Opskriften var desværre ikke skema-gyldig ({errors}). Omformuler dit ønske — jeg prøver igen.",
     },
     capture: {
       title: "Tilføj opskrift", subtitle: "Foto eller URL → kogebog",
