@@ -2,7 +2,7 @@
 
 > Master plan for the next 1–2 weeks of v2 work, plus the v3 rebuild horizon.
 > Owner: Marcel · Maintained for Claude Code as the working backlog.
-> Last structured: 2026-06-12 · Current build: v2.1 (`/v2`, flat-v3 schema, 122 tests).
+> Last structured: 2026-06-14 · Current build: v2.5 (`/v2`, flat-v3 schema, 145 tests).
 
 This file replaces the loose backlog at the bottom of `04_BUILD_PLAN.md`. Marcel's raw
 notes were regrouped into themed epics, de-duplicated, and prioritised. Claude's own
@@ -56,6 +56,7 @@ The "make the existing app not feel broken" pass. Small, high-impact.
 | A2 | ✅ **"AI is working" is invisible** *(shipped v2.2)* | Capture now shows a spinner + two-step "Reading the recipe…" → "Building the recipe…" busy banner during the vision call. | P0 | S |
 | A3 | ✅ **AI prompt is Marcel-only** *(shipped v2.2)* | Cook profile (level/diet/servings/weekday/weekend/shopping/equipment/spices/notes) lifted into Settings → IndexedDB, fed into `buildSystemPrompt`; Marcel's values are the defaults. AI responses now also follow the selected UI language. | P1 | M |
 | ✅ **A4** | **General bug sweep** *(done 2026-06-13)* | Read-only sweep after the B3 overlay refactor. Found + fixed 1 P1 regression (shopping list lost aisle/icons in non-DE UI — now aggregates from German via `getRecipeDe`, commit `7467e35`). Verified clean: no Drive-corruption path, cooking-mode cleanup correct, i18n key-parity guarded. Cosmetic backlog below. | P1 | — |
+| A5 | **🍳 logo → home (Marcel)** | The poached-egg app symbol in the top-left should tap back to the main page (cookbook). Today the 🍳 lives **only** in `cookbook.js:162` and is non-interactive; every other view renders an `app-header` with just a ☰ button (`menu.js`), so there is no "home" affordance off the main screen. Fix: make the brand a shared, tappable element across all `app-header`s → `navigate("cookbook")`. Acceptance: from any view, tapping 🍳 returns to the cookbook; it carries `role="button"`/`aria-label`, ≥44px touch target, and a visible focus ring. See **Epic J** for the broader navigation pattern this belongs to. | P1 | S |
 
 **Bug-sweep findings still open (low priority, 2026-06-13):**
 - **S1 · Untranslated display fields in non-DE UI** — `time` ("35 Min"), `lastCooked` ("Mai 2026"), and the cuisine/season filter values stay German (only name/ingredients/steps/tips are translated). Cosmetic; filtering still works (canonical). P3·S.
@@ -154,17 +155,77 @@ Marcel: build skills/agents that sweep the code with "DREAM" functionality — o
 
 | # | Item | Detail & acceptance | Pri | Eff |
 |---|------|---------------------|-----|-----|
-| H1 | **Bug-hunter agent** | Read-only sweep for real defects (state leaks like A1, error handling, offline edge cases) → writes findings into this roadmap as P0/P1 rows. | P2 | M |
-| H2 | **Obvious-wins agent** | Low-risk polish: dead code, a11y, copy, consistency. → backlog rows. | P2 | S |
-| H3 | **Creative agent** | "What would make this delightful" — feature ideas beyond the obvious. → an idea list (not auto-committed to the plan). | P3 | S |
-| H4 | **Backlog regenerator** | Re-run the idea prompt to keep refilling the backlog as items get done. | P3 | S |
+| ✅ **H1** | **Bug-hunter agent** *(built 2026-06-14)* | `.claude/agents/koch-bug-hunter.md` — read-only sweep for real defects (state leaks like A1, error handling, offline/sync edge cases, Drive-corruption paths, i18n key gaps) → findings to `qa/findings/bug-hunter.md`. | P2 | M |
+| ✅ **H2** | **Simplifier agent** *(built 2026-06-14)* | `.claude/agents/koch-simplifier.md` — dead code, duplication, over-engineering, a11y/copy consistency → `qa/findings/simplifier.md`. | P2 | S |
+| ✅ **H3** | **Creative / UX-curator agent** *(built 2026-06-14)* | `.claude/agents/koch-ux-curator.md` — "what would make this delightful" + UX/a11y/navigation/mobile-reachability → `qa/findings/ux-curator.md` (ideas, never auto-planned). | P3 | S |
+| ✅ **H4** | **Fleet orchestration + overnight rerun** *(built 2026-06-14)* | `qa/run-fleet.md` runbook + `.claude/agents/koch-architect.md` and `koch-test-warden.md` round out a **5-agent fleet**. Re-runnable on demand or on a nightly schedule (see `qa/README.md` → "Running overnight"). Each run regenerates `qa/findings/*.md` + a synthesized `qa/FLEET-REPORT.md`. | P3 | S |
 
-> Implementation note: these fit Claude Code's sub-agent / skill model. Keep them
-> **read-only proposers** that append to this file — never auto-edit app code.
+> Implementation note: the fleet is **read-only proposers**. Agents write to `qa/findings/`
+> and never edit app code or this roadmap automatically — Marcel promotes findings into the
+> backlog by hand. See **`qa/README.md`** for the full design, agent roster, and how to run
+> the fleet manually or overnight.
 
 ---
 
-## 10. V3 — The big rebuild *(separate horizon — needs its own plan)*
+## 10. Epic I — Sharing & collaboration on the shopping list *(P2–P3 · Marcel's ask)*
+
+Marcel: "Share the shopping list with other members, and collaborate on a **shared list that
+updates when you refresh the page**."
+
+**Architecture reality (read before estimating):** the shopping list is **local-only today.**
+Only `recipes` round-trips to Drive — the list lives in IndexedDB (`shopping.js`) and is never
+synced (`store.js`/`sync.js` only know the recipe collection). So this epic is **not a UI tweak;
+it's a new synced data object.** Two honest sub-features:
+
+| # | Item | Detail & acceptance | Pri | Eff |
+|---|------|---------------------|-----|-----|
+| I1 | **Share the list (one-way)** | Quick win, no new sync engine: a "Teilen" action that emits the current list as plain text (Web Share API / copy-to-clipboard) so a housemate can receive it in any messenger. **Done:** one tap → shareable text list (aisle-grouped, respects checked state). | P2 | S |
+| I2 | **Collaborative shared list (two-way, refresh-to-sync)** | Persist the list to its **own Drive file** (`einkaufsliste.json`), Last-Write-Wins on an `updated` stamp, **pulled on app load + a manual "🔄 Aktualisieren" button** (matches Marcel's "updates on refresh" model — not real-time). Two devices editing the same file converge after a refresh; offline edits queue + push like recipes. **Key design decision to make first:** with the privacy-friendly `drive.file` scope the app only sees files **it** created, so true cross-account sharing needs one of: (a) the other member opens the *same* shared Drive file through the app (shared-folder model), (b) a broader Drive scope, or (c) item-level merge instead of LWW so two people's edits don't clobber each other. **Prereq:** generalise `sync.js` from "the recipe collection" to a **collection-agnostic sync** (file id + meta per object) — see architecture findings in `qa/`. **Done:** list survives reload; a second signed-in device sees added items after refresh; conflicts resolve predictably; offline → queued → pushed. | P3 | L |
+
+> Sequencing: ship **I1 now** (cheap, real value), treat **I2 as its own mini-plan** gated on the
+> `sync.js` generalisation. Don't bolt a second ad-hoc Drive writer next to the recipe one —
+> refactor to one sync core first, or the Drive-corruption surface doubles.
+
+---
+
+## 11. Epic J — Navigation & wayfinding *(P1–P2)*
+
+Spun out of the 🍳-logo ask (A5) because it points at a bigger, evidence-backed nav gap.
+
+| # | Item | Detail & acceptance | Pri | Eff |
+|---|------|---------------------|-----|-----|
+| J1 | ✅→ **🍳 logo → home** *(= A5, Marcel)* | Tracked as **A5**; listed here too because it's the first step of a coherent nav model. | P1 | S |
+| J2 | **Bottom tab bar for primary sections** *(Claude addition — research-backed)* | Today navigation is **hamburger-only** (`menu.js`, ☰ on every header). Nielsen Norman Group: hidden menus cut task completion ~21%; teams that moved core destinations to a **visible bottom tab bar** saw feature discovery +30%. Best practice for ≤5 primary sections: a persistent bottom tab bar (Kochbuch · Match · Lager · Einkauf · Planer), thumb-reachable, with the ☰ retained for secondary items (Capture, Assistant, Settings, Export). The 🍳 home affordance (A5) folds into this. **Done:** primary sections reachable in one thumb-tap from anywhere; ☰ holds the long tail; a11y labels + active-state. *Idea only — not committed; Marcel decides.* | P2 | M |
+
+> Why this is in the roadmap and not just done: it changes the app's shell on every screen and
+> touches all 10 views. It deserves a deliberate decision, not a drive-by. The 🍳→home (A5) is the
+> safe, immediate piece; the tab bar is the strategic follow-on.
+
+---
+
+## 12. Epic K — QA-fleet findings *(promoted 2026-06-14)*
+
+The first run of the QA agent fleet (`.claude/agents/koch-*.md`) produced these. Full detail +
+per-agent reports in **[`qa/FLEET-REPORT.md`](qa/FLEET-REPORT.md)**. **Headline: no P0/P1 defects —
+the app is healthy.** What's below is sharpening. The two `★` items are where **3 of 5 agents
+converged independently** — trust those most.
+
+| # | Item | From | Detail & acceptance | Pri | Eff |
+|---|------|------|---------------------|-----|-----|
+| ★ **K1** | **Build A5 (🍳→home) *as* a shared `renderHeader()`** | simplifier + ux + (bug-hunter) | The `app-header` + `#menuBtn` + `openMenu()` block is hand-rolled **10× across 9 files**. Extract one parameterised `renderHeader()` into `ui/helpers.js`; make the 🍳 a real home button living inside it. One change ships Marcel's A5 ask **and** removes the app's biggest duplication (~40–55 lines). Absorb the two variants: `guide.js` (back button), `match.js` (extra action). **Done:** every view's header comes from one helper; 🍳 taps home from anywhere; net lines down; behaviour unchanged. | **P1** | M |
+| ★ **K2** | **Extract a pure `decideSync()` + pin the offline-overwrite** | bug-hunter + test-warden + architect | Lift the Last-Write-Wins decision out of `sync.js`'s async I/O into a pure `decideSync({localUpdated, remoteUpdated, dirty, source}) → "push"\|"pull"\|"noop"\|"create"`. This (a) exposes and lets you **decide** the silent discard of an offline `dirty` edit when Drive is newer (`sync.js:101-119` — currently lost with no warning), (b) is the exact seam **Epic I2** (shared shopping list) needs to go collection-agnostic, (c) makes the conflict rule an executable spec before it's multiplied across a second synced object. **Done:** pure helper + unit-tested decision matrix; the offline-edit case is either preserved or explicitly, intentionally chosen. **Do this before I2.** | **P1** | M |
+| K3 | **Accessibility pass** | ux-curator | `aria-label` on every icon-only button (☰ / ✕ / 🍳 / swipe / planner 🔒🔄📖 — they use `title` only, which mobile screen readers skip); global `:focus-visible` outline; keyboard-operable recipe cards (clickable `<div>`s today); sheet Escape-to-close + focus trap/restore in `ui/sheet.js`; bump `.icon-btn` (~30px) and shopping `+/−` steppers to a 44px hit area. **Done:** every interactive element is labelled, focusable, ≥44px. | P2 | S–M |
+| K4 | **Two invariant guard-tests** | architect | (a) **SHELL-coverage test:** glob `v2/src/**/*.js`, fail if any module is missing from the `sw.js` SHELL list (the "no-build tax" made safe — a forgotten module = a broken offline install). (b) **Persistence-canonicality test:** assert only `recipesDe` content can reach Drive (guards the German-canonical invariant against a future regression). Cheap insurance for already-correct architecture. | P3 | S |
+| K5 | **i18n leak fix** | ux-curator | Two hardcoded German strings bypass `t()`: `assistant.js:187`, `detail.js:118`. Route through i18n. | P3 | S |
+
+> Also surfaced and already tracked: **J2** (bottom tab bar) and **Epic I** (shopping-list sharing).
+> **Verified clean — don't re-investigate:** catalog is single-source (D2 done), the canonical-German
+> overlay does not leak (all 3 recipe mutators persist via `recipesDe`), cook-mode ergonomics are the
+> best-tuned surface, recipe-content logic is well covered.
+
+---
+
+## 13. V3 — The big rebuild *(separate horizon — needs its own plan)*
 
 Not part of the 1–2 week cycle. V3 is a deliberate re-architecture; list here so the
 v2.x work stays compatible with it.
@@ -184,7 +245,7 @@ forward the photo bug and German-only content just relocates the problems.
 
 ---
 
-## 11. Claude's additions — quick wins worth doing before V3
+## 14. Claude's additions — quick wins worth doing before V3
 
 Marcel asked for extra ideas on top. These are cheap, fit the existing architecture, and
 sharpen the app without waiting for the rebuild:
@@ -208,11 +269,28 @@ sharpen the app without waiting for the rebuild:
 7. **One-tap recipe share/export** — export a single recipe as text/markdown to send a friend.
    The export module already exists for the full collection; scope it to one recipe. *(P3, S)*
 
+**From a June 2026 market scan of recipe/meal-planning apps** (Paprika, AnyList, Mealime, Plan to
+Eat, Samsung Food, Clove) — features that are now table-stakes and fit this architecture:
+
+8. **Recipe import from a social link / video** — import from a YouTube/Instagram/TikTok URL, not
+   just a generic web page. Extends the existing URL-import (vision/`web_fetch`) path. *(P3, M)*
+9. **Pantry-aware "what can I cook now"** — already half-built via Lager + "Aus Vorrat kochen" (v2.5);
+   surface it as a first-class home-screen card, not only an assistant tool. *(P2, S)*
+10. **Cook-mode hands-free / voice step advance** — "next step" by voice while your hands are messy.
+    Web Speech API, no backend, BYOK-free. A genuine delight differentiator. *(P3, M)*
+11. **Nutrition / macro estimate per recipe** — optional AI-estimated calories & protein (relevant to
+    Marcel's eggs-as-protein, fitness focus). BYOK, cached on the recipe. *(P3, M)*
+
 ---
 
-## 12. Suggested sequencing (next 1–2 weeks)
+## 15. Suggested sequencing (next 1–2 weeks)
 
 A pragmatic order — fix what's visibly broken, then the high-value asks, then breadth.
+
+**▶ Right now (post-fleet, 2026-06-14):** the two highest-leverage picks are **K1** (build A5 🍳→home
+as the shared `renderHeader()` — ships your ask + kills the biggest duplication) and **K2** (extract
+`decideSync()` + pin the offline-overwrite — unblocks the shared shopping list safely). Do K1 first
+(small, visible, low-risk), then K2 before starting **Epic I2**.
 
 **Days 1–2 — stop the bleeding (P0):**
 A1 photo-clear · A2 AI busy state · E1 clear-list button · #3 offline AI honesty.

@@ -12,4 +12,7 @@ v2/tools/.translation-cache.json
 .DS_Store
 Thumbs.db
 .vscode/
-.claude/
+
+# Claude Code: keep local settings private, but DO track the reusable QA agent definitions
+.claude/*
+!.claude/agents/
