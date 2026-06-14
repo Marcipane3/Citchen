@@ -2,8 +2,50 @@
 
 import * as drive from "../data/drive.js";
 import { t } from "../i18n.js";
+import { navigate } from "../router.js";
+import { openMenu } from "../features/menu.js";
 
 export const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/**
+ * Geteilter App-Header (K1 / A5+J1). Das Symbol links ist ein Home-Button → Startseite (cookbook).
+ * Ersetzt die zuvor 10× kopierte `<header class="app-header">`-Markup.
+ * opts:
+ *  - icon:  Emoji-String, wird zum Home-Button (Default 🍳). Ignoriert, wenn `left` gesetzt ist.
+ *  - title: H1-Text (Pflicht).
+ *  - sub:   Untertitel-Text/HTML. Leer = kein Untertitel (außer `subId` ist gesetzt).
+ *  - subId: optionale id für das Untertitel-Element (Views füllen es später, z.B. "shop-sub").
+ *  - source: aktive Route fürs Menü-Highlight, z.B. "cookbook".
+ *  - right: zusätzliches HTML vor dem Menü-Button (z.B. match-Stack).
+ *  - extra: HTML unter der Brand-Zeile (Suche, Filter, Controls).
+ *  - left:  Ersatz-Element für die linke Seite statt des Home-Buttons (z.B. Zurück-Button in guide).
+ */
+export function appHeader({ icon = "🍳", title = "", sub = "", subId = "", source = "", right = "", extra = "", left = "" } = {}) {
+  const leftEl = left
+    || `<button class="brand-home" data-home title="${t("common.home")}" aria-label="${t("common.home")}">${icon}</button>`;
+  const subEl = (sub || subId) ? `<div class="sub"${subId ? ` id="${subId}"` : ""}>${sub}</div>` : "";
+  const menuBtn = `<button class="icon-btn" id="menuBtn" data-source="${esc(source)}" title="${t("common.menu")}">☰</button>`;
+  const rightEl = right ? `<div style="display:flex;gap:8px;align-items:center">${right}${menuBtn}</div>` : menuBtn;
+  return `
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-l">
+          ${leftEl}
+          <div><h1>${title}</h1>${subEl}</div>
+        </div>
+        ${rightEl}
+      </div>
+      ${extra}
+    </header>`;
+}
+
+/** Verdrahtet Home-Button (→ Startseite) und Menü-Button eines mit appHeader() erzeugten Headers. */
+export function wireHeader(container, source) {
+  const home = container.querySelector("[data-home]");
+  if (home) home.onclick = () => navigate("cookbook");
+  const menu = container.querySelector("#menuBtn");
+  if (menu) menu.onclick = () => openMenu(source != null ? source : (menu.dataset.source || ""));
+}
 
 export function starsMini(n) {
   if (!n) return "";

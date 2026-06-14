@@ -7,11 +7,10 @@ import { state } from "../../store.js";
 import * as sync from "../../data/sync.js";
 import * as drive from "../../data/drive.js";
 import { updateRecipe } from "../../store.js";
-import { esc, starsMini, metaBadges, hydrateHeroes } from "../../ui/helpers.js";
+import { esc, starsMini, metaBadges, hydrateHeroes, appHeader, wireHeader } from "../../ui/helpers.js";
 import { availableChips, chipLabel, filterRecipes, distinctValues, activeFilterCount } from "./filter.js";
 import { openDetail } from "./detail.js";
 import { openForm } from "./form.js";
-import { openMenu } from "../menu.js";
 import { BUILD } from "../../version.js";
 import { t, tn, tCat } from "../../i18n.js";
 
@@ -156,23 +155,18 @@ function wireControls(container) {
 
 export function renderCookbook(container) {
   container.innerHTML = `
-    <header class="app-header">
-      <div class="brand">
-        <div class="brand-l">
-          <span style="font-size:24px">🍳</span>
-          <div>
-            <h1>${t("cookbook.title")}</h1>
-            <div class="sub">${tn("cookbook.count", state.recipes.length)}</div>
-          </div>
-        </div>
-        <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
-      </div>
+    ${appHeader({
+      icon: "🍳",
+      title: t("cookbook.title"),
+      sub: tn("cookbook.count", state.recipes.length),
+      source: "cookbook",
+      extra: `
       <div class="search-wrap">
         <span>🔍</span>
         <input id="search" placeholder="${t("cookbook.searchPlaceholder")}" value="${esc(query)}" />
       </div>
-      <div id="filterControls">${controlsHTML()}</div>
-    </header>
+      <div id="filterControls">${controlsHTML()}</div>`,
+    })}
     <main class="app-main">
       <div id="cards"></div>
     </main>
@@ -183,7 +177,7 @@ export function renderCookbook(container) {
 
   const search = container.querySelector("#search");
   search.oninput = () => { query = search.value; refreshControls(container); };
-  container.querySelector("#menuBtn").onclick = () => openMenu("cookbook");
+  wireHeader(container, "cookbook");
   container.querySelector("#addBtn").title = t("cookbook.newRecipe");
   container.querySelector("#addBtn").onclick = () => openForm();
 

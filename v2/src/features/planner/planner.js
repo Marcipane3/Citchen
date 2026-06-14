@@ -5,10 +5,9 @@
 import { state, getRecipe, getRecipeDe } from "../../store.js";
 import * as db from "../../data/db.js";
 import { getTotalMinutes } from "../../data/derive.js";
-import { esc } from "../../ui/helpers.js";
+import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "../cookbook/detail.js";
-import { openMenu } from "../menu.js";
 import { navigate } from "../../router.js";
 import { generatePlan, planRecipeIds, mondayOf, DAYS, MEAL_CATEGORIES } from "./logic.js";
 import { aggregateIngredients } from "../shopping/logic.js";
@@ -121,27 +120,26 @@ function dayCardHTML(entry, idx) {
 
 export function renderPlanner(container) {
   container.innerHTML = `
-    <header class="app-header">
-      <div class="brand">
-        <div class="brand-l">
-          <span style="font-size:24px">🗓</span>
-          <div><h1>${t("planner.title")}</h1><div class="sub" id="plan-sub">${t("planner.subtitle")}</div></div>
-        </div>
-        <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
-      </div>
+    ${appHeader({
+      icon: "🗓",
+      title: t("planner.title"),
+      sub: t("planner.subtitle"),
+      subId: "plan-sub",
+      source: "planner",
+      extra: `
       <div class="plan-controls">
         <button class="btn-primary" id="genBtn">${t("planner.newWeek")}</button>
         <button class="btn-sec" id="shopBtn">${t("planner.makeShopping")}</button>
         <button class="btn-sec" id="aiBtn" style="display:none">${t("planner.aiWish")}</button>
         <label class="check" style="margin:0"><input type="checkbox" id="leftoverChk" /> ${t("planner.leftovers")}</label>
-      </div>
-    </header>
+      </div>`,
+    })}
     <main class="app-main">
       <div id="plan-days"><p class="empty">Lade…</p></div>
     </main>
     <div class="build-line">Build ${esc(BUILD)}</div>
   `;
-  container.querySelector("#menuBtn").onclick = () => openMenu("planner");
+  wireHeader(container, "planner");
 
   loadPlan().then(() => {
     container.querySelector("#leftoverChk").checked = leftovers;

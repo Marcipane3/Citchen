@@ -3,8 +3,7 @@
 // (aggregiert, Vorrat abgezogen). Persistenz: IndexedDB 'lists' (id "current").
 
 import * as db from "../../data/db.js";
-import { esc } from "../../ui/helpers.js";
-import { openMenu } from "../menu.js";
+import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { CATALOG, SECTION_ORDER, sectionIcon } from "./catalog.js";
 import { itemKey, itemLabel } from "./logic.js";
 import { BUILD } from "../../version.js";
@@ -49,14 +48,12 @@ export async function addItemsToList(newItems) {
 
 export function renderShopping(container) {
   container.innerHTML = `
-    <header class="app-header">
-      <div class="brand">
-        <div class="brand-l">
-          <span style="font-size:24px">🛒</span>
-          <div><h1>${t("shopping.title")}</h1><div class="sub" id="shop-sub"></div></div>
-        </div>
-        <button class="icon-btn" id="menuBtn" title="${t("common.menu")}">☰</button>
-      </div>
+    ${appHeader({
+      icon: "🛒",
+      title: t("shopping.title"),
+      subId: "shop-sub",
+      source: "shopping",
+      extra: `
       <div class="search-wrap">
         <span>🔍</span>
         <input id="shop-search" placeholder="${t("shopping.searchPlaceholder")}" value="${esc(search)}" />
@@ -64,15 +61,15 @@ export function renderShopping(container) {
       <div class="shop-add">
         <input id="shop-custom" placeholder="${t("shopping.customPlaceholder")}" />
         <button class="add-custom">${t("shopping.addBtn")}</button>
-      </div>
-    </header>
+      </div>`,
+    })}
     <main class="app-main">
       <div id="shop-list"></div>
       <div id="shop-catalog"></div>
     </main>
     <div class="build-line">Build ${esc(BUILD)}</div>
   `;
-  container.querySelector("#menuBtn").onclick = () => openMenu("shopping");
+  wireHeader(container, "shopping");
   const s = container.querySelector("#shop-search");
   s.oninput = () => { search = s.value; paintCatalog(container); };
   const custom = container.querySelector("#shop-custom");
