@@ -115,7 +115,7 @@ export function openDetail(id) {
         await updateRecipe(r.id, (x) => { x.photos = [{ id: fid, added: new Date().toISOString() }, ...(x.photos || [])]; });
         close();
         openDetail(r.id);
-      } catch (err) { alert("Foto fehlgeschlagen: " + err.message); }
+      } catch (err) { alert(t("detail.photoFail", { msg: err.message })); }
     };
     inp.click();
   };

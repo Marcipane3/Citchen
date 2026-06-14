@@ -24,7 +24,7 @@ export function appHeader({ icon = "🍳", title = "", sub = "", subId = "", sou
   const leftEl = left
     || `<button class="brand-home" data-home title="${t("common.home")}" aria-label="${t("common.home")}">${icon}</button>`;
   const subEl = (sub || subId) ? `<div class="sub"${subId ? ` id="${subId}"` : ""}>${sub}</div>` : "";
-  const menuBtn = `<button class="icon-btn" id="menuBtn" data-source="${esc(source)}" title="${t("common.menu")}">☰</button>`;
+  const menuBtn = `<button class="icon-btn" id="menuBtn" data-source="${esc(source)}" title="${t("common.menu")}" aria-label="${t("common.menu")}">☰</button>`;
   const rightEl = right ? `<div style="display:flex;gap:8px;align-items:center">${right}${menuBtn}</div>` : menuBtn;
   return `
     <header class="app-header">
