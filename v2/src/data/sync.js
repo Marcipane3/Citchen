@@ -9,6 +9,7 @@
 import * as db from "./db.js";
 import * as drive from "./drive.js";
 import { loadCollection, toFileString } from "./migrate.js";
+import { decideSync } from "./decideSync.js";
 
 const META_KEY = "collection";       // { version, updated, fileId, dirty, lastSync, source }
 const SNAPSHOT_URL = new URL("../../data/rezepte.snapshot.json", import.meta.url);
@@ -97,8 +98,9 @@ export async function syncWithDrive() {
 
     const remoteUpdated = collection.updated || "";
     const localUpdated = meta.updated || "";
+    const action = decideSync({ hasRemote: true, localUpdated, remoteUpdated, dirty: meta.dirty, source: meta.source });
 
-    if (meta.dirty && localUpdated > remoteUpdated) {
+    if (action === "push") {
       // Lokal neuer → pushen (in place)
       const recipes = await db.getAll("recipes");
       const content = toFileString({ updated: localUpdated, recipes });
@@ -109,7 +111,17 @@ export async function syncWithDrive() {
       return { changed: false, meta };
     }
 
-    if (remoteUpdated !== localUpdated || meta.source !== "drive") {
+    if (action === "conflict") {
+      // Lokale ungepushte Änderung UND Drive ist gleich/neuer (K2). Früher wurde die lokale
+      // Änderung hier stillschweigend überschrieben. Jetzt: lokale Daten + dirty bleiben
+      // erhalten, kein Overwrite. Echte Auflösung folgt mit Epic I2 (geteilte Liste).
+      meta = { ...meta, fileId, lastSync: new Date().toISOString() };
+      await db.kvSet(META_KEY, meta);
+      setStatus("Konflikt — lokale Änderung behalten, Sync ausstehend");
+      return { changed: false, conflict: true, meta };
+    }
+
+    if (action === "pull") {
       // Remote gewinnt (neuer oder erstes echtes Drive-Laden)
       await db.replaceAll("recipes", collection.recipes);
       meta = { version: collection.version, updated: collection.updated, fileId, dirty: false, lastSync: new Date().toISOString(), source: "drive" };
@@ -118,6 +130,7 @@ export async function syncWithDrive() {
       return { changed: true, recipes: collection.recipes, meta };
     }
 
+    // action === "noop"
     meta = { ...meta, fileId, lastSync: new Date().toISOString() };
     await db.kvSet(META_KEY, meta);
     setStatus("Synchronisiert ✓");
