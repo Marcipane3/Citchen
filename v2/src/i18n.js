@@ -86,6 +86,7 @@ export const DICT = {
     },
     cookbook: {
       title: "Mein Kochbuch", count_one: "{n} Rezept", count_other: "{n} Rezepte",
+      toggleFav: "Favorit umschalten",
       searchPlaceholder: "Suchen nach Name oder Zutat…",
       cuisineAll: "Küche: alle", seasonAll: "Saison: alle",
       emptyFav: "Noch keine Favoriten.<br>Öffne ein Rezept und tippe auf ♥.",
@@ -293,6 +294,7 @@ export const DICT = {
     },
     cookbook: {
       title: "My Cookbook", count_one: "{n} recipe", count_other: "{n} recipes",
+      toggleFav: "Toggle favourite",
       searchPlaceholder: "Search by name or ingredient…",
       cuisineAll: "Cuisine: all", seasonAll: "Season: all",
       emptyFav: "No favorites yet.<br>Open a recipe and tap ♥.",
@@ -500,6 +502,7 @@ export const DICT = {
     },
     cookbook: {
       title: "Mi recetario", count_one: "{n} receta", count_other: "{n} recetas",
+      toggleFav: "Marcar favorito",
       searchPlaceholder: "Buscar por nombre o ingrediente…",
       cuisineAll: "Cocina: todas", seasonAll: "Temporada: todas",
       emptyFav: "Aún no hay favoritos.<br>Abre una receta y toca ♥.",
@@ -707,6 +710,7 @@ export const DICT = {
     },
     cookbook: {
       title: "Min kogebog", count_one: "{n} opskrift", count_other: "{n} opskrifter",
+      toggleFav: "Skift favorit",
       searchPlaceholder: "Søg efter navn eller ingrediens…",
       cuisineAll: "Køkken: alle", seasonAll: "Sæson: alle",
       emptyFav: "Ingen favoritter endnu.<br>Åbn en opskrift og tryk på ♥.",

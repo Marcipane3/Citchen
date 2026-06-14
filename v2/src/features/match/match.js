@@ -213,7 +213,7 @@ function openMatches() {
     ${list.length ? list.map((r) => {
       const hasImg = (r.photos && r.photos.length) || r.image;
       const k = dishKind(r);
-      return `<div class="match-row" data-id="${esc(r.id)}">
+      return `<div class="match-row" data-id="${esc(r.id)}" role="button" tabindex="0" aria-label="${esc(r.name)}">
         <div class="match-thumb ${hasImg ? "has-img" : ""}" data-hero="${esc(r.id)}">${hasImg ? "" : "🍽"}</div>
         <div class="match-info"><div class="mn">${esc(r.name)}</div>
           <div class="mm">${esc(r.category)} · ${k.icon} ${k.label}${r.time ? ` · ⏱ ${esc(r.time)}` : ""}${r.rating ? ` · ${"★".repeat(r.rating)}` : ""}</div></div>
@@ -224,10 +224,11 @@ function openMatches() {
   const { el, close } = openSheet(html);
   hydrateHeroes(el, state.recipes);
   el.querySelectorAll(".match-row").forEach((row) => {
-    row.onclick = (e) => {
-      if (e.target.closest(".match-rm")) return;
-      close();
-      openDetail(row.dataset.id);
+    const open = () => { close(); openDetail(row.dataset.id); };
+    row.onclick = (e) => { if (e.target.closest(".match-rm")) return; open(); };
+    row.onkeydown = (e) => {
+      if (e.target !== row) return; // Tasten auf dem Entfernen-Button nicht abfangen
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
     };
   });
   el.querySelectorAll(".match-rm").forEach((b) => {

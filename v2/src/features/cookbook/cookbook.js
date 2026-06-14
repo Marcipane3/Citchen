@@ -34,8 +34,8 @@ function toggleIn(arr, val) {
 function cardHTML(r) {
   const hasImg = (r.photos && r.photos.length) || r.image;
   return `
-    <div class="rcard" data-id="${esc(r.id)}">
-      <button class="card-heart" data-fav="${esc(r.id)}">${r.favorite ? "♥" : "♡"}</button>
+    <div class="rcard" data-id="${esc(r.id)}" role="button" tabindex="0" aria-label="${esc(r.name)}">
+      <button class="card-heart" data-fav="${esc(r.id)}" aria-label="${t("cookbook.toggleFav")}">${r.favorite ? "♥" : "♡"}</button>
       ${hasImg ? `<div class="card-thumb" data-hero="${esc(r.id)}"></div>` : ""}
       <div class="cat-label">${esc(tCat(r.category))}</div>
       <div class="rname">${esc(r.name)}</div>
@@ -52,7 +52,14 @@ function paintCards(container) {
     ? `<p class="empty">${activeChips.includes("__fav") ? t("cookbook.emptyFav") : t("cookbook.emptyNone")}</p>`
     : filtered.map(cardHTML).join("");
 
-  el.querySelectorAll(".rcard").forEach((c) => { c.onclick = () => openDetail(c.dataset.id); });
+  el.querySelectorAll(".rcard").forEach((c) => {
+    const open = () => openDetail(c.dataset.id);
+    c.onclick = open;
+    c.onkeydown = (e) => {
+      if (e.target !== c) return; // Enter/Leertaste auf dem Herz-Button nicht abfangen
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+    };
+  });
   el.querySelectorAll(".card-heart").forEach((b) => {
     b.onclick = async (e) => {
       e.stopPropagation();
