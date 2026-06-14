@@ -261,7 +261,7 @@ function openPicker(day, container) {
     </div>`;
   };
   const { el, close } = openSheet(`
-    <div class="sheet-head"><span class="cat-label">${t("planner.pickFor", { d: esc(day) })}</span><button class="icon-btn close">✕</button></div>
+    <div class="sheet-head"><span class="cat-label">${t("planner.pickFor", { d: esc(day) })}</span><button class="icon-btn close" aria-label="${t("common.close")}">✕</button></div>
     <div class="search-wrap"><span>🔍</span><input id="pick-search" placeholder="${t("common.search")}" /></div>
     <div id="pick-list">${pool.map(rowHTML).join("")}</div>
   `);

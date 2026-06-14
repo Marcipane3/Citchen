@@ -54,7 +54,8 @@ a { color: var(--accent); }
 .icon-btn {
   background: var(--card); border: 1.5px solid var(--line); border-radius: 12px;
   padding: 7px 10px; font-size: 16px; line-height: 1;
-  display: inline-flex; align-items: center;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px; /* K3 a11y: 44px Tippziel (WCAG 2.5.5). */
 }
 
 main.app-main { padding: 16px var(--pad) 120px; }

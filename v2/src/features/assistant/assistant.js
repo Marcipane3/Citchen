@@ -216,7 +216,7 @@ function wireChat(container) {
 /** Vorschau-Sheet (Review vor dem Speichern). */
 function previewRecipe(recipe, sourceBtn) {
   const { el, close } = openSheet(`
-    <div class="sheet-head"><span class="cat-label">${t("assistant.previewTitle", { cat: esc(recipe.category) })}</span><button class="icon-btn close">✕</button></div>
+    <div class="sheet-head"><span class="cat-label">${t("assistant.previewTitle", { cat: esc(recipe.category) })}</span><button class="icon-btn close" aria-label="${t("common.close")}">✕</button></div>
     <div class="detail-name">${esc(recipe.name)}</div>
     <div class="rmeta">${recipe.time ? `⏱ ${esc(recipe.time)}` : ""} · 🍽 ${esc(recipe.servings)}${recipe.cuisine ? ` · ${esc(recipe.cuisine)}` : ""}</div>
     <h3>${t("detail.ingredients")}</h3><ul>${recipe.ingredients.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>

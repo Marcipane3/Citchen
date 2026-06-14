@@ -140,7 +140,7 @@ function paintFridge(container) {
       <span class="fi-name">${esc(f.name)}</span>
       <span class="fi-qty">${esc(f.menge || "")}</span>
       <button class="fi-used" data-used="${i}">${t("lager.usedUp")}</button>
-      <button class="fi-del" data-del="${i}">✕</button>
+      <button class="fi-del" data-del="${i}" aria-label="${t("common.remove")}">✕</button>
     </div>`).join("");
   const remove = (i) => { fridge = fridge.filter((_, j) => j !== i); store.setFridge(fridge); paintFridge(container); paintCatalog(container); };
   el.querySelectorAll("[data-used]").forEach((b) => { b.onclick = () => remove(+b.dataset.used); });
@@ -244,7 +244,7 @@ function showStaging(container, items) {
       <div class="stage-item">
         <input data-sn="${i}" value="${esc(it.name)}" />
         <input data-sq="${i}" value="${esc(it.menge)}" style="max-width:110px" />
-        <button class="fi-del" data-sx="${i}">✕</button>
+        <button class="fi-del" data-sx="${i}" aria-label="${t("common.remove")}">✕</button>
       </div>`).join("")}</div>
     <button class="btn-primary" id="stage-add" style="width:100%;margin-top:10px">${t("lager.scanAdd")}</button>`;
 

@@ -205,7 +205,7 @@ export function renderCook(container, id) {
             <button class="ms ${mode === "list" ? "on" : ""}" data-mode="list">${t("cooking.overview")}</button>
             <button class="ms ${mode === "pager" ? "on" : ""}" data-mode="pager">${t("cooking.pager")}</button>
           </div>
-          <button class="icon-btn close">✕</button>
+          <button class="icon-btn close" aria-label="${t("common.close")}">✕</button>
         </div>
       </div>
       <h2>${esc(r.name)}</h2>

@@ -209,7 +209,7 @@ function undoSwipe(container) {
 function openMatches() {
   const list = swipeMatches.map((id) => state.recipes.find((r) => r.id === id)).filter(Boolean);
   const html = `
-    <div class="sheet-head"><span class="cat-label">${t("match.yourMatches", { n: list.length })}</span><button class="icon-btn close">✕</button></div>
+    <div class="sheet-head"><span class="cat-label">${t("match.yourMatches", { n: list.length })}</span><button class="icon-btn close" aria-label="${t("common.close")}">✕</button></div>
     ${list.length ? list.map((r) => {
       const hasImg = (r.photos && r.photos.length) || r.image;
       const k = dishKind(r);

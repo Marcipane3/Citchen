@@ -115,7 +115,7 @@ export function makeListEditor(mount, initial, placeholder, numbered) {
   function addRow(val) {
     const row = document.createElement("div");
     row.className = "frow";
-    row.innerHTML = `${numbered ? '<span class="num"></span>' : ""}<input class="f"><button class="rm" type="button">✕</button>`;
+    row.innerHTML = `${numbered ? '<span class="num"></span>' : ""}<input class="f"><button class="rm" type="button" aria-label="${t("common.remove")}">✕</button>`;
     const input = row.querySelector("input");
     input.value = val || "";
     input.placeholder = placeholder;

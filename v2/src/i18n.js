@@ -153,6 +153,7 @@ export const DICT = {
     },
     shopping: {
       title: "Einkaufsliste", searchPlaceholder: "Artikel suchen…", customPlaceholder: "Eigenes hinzufügen…",
+      less: "Weniger", more: "Mehr",
       addBtn: "+ Hinzufügen", myList: "Meine Liste", clearDone: "Erledigte entfernen",
       clearAll: "Alles löschen", cleared: "Liste geleert.", undo: "Rückgängig",
       sortAisle: "🛒 Supermarkt", sortAlpha: "🔤 A–Z",
@@ -359,6 +360,7 @@ export const DICT = {
     },
     shopping: {
       title: "Shopping list", searchPlaceholder: "Search items…", customPlaceholder: "Add your own…",
+      less: "Less", more: "More",
       addBtn: "+ Add", myList: "My list", clearDone: "Remove done",
       clearAll: "Clear all", cleared: "List cleared.", undo: "Undo",
       sortAisle: "🛒 Aisle", sortAlpha: "🔤 A–Z",
@@ -565,6 +567,7 @@ export const DICT = {
     },
     shopping: {
       title: "Lista de compra", searchPlaceholder: "Buscar artículos…", customPlaceholder: "Añadir propio…",
+      less: "Menos", more: "Más",
       addBtn: "+ Añadir", myList: "Mi lista", clearDone: "Quitar hechos",
       clearAll: "Vaciar todo", cleared: "Lista vaciada.", undo: "Deshacer",
       sortAisle: "🛒 Pasillo", sortAlpha: "🔤 A–Z",
@@ -771,6 +774,7 @@ export const DICT = {
     },
     shopping: {
       title: "Indkøbsliste", searchPlaceholder: "Søg varer…", customPlaceholder: "Tilføj egen…",
+      less: "Mindre", more: "Mere",
       addBtn: "+ Tilføj", myList: "Min liste", clearDone: "Fjern færdige",
       clearAll: "Ryd alt", cleared: "Liste ryddet.", undo: "Fortryd",
       sortAisle: "🛒 Supermarked", sortAlpha: "🔤 A–Å",

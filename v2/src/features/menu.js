@@ -25,7 +25,7 @@ export function openMenu(current) {
     : `<button class="menu-item" data-go="__login">☁️ ${t("nav.driveConnect")}</button>`;
 
   const html = `
-    <div class="sheet-head"><span class="cat-label">${t("common.menu")}</span><button class="icon-btn close">✕</button></div>
+    <div class="sheet-head"><span class="cat-label">${t("common.menu")}</span><button class="icon-btn close" aria-label="${t("common.close")}">✕</button></div>
     ${ITEMS.map((it) => `
       <button class="menu-item ${current === it.go ? "on" : ""}" data-go="${it.go}">
         ${it.icon} ${t(it.k)}

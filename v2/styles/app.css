@@ -235,9 +235,10 @@ label.check input { width: auto; }
 .sl-ic { font-size: 20px; flex-shrink: 0; width: 24px; text-align: center; }
 .sl-name { flex: 1; font-size: 16px; cursor: pointer; }
 .sl-ctrl { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.sl-dec, .sl-inc { width: 30px; height: 30px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--card); font-weight: 700; font-size: 17px; color: var(--ink); line-height: 1; padding: 0; }
+/* K3 a11y: 44px Tippziel (WCAG 2.5.5) statt 30px. */
+.sl-dec, .sl-inc { width: 44px; height: 44px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--card); font-weight: 700; font-size: 17px; color: var(--ink); line-height: 1; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .sl-qty { min-width: 18px; text-align: center; font-weight: 700; font-size: 15px; }
-.sl-rm { width: 30px; height: 30px; border-radius: 8px; border: none; background: transparent; color: var(--danger); font-size: 15px; }
+.sl-rm { width: 44px; height: 44px; border-radius: 8px; border: none; background: transparent; color: var(--danger); font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
 .cat-sec { margin-bottom: 8px; }
 .cat-head { display: flex; justify-content: space-between; align-items: center; width: 100%; background: var(--card); border: 1.5px solid var(--line); border-radius: 12px; padding: 13px 15px; font-weight: 700; font-size: 15px; color: var(--ink); gap: 8px; }
 .cat-head .chev { color: var(--muted); font-size: 13px; }

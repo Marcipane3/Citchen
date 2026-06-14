@@ -36,7 +36,7 @@ export function openDetail(id) {
       <span class="cat-label">${esc(tCat(r.category))}</span>
       <div class="hd-r">
         <button class="heart" title="Favorit">${r.favorite ? "♥" : "♡"}</button>
-        <button class="icon-btn close">✕</button>
+        <button class="icon-btn close" aria-label="${t("common.close")}">✕</button>
       </div>
     </div>
     <div class="hero" data-hero="${esc(r.id)}"></div>
@@ -49,7 +49,7 @@ export function openDetail(id) {
 
     <button class="photo-add">${t("detail.addPhoto")}</button>
     ${r.photos && r.photos.length ? `<div class="photostrip">${r.photos.map((p) => `
-      <div class="ph"><div class="thumb" data-photo="${esc(p.id)}"></div><button class="rm" data-rm="${esc(p.id)}">✕</button></div>`).join("")}</div>` : ""}
+      <div class="ph"><div class="thumb" data-photo="${esc(p.id)}"></div><button class="rm" data-rm="${esc(p.id)}" aria-label="${t("common.remove")}">✕</button></div>`).join("")}</div>` : ""}
 
     ${r.ingredients && r.ingredients.length ? `<h3>${t("detail.ingredients")}</h3><ul>${r.ingredients.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>
       <button class="btn-sec add-ing-shop" style="width:100%;margin-top:6px">${t("detail.toShopping")}</button>` : ""}

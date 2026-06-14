@@ -113,8 +113,8 @@ function paintList(container) {
       <span class="sl-ic">${it.icon || "🛒"}</span>
       <span class="sl-name" data-i="${i}">${esc(itemLabel(it))}</span>
       <div class="sl-ctrl">
-        ${hasAmount ? "" : `<button class="sl-dec" data-i="${i}">−</button><span class="sl-qty">${it.qty}</span><button class="sl-inc" data-i="${i}">+</button>`}
-        <button class="sl-rm" data-i="${i}">✕</button>
+        ${hasAmount ? "" : `<button class="sl-dec" data-i="${i}" aria-label="${t("shopping.less")}">−</button><span class="sl-qty">${it.qty}</span><button class="sl-inc" data-i="${i}" aria-label="${t("shopping.more")}">+</button>`}
+        <button class="sl-rm" data-i="${i}" aria-label="${t("common.remove")}">✕</button>
       </div>
     </div>`;
   };

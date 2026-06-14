@@ -18,7 +18,7 @@ export function openForm(existing, { draft = false } = {}) {
   const ed = draft ? null : prefill;      // nur echte Rezepte werden aktualisiert
 
   const html = `
-    <div class="sheet-head"><span class="cat-label">${draft ? t("form.reviewDraft") : ed ? t("form.editRecipe") : t("form.newRecipe")}</span><button class="icon-btn close">✕</button></div>
+    <div class="sheet-head"><span class="cat-label">${draft ? t("form.reviewDraft") : ed ? t("form.editRecipe") : t("form.newRecipe")}</span><button class="icon-btn close" aria-label="${t("common.close")}">✕</button></div>
     <label>${t("form.name")}</label><input class="f" id="f-name" placeholder="${t("form.namePlaceholder")}" />
     <label>${t("form.category")}</label>
     <select class="f" id="f-cat">${CATEGORIES.map((c) => `<option value="${esc(c)}" ${prefill && prefill.category === c ? "selected" : ""}>${esc(tCat(c))}</option>`).join("")}</select>
