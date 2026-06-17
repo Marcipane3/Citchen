@@ -196,6 +196,7 @@ export const DICT = {
       refreshBtn: "🔄 Aktualisieren", refresh: "Einkaufsliste aktualisieren",
       linkPartner: "Partner verknüpfen", unlinkPartner: "Partner trennen",
       syncStatus: "Synchronisiert ✓", syncPending: "Sync ausstehend",
+      pickerPrompt: "Wähle die geteilte Einkaufsliste aus Google Drive",
     },
     planner: {
       title: "Wochenplan", subtitle: "Abendessen, deterministisch geplant",
@@ -408,6 +409,7 @@ export const DICT = {
       refreshBtn: "🔄 Refresh", refresh: "Refresh shopping list",
       linkPartner: "Link partner", unlinkPartner: "Unlink partner",
       syncStatus: "Synced ✓", syncPending: "Sync pending",
+      pickerPrompt: "Pick the shared shopping list from Google Drive",
     },
     planner: {
       title: "Meal plan", subtitle: "Dinners, planned deterministically",
@@ -620,6 +622,7 @@ export const DICT = {
       refreshBtn: "🔄 Actualizar", refresh: "Actualizar lista de compra",
       linkPartner: "Vincular pareja", unlinkPartner: "Desvincular pareja",
       syncStatus: "Sincronizado ✓", syncPending: "Sincronización pendiente",
+      pickerPrompt: "Elige la lista de compra compartida de Google Drive",
     },
     planner: {
       title: "Plan semanal", subtitle: "Cenas, planificadas de forma determinista",
@@ -832,6 +835,7 @@ export const DICT = {
       refreshBtn: "🔄 Opdater", refresh: "Opdater indkøbsliste",
       linkPartner: "Tilknyt partner", unlinkPartner: "Fjern partner",
       syncStatus: "Synkroniseret ✓", syncPending: "Synkronisering afventer",
+      pickerPrompt: "Vælg den delte indkøbsliste fra Google Drive",
     },
     planner: {
       title: "Madplan", subtitle: "Aftensmad, planlagt deterministisk",

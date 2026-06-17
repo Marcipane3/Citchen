@@ -3,6 +3,7 @@
 // (aggregiert, Vorrat abgezogen). Persistenz: IndexedDB 'lists' (id "current").
 
 import * as db from "../../data/db.js";
+import * as drive from "../../data/drive.js";
 import * as listSync from "../../data/listSync.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { CATALOG, SECTION_ORDER, sectionIcon } from "./catalog.js";
@@ -120,6 +121,26 @@ export function renderShopping(container) {
       }
       refreshBtn.disabled = false;
     }).catch(() => { refreshBtn.disabled = false; });
+  };
+
+  const linkBtn = container.querySelector(".sl-link-partner");
+  if (linkBtn) linkBtn.onclick = () => {
+    drive.openPickerForFile("application/json", async (fileId, fileName) => {
+      // Dateinamen validieren, bevor wir der fileId vertrauen (Sicherheit: Spoofing)
+      if (!fileName.includes("einkaufsliste")) {
+        console.warn("Picker: gewählte Datei ist keine Einkaufsliste:", fileName);
+        return;
+      }
+      let meta = await db.kvGet("listMeta", {});
+      await db.kvSet("listMeta", { ...meta, fileId, linked: true, source: "linked",
+        updated: "", dirty: false });
+      listSync.syncListWithDrive().then((result) => {
+        if (result.changed && Array.isArray(result.items)) {
+          ITEMS = result.items.filter(x => !x.deleted);
+          paintList(container); paintCatalog(container);
+        }
+      }).catch(() => {});
+    });
   };
 
   load().then(() => {

@@ -6,6 +6,8 @@
 //  - Anmeldung ist OPTIONAL: ohne Token läuft die App rein lokal weiter.
 
 const GOOGLE_CLIENT_ID = "977952120262-lht1tbbinnj8kmehmvqe1dpu5gp7k8d8.apps.googleusercontent.com";
+const GOOGLE_API_KEY = "";   // Set to your Google Cloud API key if Picker requires it
+const GOOGLE_APP_ID = "";    // Set to your Google Cloud project number if Picker requires it
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
 const FILE_NAME = "rezepte.json";
 export const KNOWN_FILE_ID = "1t6KRviicPspYVj9oFjsUTJ6n8kZLHP1y";
@@ -196,4 +198,38 @@ export async function imageUrl(fileId) {
   const url = URL.createObjectURL(await r.blob());
   imgCache.set(fileId, url);
   return url;
+}
+
+/* ---------- Google Picker — Partner-Verknüpfung ---------- */
+// Picker-Bibliothek wird lazy geladen (gapi.load einmalig). TOKEN bleibt privat in
+// diesem Modul — shopping.js benötigt keinen getToken()-Export (behebt Open Question 2).
+// Wenn Picker "developer key invalid" wirft: GOOGLE_API_KEY und GOOGLE_APP_ID oben
+// befüllen und die beiden Kommentar-Zeilen in der Builder-Konfiguration einkommentieren.
+
+let pickerLoaded = null;
+
+export function openPickerForFile(mimeType, onFilePicked) {
+  if (!TOKEN) return; // Nicht angemeldet — lautlos abbrechen
+  if (!pickerLoaded) {
+    pickerLoaded = new Promise((resolve) => gapi.load("picker", resolve));
+  }
+  pickerLoaded.then(() => {
+    const view = new google.picker.View(google.picker.ViewId.DOCS);
+    view.setMimeTypes(mimeType);
+    const builder = new google.picker.PickerBuilder()
+      .setOAuthToken(TOKEN)
+      .addView(view)
+      .setCallback((data) => {
+        if (data.action === google.picker.Action.PICKED) {
+          const doc = data[google.picker.Response.DOCUMENTS][0];
+          const fileId = doc[google.picker.Document.ID];
+          const fileName = doc[google.picker.Document.NAME] || "";
+          onFilePicked(fileId, fileName);
+        }
+      });
+    // Einkommentieren, falls Picker "developer key invalid" wirft:
+    // if (GOOGLE_API_KEY) builder.setDeveloperKey(GOOGLE_API_KEY);
+    // if (GOOGLE_APP_ID) builder.setAppId(GOOGLE_APP_ID);
+    builder.build().setVisible(true);
+  });
 }
