@@ -155,9 +155,10 @@ export async function updateFile(id, contentString) {
   });
 }
 
-/** Nur für den echten Erstlauf (keine Datei vorhanden). */
-export async function createFile(contentString) {
-  const meta = { name: FILE_NAME, mimeType: "application/json" };
+/** Nur für den echten Erstlauf (keine Datei vorhanden). fileName-Parameter erlaubt
+ *  listSync.js, eine eigene Datei (einkaufsliste.json) anzulegen, ohne FILE_NAME zu berühren. */
+export async function createFile(contentString, fileName = FILE_NAME) {
+  const meta = { name: fileName, mimeType: "application/json" };
   const body = new FormData();
   body.append("metadata", new Blob([JSON.stringify(meta)], { type: "application/json" }));
   body.append("file", new Blob([contentString], { type: "application/json" }));

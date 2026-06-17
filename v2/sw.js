@@ -43,6 +43,7 @@ const SHELL = [
   "./src/features/shopping/logic.js",
   "./src/features/shopping/shopping.js",
   "./src/features/shopping/listMerge.js",
+  "./src/data/listSync.js",
   "./src/features/planner/logic.js",
   "./src/features/planner/planner.js",
   "./src/features/assistant/assistant.js",
