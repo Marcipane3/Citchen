@@ -4,7 +4,7 @@
 // (Projektwissen) per Substring-Match.
 
 import { parseIngredient, scaleIngredient } from "../../data/derive.js";
-import { ingMatchCat } from "./catalog.js";
+import { ingMatchCat, SECTION_ORDER, sectionIcon } from "./catalog.js";
 
 /** Vorrats-Grundausstattung aus Projektwissen1.md — in Phase 3 editierbar (Settings). */
 export const DEFAULT_STAPLES = [
@@ -116,6 +116,31 @@ export function mergeItems(existing, incoming) {
     }
   }
   return out;
+}
+
+/**
+ * Formatiert die Einkaufsliste als Klartext für Teilen / Zwischenablage.
+ * Aisle-grouped (SECTION_ORDER), offene Artikel vor erledigten, ✓-Prefix für done.
+ */
+export function formatListAsText(items) {
+  if (!items.length) return "";
+  const cats = [...new Set(items.map((x) => x.cat))].sort((a, b) => {
+    const ia = SECTION_ORDER.indexOf(a), ib = SECTION_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+  const lines = [];
+  for (const cat of cats) {
+    const group = items.filter((x) => x.cat === cat);
+    const open = group.filter((x) => !x.done);
+    const done = group.filter((x) => x.done);
+    lines.push(`\n${sectionIcon(cat)} ${cat}`);
+    for (const it of [...open, ...done]) {
+      const label = itemLabel(it);
+      const suffix = (it.amount === null || it.amount === undefined) && it.qty > 1 ? ` ×${it.qty}` : "";
+      lines.push(`${it.done ? "✓" : "•"} ${label}${suffix}`);
+    }
+  }
+  return lines.join("\n").trim();
 }
 
 /** Anzeige-Label eines Artikels: "800g Kichererbsen (Dose)" / "Zitronen ×2". */

@@ -161,6 +161,7 @@ export const DICT = {
       empty: "leer", open: "{n} offen", openDone: "{n} offen · {d} erledigt",
       emptyList: "Liste ist leer.<br>Tippe unten auf Artikel, füge oben eigene hinzu —<br>oder erzeuge sie aus dem <a href=\"#/planner\">Wochenplan</a>.",
       addHeading: "Hinzufügen", results: "Suchergebnisse", nothingFound: "Nichts gefunden.<br>Nutze „Eigenes hinzufügen“ oben.",
+      share: "📤 Teilen", shareTitle: "🛒 Einkaufsliste", copied: "✓ Kopiert",
     },
     planner: {
       title: "Wochenplan", subtitle: "Abendessen, deterministisch geplant",
@@ -369,6 +370,7 @@ export const DICT = {
       empty: "empty", open: "{n} open", openDone: "{n} open · {d} done",
       emptyList: "List is empty.<br>Tap items below, add your own above —<br>or generate from the <a href=\"#/planner\">meal plan</a>.",
       addHeading: "Add", results: "Search results", nothingFound: "Nothing found.<br>Use “Add your own” above.",
+      share: "📤 Share", shareTitle: "🛒 Shopping list", copied: "✓ Copied",
     },
     planner: {
       title: "Meal plan", subtitle: "Dinners, planned deterministically",
@@ -577,6 +579,7 @@ export const DICT = {
       empty: "vacía", open: "{n} pendientes", openDone: "{n} pendientes · {d} hechos",
       emptyList: "La lista está vacía.<br>Toca artículos abajo, añade los tuyos arriba —<br>o genérala desde el <a href=\"#/planner\">plan semanal</a>.",
       addHeading: "Añadir", results: "Resultados", nothingFound: "Nada encontrado.<br>Usa “Añadir propio” arriba.",
+      share: "📤 Compartir", shareTitle: "🛒 Lista de compra", copied: "✓ Copiado",
     },
     planner: {
       title: "Plan semanal", subtitle: "Cenas, planificadas de forma determinista",
@@ -785,6 +788,7 @@ export const DICT = {
       empty: "tom", open: "{n} åbne", openDone: "{n} åbne · {d} færdige",
       emptyList: "Listen er tom.<br>Tryk på varer nedenfor, tilføj egne ovenfor —<br>eller generér fra <a href=\"#/planner\">madplanen</a>.",
       addHeading: "Tilføj", results: "Søgeresultater", nothingFound: "Intet fundet.<br>Brug „Tilføj egen“ ovenfor.",
+      share: "📤 Del", shareTitle: "🛒 Indkøbsliste", copied: "✓ Kopieret",
     },
     planner: {
       title: "Madplan", subtitle: "Aftensmad, planlagt deterministisk",

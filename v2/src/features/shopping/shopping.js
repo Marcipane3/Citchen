@@ -5,7 +5,7 @@
 import * as db from "../../data/db.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { CATALOG, SECTION_ORDER, sectionIcon } from "./catalog.js";
-import { itemKey, itemLabel } from "./logic.js";
+import { itemKey, itemLabel, formatListAsText } from "./logic.js";
 import { BUILD } from "../../version.js";
 import { t } from "../../i18n.js";
 
@@ -25,6 +25,25 @@ async function load() {
 }
 function save() {
   db.put("lists", { id: LIST_ID, items: ITEMS, updated: new Date().toISOString() }).catch(() => {});
+}
+
+async function shareList(container) {
+  if (!ITEMS.length) return;
+  const text = `${t("shopping.shareTitle")}\n\n${formatListAsText(ITEMS)}`;
+  if (navigator.share) {
+    try { await navigator.share({ text }); return; }
+    catch (e) { if (e.name === "AbortError") return; }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = container.querySelector(".sl-share");
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = t("shopping.copied");
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000);
+    }
+  } catch (_) { /* clipboard unavailable — nothing to do */ }
 }
 
 /** Artikel hinzufügen (v1-Verhalten: existiert er, +1 und wieder "offen"). */
@@ -123,7 +142,7 @@ function paintList(container) {
     <button class="sl-sortbtn ${sortMode === "aisle" ? "on" : ""}" data-sort="aisle">${t("shopping.sortAisle")}</button>
     <button class="sl-sortbtn ${sortMode === "alpha" ? "on" : ""}" data-sort="alpha">${t("shopping.sortAlpha")}</button>
   </div>`;
-  let html = `<div class="sl-top"><div class="sl-title">${t("shopping.myList")}</div><div class="sl-actions">${doneCount ? `<button class="sl-clear">${t("shopping.clearDone")}</button>` : ""}<button class="sl-clear-all">${t("shopping.clearAll")}</button></div></div>${sortBar}`;
+  let html = `<div class="sl-top"><div class="sl-title">${t("shopping.myList")}</div><div class="sl-actions">${doneCount ? `<button class="sl-clear">${t("shopping.clearDone")}</button>` : ""}<button class="sl-clear-all">${t("shopping.clearAll")}</button><button class="sl-share">${t("shopping.share")}</button></div></div>${sortBar}`;
 
   const indexed = ITEMS.map((it, i) => ({ it, i }));
   if (sortMode === "alpha") {
@@ -175,6 +194,8 @@ function paintList(container) {
     undoTimer = setTimeout(() => { undoSnapshot = null; undoTimer = null; paintList(container); }, 6000);
     paintList(container); paintCatalog(container);
   };
+  const shareBtn = el.querySelector(".sl-share");
+  if (shareBtn) shareBtn.onclick = () => shareList(container);
 }
 
 function catItemHTML(name, cat, icon) {

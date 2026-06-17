@@ -1,10 +1,11 @@
 // version.js — sichtbarer Build-Stempel (Deploy-Kontrolle) + App-Version & Changelog.
-export const BUILD = "2026-06-14-v2.7";
-export const APP_VERSION = "2.7";
+export const BUILD = "2026-06-16-v2.8";
+export const APP_VERSION = "2.8";
 
 // Changelog (neueste zuerst) — im Guide angezeigt.
 export const CHANGELOG = [
-  { v: "v2.7", txt: "Sicherer beim Synchronisieren: Wenn du etwas offline änderst und die Daten in der Cloud sich inzwischen ebenfalls geändert haben, wird deine lokale Änderung nicht mehr stillschweigend überschrieben — die App behält sie und meldet „Konflikt“, statt sie zu verlieren. Außerdem barrierefreier: alle Symbol-Knöpfe (Schließen, Entfernen, +/− auf der Einkaufsliste) haben jetzt größere Tippflächen und Vorlesehilfen." },
+  { v: “v2.8”, txt: “Einkaufsliste teilen: Tippe auf „📤 Teilen” und die Liste landet als formatierten Text in jeder Messenger-App oder in der Zwischenablage — nach Supermarkt-Gang sortiert, erledigte Artikel mit ✓ markiert.” },
+  { v: “v2.7”, txt: “Sicherer beim Synchronisieren: Wenn du etwas offline änderst und die Daten in der Cloud sich inzwischen ebenfalls geändert haben, wird deine lokale Änderung nicht mehr stillschweigend überschrieben — die App behält sie und meldet „Konflikt”, statt sie zu verlieren. Außerdem barrierefreier: alle Symbol-Knöpfe (Schließen, Entfernen, +/− auf der Einkaufsliste) haben jetzt größere Tippflächen und Vorlesehilfen.” },
   { v: "v2.6", txt: "Tippe oben links auf das 🍳-Symbol, um von überall zurück zur Startseite (Kochbuch) zu springen. Die Kopfzeile ist jetzt auf allen Bildschirmen einheitlich und barrierefreier (größere Tippflächen, Vorlesehilfen)." },
   { v: "v2.5", txt: "Neu im KI-Assistenten: „🥕 Aus Vorrat kochen“ schlägt Gerichte vor, die fast nur das brauchen, was du schon im Vorrat und Kühlschrank hast — frische Sachen werden bevorzugt verwertet. Außerdem sind die KI-Funktionen jetzt ehrlich: ohne Schlüssel oder offline erklären Assistent, Erfassung und Kühlschrank-Scan klar, warum sie gerade pausieren — statt einfach zu verschwinden oder fehlzuschlagen." },
   { v: "v2.4", txt: "Mehrfach-Filter: Du kannst jetzt mehrere Filter gleichzeitig anwählen. Innerhalb einer Gruppe gilt ODER (z. B. Pasta ODER Auflauf), und über die Gruppen hinweg wählst du mit dem UND/ODER-Schalter, ob alle oder irgendein Filter passen muss. Küche und Saison sind als Mehrfach-Auswahl ins „Mehr Filter“-Panel gewandert; eine Trefferanzeige zählt live mit, und „Filter zurücksetzen“ räumt alles weg." },

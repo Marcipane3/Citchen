@@ -1,7 +1,7 @@
 // Tests: shopping/logic.js + catalog.js — Vorrats-Abzug (🛒-Konvention + Fallback),
 // Aggregation mit Mengensummen, Katalog-Zuordnung, Merge-Verhalten.
 import { test, assert, assertEqual } from "./runner.js";
-import { needsBuying, aggregateIngredients, mergeItems, itemKey, itemLabel, DEFAULT_STAPLES } from "../src/features/shopping/logic.js";
+import { needsBuying, aggregateIngredients, mergeItems, itemKey, itemLabel, formatListAsText, DEFAULT_STAPLES } from "../src/features/shopping/logic.js";
 import { ingMatchCat, CATALOG, SECTION_ORDER } from "../src/features/shopping/catalog.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -118,6 +118,51 @@ test("itemKey/itemLabel", () => {
   assertEqual(itemLabel({ name: "Feta", amount: 300, unit: "g" }), "300g Feta");
   assertEqual(itemLabel({ name: "Zitrone", amount: 1.5, unit: null }), "1,5 Zitrone");
   assertEqual(itemLabel({ name: "Brot", amount: null, unit: null, qty: 2 }), "Brot");
+});
+
+/* ---------- formatListAsText ---------- */
+
+test("formatListAsText: leere Liste → leerer String", () => {
+  assertEqual(formatListAsText([]), "");
+});
+
+test("formatListAsText: offene Artikel bekommen • Prefix, erledigte ✓", () => {
+  const items = [
+    { name: "Feta", amount: 200, unit: "g", cat: "Käse", icon: "🧀", qty: 1, done: false },
+    { name: "Brot", amount: null, unit: null, cat: "Brot & Backwaren", icon: "🍞", qty: 1, done: true },
+  ];
+  const text = formatListAsText(items);
+  assert(text.includes("• 200g Feta"), "offener Artikel mit Menge");
+  assert(text.includes("✓ Brot"), "erledigter Artikel");
+});
+
+test("formatListAsText: qty > 1 ohne Menge zeigt ×qty", () => {
+  const items = [{ name: "Zitrone", amount: null, unit: null, cat: "Gemüse", icon: "🍋", qty: 3, done: false }];
+  const text = formatListAsText(items);
+  assert(text.includes("• Zitrone ×3"), "qty ×3");
+});
+
+test("formatListAsText: offene Artikel vor erledigten innerhalb Sektion", () => {
+  const items = [
+    { name: "Butter", amount: null, unit: null, cat: "Milchprodukte", icon: "🧈", qty: 1, done: true },
+    { name: "Milch", amount: null, unit: null, cat: "Milchprodukte", icon: "🥛", qty: 1, done: false },
+  ];
+  const text = formatListAsText(items);
+  const milchIdx = text.indexOf("• Milch");
+  const butterIdx = text.indexOf("✓ Butter");
+  assert(milchIdx < butterIdx, "offene vor erledigten");
+});
+
+test("formatListAsText: Sektionen folgen SECTION_ORDER", () => {
+  const items = [
+    { name: "Brot", amount: null, unit: null, cat: "Brot & Backwaren", icon: "🍞", qty: 1, done: false },
+    { name: "Äpfel", amount: null, unit: null, cat: "Obst", icon: "🍎", qty: 1, done: false },
+  ];
+  const text = formatListAsText(items);
+  // Obst kommt vor Brot & Backwaren in SECTION_ORDER
+  const obstIdx = text.indexOf("Obst");
+  const brotIdx = text.indexOf("Brot & Backwaren");
+  assert(obstIdx < brotIdx || (obstIdx === -1 && brotIdx === -1), "Reihenfolge aus SECTION_ORDER");
 });
 
 test("DEFAULT_STAPLES: deckt die Projektwissen-Gewürze ab", () => {
