@@ -8,7 +8,7 @@ Prereq I1 (share as plain text) shipped in v2.8. Multi-party-ready from day one.
 
 ## Phases
 
-- [ ] **Phase 1: Shared Shopping List** - Persist list to Drive, item-level merge, Google Picker handshake, multi-party-ready (I2 + I3 path A)
+- [x] **Phase 1: Shared Shopping List** - Persist list to Drive, item-level merge, Google Picker handshake, multi-party-ready (I2 + I3 path A)
 
 ## Phase Details
 
@@ -27,11 +27,11 @@ Prereq I1 (share as plain text) shipped in v2.8. Multi-party-ready from day one.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Item-level merge model + Drive persistence for shopping list (Wave 1)
-- [ ] 01-02-PLAN.md — Google Picker handshake + cross-account sync UX (Wave 2)
+- [x] 01-01-PLAN.md — Item-level merge model + Drive persistence for shopping list (Wave 1)
+- [x] 01-02-PLAN.md — Google Picker handshake + cross-account sync UX (Wave 2)
 
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Shared Shopping List | 0/2 | Planned | - |
+| 1. Shared Shopping List | 2/2 | Complete | 2026-06-17 |
