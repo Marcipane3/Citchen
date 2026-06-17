@@ -3,6 +3,7 @@
 // (aggregiert, Vorrat abgezogen). Persistenz: IndexedDB 'lists' (id "current").
 
 import * as db from "../../data/db.js";
+import * as listSync from "../../data/listSync.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { CATALOG, SECTION_ORDER, sectionIcon } from "./catalog.js";
 import { itemKey, itemLabel, formatListAsText } from "./logic.js";
@@ -25,6 +26,7 @@ async function load() {
 }
 function save() {
   db.put("lists", { id: LIST_ID, items: ITEMS, updated: new Date().toISOString() }).catch(() => {});
+  listSync.saveList(ITEMS).catch(() => {}); // Drive push (dirty-flag pattern)
 }
 
 async function shareList(container) {
@@ -52,8 +54,15 @@ export function shopAdd(name, cat, icon) {
   if (!name) return;
   const key = itemKey(name, null);
   const it = ITEMS.find((x) => itemKey(x.name, x.unit) === key);
-  if (it) { it.qty++; it.done = false; }
-  else ITEMS.push({ name, cat: cat || "Sonstiges", icon: icon || "🛒", qty: 1, done: false, amount: null, unit: null });
+  if (it) { it.qty++; it.done = false; it.updated = new Date().toISOString(); }
+  else ITEMS.push({
+    id: "li-" + Date.now(),
+    name, cat: cat || "Sonstiges", icon: icon || "🛒",
+    qty: 1, done: false, amount: null, unit: null,
+    updated: new Date().toISOString(),
+    author: "local",
+    deleted: false,
+  });
   save();
 }
 
@@ -80,7 +89,9 @@ export function renderShopping(container) {
       <div class="shop-add">
         <input id="shop-custom" placeholder="${t("shopping.customPlaceholder")}" />
         <button class="add-custom">${t("shopping.addBtn")}</button>
-      </div>`,
+      </div>
+      <button class="sl-refresh" aria-label="${t('shopping.refresh')}">${t('shopping.refreshBtn')}</button>
+      <button class="sl-link-partner">${t('shopping.linkPartner')}</button>`,
     })}
     <main class="app-main">
       <div id="shop-list"></div>
@@ -99,18 +110,40 @@ export function renderShopping(container) {
   container.querySelector(".add-custom").onclick = addCustom;
   custom.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } });
 
-  load().then(() => { paintList(container); paintCatalog(container); });
+  const refreshBtn = container.querySelector(".sl-refresh");
+  if (refreshBtn) refreshBtn.onclick = () => {
+    refreshBtn.disabled = true;
+    listSync.syncListWithDrive().then((result) => {
+      if (result.changed && Array.isArray(result.items)) {
+        ITEMS = result.items.filter(x => !x.deleted);
+        paintList(container); paintCatalog(container);
+      }
+      refreshBtn.disabled = false;
+    }).catch(() => { refreshBtn.disabled = false; });
+  };
+
+  load().then(() => {
+    paintList(container); paintCatalog(container);
+    // Background Drive sync — repaint if remote had newer items
+    listSync.syncListWithDrive().then((result) => {
+      if (result.changed && Array.isArray(result.items)) {
+        ITEMS = result.items.filter(x => !x.deleted);
+        paintList(container); paintCatalog(container);
+      }
+    }).catch(() => {});
+  });
 }
 
 function paintList(container) {
   const el = container.querySelector("#shop-list");
   if (!el) return;
-  const doneCount = ITEMS.filter((x) => x.done).length;
-  const openCount = ITEMS.length - doneCount;
+  const visible = ITEMS.filter(x => !x.deleted);
+  const doneCount = visible.filter((x) => x.done).length;
+  const openCount = visible.length - doneCount;
   const sub = container.querySelector("#shop-sub");
-  if (sub) sub.textContent = ITEMS.length ? (doneCount ? t("shopping.openDone", { n: openCount, d: doneCount }) : t("shopping.open", { n: openCount })) : t("shopping.empty");
+  if (sub) sub.textContent = visible.length ? (doneCount ? t("shopping.openDone", { n: openCount, d: doneCount }) : t("shopping.open", { n: openCount })) : t("shopping.empty");
 
-  if (!ITEMS.length) {
+  if (!visible.length) {
     const undoBar = undoSnapshot
       ? `<div class="sl-undo">${t("shopping.cleared")} <button class="sl-undo-btn">${t("shopping.undo")}</button></div>`
       : "";
@@ -144,12 +177,13 @@ function paintList(container) {
   </div>`;
   let html = `<div class="sl-top"><div class="sl-title">${t("shopping.myList")}</div><div class="sl-actions">${doneCount ? `<button class="sl-clear">${t("shopping.clearDone")}</button>` : ""}<button class="sl-clear-all">${t("shopping.clearAll")}</button><button class="sl-share">${t("shopping.share")}</button></div></div>${sortBar}`;
 
-  const indexed = ITEMS.map((it, i) => ({ it, i }));
+  // Build indexed from visible only; preserve original ITEMS index for mutation handlers
+  const indexed = ITEMS.map((it, i) => ({ it, i })).filter(({ it }) => !it.deleted);
   if (sortMode === "alpha") {
     indexed.sort((a, b) => (a.it.done - b.it.done) || a.it.name.localeCompare(b.it.name));
     html += indexed.map(({ it, i }) => rowHTML(it, i)).join("");
   } else {
-    const cats = [...new Set(ITEMS.map((x) => x.cat))].sort((a, b) => {
+    const cats = [...new Set(visible.map((x) => x.cat))].sort((a, b) => {
       const ia = SECTION_ORDER.indexOf(a), ib = SECTION_ORDER.indexOf(b);
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
     });

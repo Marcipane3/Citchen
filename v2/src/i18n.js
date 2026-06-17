@@ -65,6 +65,37 @@ export function tCat(canonical) {
   return (m && m[canonical]) || canonical;
 }
 
+/** Küche-Wert (free-form, canonical DE) → Anzeigesprache. Unbekannt → canonical. */
+export function tCuisine(canonical) {
+  const lang = getLang();
+  const m = CUISINE_DICT[lang];
+  return (m && m[canonical]) || canonical;
+}
+
+/** Saison-Wert (canonical DE) → Anzeigesprache. Unbekannt → canonical. */
+export function tSeason(canonical) {
+  const lang = getLang();
+  const m = SEASON_DICT[lang];
+  return (m && m[canonical]) || canonical;
+}
+
+/**
+ * Übersetzt den gespeicherten deutschen Datums-String (z.B. "Mai 2026") in die
+ * Anzeigesprache. Der Wert in Drive bleibt IMMER Deutsch (kanonisch). Unbekannt
+ * oder nicht parsebar → unverändert.
+ */
+export function tLastCooked(v) {
+  if (!v) return v;
+  const lang = getLang();
+  if (lang === "de") return v;
+  const months = MONTH_DICT[lang];
+  if (!months) return v;
+  for (let i = 0; i < DE_MONTHS.length; i++) {
+    if (v.includes(DE_MONTHS[i])) return v.replace(DE_MONTHS[i], months[i]);
+  }
+  return v;
+}
+
 /* ============================================================
    WÖRTERBUCH
    ============================================================ */
@@ -162,6 +193,9 @@ export const DICT = {
       emptyList: "Liste ist leer.<br>Tippe unten auf Artikel, füge oben eigene hinzu —<br>oder erzeuge sie aus dem <a href=\"#/planner\">Wochenplan</a>.",
       addHeading: "Hinzufügen", results: "Suchergebnisse", nothingFound: "Nichts gefunden.<br>Nutze „Eigenes hinzufügen“ oben.",
       share: "📤 Teilen", shareTitle: "🛒 Einkaufsliste", copied: "✓ Kopiert",
+      refreshBtn: "🔄 Aktualisieren", refresh: "Einkaufsliste aktualisieren",
+      linkPartner: "Partner verknüpfen", unlinkPartner: "Partner trennen",
+      syncStatus: "Synchronisiert ✓", syncPending: "Sync ausstehend",
     },
     planner: {
       title: "Wochenplan", subtitle: "Abendessen, deterministisch geplant",
@@ -371,6 +405,9 @@ export const DICT = {
       emptyList: "List is empty.<br>Tap items below, add your own above —<br>or generate from the <a href=\"#/planner\">meal plan</a>.",
       addHeading: "Add", results: "Search results", nothingFound: "Nothing found.<br>Use “Add your own” above.",
       share: "📤 Share", shareTitle: "🛒 Shopping list", copied: "✓ Copied",
+      refreshBtn: "🔄 Refresh", refresh: "Refresh shopping list",
+      linkPartner: "Link partner", unlinkPartner: "Unlink partner",
+      syncStatus: "Synced ✓", syncPending: "Sync pending",
     },
     planner: {
       title: "Meal plan", subtitle: "Dinners, planned deterministically",
@@ -580,6 +617,9 @@ export const DICT = {
       emptyList: "La lista está vacía.<br>Toca artículos abajo, añade los tuyos arriba —<br>o genérala desde el <a href=\"#/planner\">plan semanal</a>.",
       addHeading: "Añadir", results: "Resultados", nothingFound: "Nada encontrado.<br>Usa “Añadir propio” arriba.",
       share: "📤 Compartir", shareTitle: "🛒 Lista de compra", copied: "✓ Copiado",
+      refreshBtn: "🔄 Actualizar", refresh: "Actualizar lista de compra",
+      linkPartner: "Vincular pareja", unlinkPartner: "Desvincular pareja",
+      syncStatus: "Sincronizado ✓", syncPending: "Sincronización pendiente",
     },
     planner: {
       title: "Plan semanal", subtitle: "Cenas, planificadas de forma determinista",
@@ -789,6 +829,9 @@ export const DICT = {
       emptyList: "Listen er tom.<br>Tryk på varer nedenfor, tilføj egne ovenfor —<br>eller generér fra <a href=\"#/planner\">madplanen</a>.",
       addHeading: "Tilføj", results: "Søgeresultater", nothingFound: "Intet fundet.<br>Brug „Tilføj egen“ ovenfor.",
       share: "📤 Del", shareTitle: "🛒 Indkøbsliste", copied: "✓ Kopieret",
+      refreshBtn: "🔄 Opdater", refresh: "Opdater indkøbsliste",
+      linkPartner: "Tilknyt partner", unlinkPartner: "Fjern partner",
+      syncStatus: "Synkroniseret ✓", syncPending: "Synkronisering afventer",
     },
     planner: {
       title: "Madplan", subtitle: "Aftensmad, planlagt deterministisk",
@@ -904,6 +947,49 @@ export const DICT = {
       captureDisabled: "Automatisk billede-/URL-analyse er stadig deaktiveret (kommer i en senere opdatering).",
     },
   },
+};
+
+/* ============================================================
+   MONATS-ÜBERSETZUNG — tLastCooked() parst "Mai 2026" → Zielsprache.
+   DE-Namen entsprechen toLocaleDateString("de-DE", {month:"long"}).
+   ============================================================ */
+const DE_MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+const MONTH_DICT = {
+  en: ["January","February","March","April","May","June","July","August","September","October","November","December"],
+  es: ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"],
+  da: ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"],
+};
+
+/* ============================================================
+   KÜCHE-LABELS — Anzeige-Übersetzung der bekannten Küche-Werte.
+   Schlüssel = kanonischer DE-String aus den Basis-Rezepten.
+   Fallback (unbekannt / DE): canonical zurück (kein Absturz).
+   ============================================================ */
+const CUISINE_DICT = {
+  en: {
+    "Asiatisch": "Asian", "Deutsch": "German", "Französisch": "French",
+    "International": "International", "Italienisch": "Italian",
+    "Mediterran": "Mediterranean", "Mexikanisch": "Mexican", "Middle Eastern": "Middle Eastern",
+  },
+  es: {
+    "Asiatisch": "Asiática", "Deutsch": "Alemana", "Französisch": "Francesa",
+    "International": "Internacional", "Italienisch": "Italiana",
+    "Mediterran": "Mediterránea", "Mexikanisch": "Mexicana", "Middle Eastern": "Oriente Medio",
+  },
+  da: {
+    "Asiatisch": "Asiatisk", "Deutsch": "Tysk", "Französisch": "Fransk",
+    "International": "International", "Italienisch": "Italiensk",
+    "Mediterran": "Middelhav", "Mexikanisch": "Mexicansk", "Middle Eastern": "Mellemøstlig",
+  },
+};
+
+/* ============================================================
+   SAISON-LABELS — Anzeige-Übersetzung der bekannten Saison-Werte.
+   ============================================================ */
+const SEASON_DICT = {
+  en: { "Herbst": "Autumn", "Sommer": "Summer", "Spätsommer": "Late summer", "Winter": "Winter" },
+  es: { "Herbst": "Otoño", "Sommer": "Verano", "Spätsommer": "Finales de verano", "Winter": "Invierno" },
+  da: { "Herbst": "Efterår", "Sommer": "Sommer", "Spätsommer": "Sensommer", "Winter": "Vinter" },
 };
 
 /* ============================================================
