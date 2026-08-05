@@ -12,6 +12,7 @@ import "./test-lager.js";
 import "./test-i18n.js";
 import "./test-baselang.js";
 import "./test-sw-shell.js";
+import "./test-module-syntax.js";
 import "./test-decide-sync.js";
 import "./test-list-merge.js";
 import "./test-canonical.js";

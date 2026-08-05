@@ -17,6 +17,73 @@
 </head>
 <body>
   <div id="app"></div>
+
+  <!-- Boot-Wächter (bewusst KEIN Modul, kein Import): Wenn der Modulgraph gar nicht
+       erst lädt — Syntaxfehler in irgendeiner src/-Datei, 404 aus einem alten
+       Service-Worker-Cache, abgebrochener Download — bleibt #app leer und der
+       Nutzer sieht eine WEISSE SEITE ohne Login. Dieser Wächter macht so einen
+       Fehler sichtbar und bietet den einen Knopf an, der fast immer hilft:
+       Cache leeren + neu laden. -->
+  <script>
+    (function () {
+      var booted = false, lastError = null, lastResource = null;
+      window.__kochBooted = function () { booted = true; };
+      // Capture-Phase, damit auch Lade-Fehler einzelner Dateien ankommen. Diese
+      // Events tragen KEINE .message (nur ein Ziel-Element) — deshalb getrennt
+      // merken: eine echte Fehlermeldung ist aussagekräftiger als "Datei X fehlt".
+      window.addEventListener("error", function (e) {
+        if (e && e.message) { if (!lastError) lastError = e.message; return; }
+        var el = e && e.target;
+        if (el && (el.src || el.href) && !lastResource) lastResource = "Datei nicht ladbar: " + (el.src || el.href);
+      }, true);
+      // app.js ruft das, wenn boot() wirft — dann nicht erst 4s warten.
+      window.__kochBootFailed = function (msg) {
+        if (!lastError && msg) lastError = msg;
+        showFailure();
+      };
+
+      function showFailure() {
+        if (booted) return;
+        var app = document.getElementById("app");
+        if (!app || app.children.length > 0) return; // irgendwas hat gerendert → alles gut
+        var detail = lastError || lastResource;
+        app.innerHTML =
+          '<div style="max-width:34rem;margin:12vh auto;padding:24px;font-family:system-ui,sans-serif;' +
+          'color:#2a1f17;background:#fffaf2;border:1.5px solid rgba(42,31,23,.13);border-radius:16px">' +
+          '<div style="font-size:40px;line-height:1">🍳</div>' +
+          '<h1 style="font-size:20px;margin:12px 0 8px">Die App konnte nicht starten</h1>' +
+          '<p style="margin:0 0 16px;line-height:1.5;color:rgba(42,31,23,.67)">' +
+          'Meist hilft es, den Zwischenspeicher zu leeren und neu zu laden. ' +
+          'Deine Rezepte sind davon nicht betroffen — sie liegen lokal und in Google Drive.</p>' +
+          '<button id="koch-recover" style="width:100%;padding:14px;font-size:16px;font-weight:700;' +
+          'color:#fff;background:#c8632e;border:none;border-radius:12px;cursor:pointer">' +
+          'Zwischenspeicher leeren &amp; neu laden</button>' +
+          (detail ? '<pre style="margin:16px 0 0;padding:12px;background:rgba(42,31,23,.07);' +
+            'border-radius:10px;font-size:12px;white-space:pre-wrap;word-break:break-word;' +
+            'color:rgba(42,31,23,.67)">' + String(detail).replace(/[<&]/g, "") + '</pre>' : "");
+
+        document.getElementById("koch-recover").addEventListener("click", function () {
+          var done = function () { location.reload(); };
+          var jobs = [];
+          if (window.caches && caches.keys) {
+            jobs.push(caches.keys().then(function (ks) {
+              return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+            }));
+          }
+          if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+              return Promise.all(rs.map(function (r) { return r.unregister(); }));
+            }));
+          }
+          Promise.all(jobs).then(done, done);
+        });
+      }
+
+      // 4s ist großzügig: der lokale Datenladevorgang ist deutlich schneller,
+      // und bei echtem Fehler wartet niemand länger vor einer leeren Seite.
+      setTimeout(showFailure, 4000);
+    })();
+  </script>
   <script type="module" src="src/app.js"></script>
 </body>
 </html>

@@ -1,13 +1,14 @@
 // version.js — sichtbarer Build-Stempel (Deploy-Kontrolle) + App-Version & Changelog.
-export const BUILD = “2026-06-17-v2.10”;
-export const APP_VERSION = “2.10”;
+export const BUILD = "2026-08-05-v2.10.1";
+export const APP_VERSION = "2.10.1";
 
 // Changelog (neueste zuerst) — im Guide angezeigt.
 export const CHANGELOG = [
-  { v: “v2.10”, txt: “Einkaufsliste mit Partner teilen: Verbinde deine Liste über Google Drive — beide sehen dieselben Artikel und können gleichzeitig hinzufügen. Aktualisieren-Knopf holt den neuesten Stand.” },
-  { v: “v2.9”, txt: “Küche, Saison und „Zuletzt gekocht” erscheinen jetzt in der gewählten App-Sprache — die Filter-Chips im Kochbuch und die Detailansicht zeigen z. B. auf Englisch „Italian” statt „Italienisch” und „May 2026” statt „Mai 2026”.” },
-  { v: “v2.8”, txt: “Einkaufsliste teilen: Tippe auf „📤 Teilen” und die Liste landet als formatierten Text in jeder Messenger-App oder in der Zwischenablage — nach Supermarkt-Gang sortiert, erledigte Artikel mit ✓ markiert.” },
-  { v: “v2.7”, txt: “Sicherer beim Synchronisieren: Wenn du etwas offline änderst und die Daten in der Cloud sich inzwischen ebenfalls geändert haben, wird deine lokale Änderung nicht mehr stillschweigend überschrieben — die App behält sie und meldet „Konflikt”, statt sie zu verlieren. Außerdem barrierefreier: alle Symbol-Knöpfe (Schließen, Entfernen, +/− auf der Einkaufsliste) haben jetzt größere Tippflächen und Vorlesehilfen.” },
+  { v: "v2.10.1", txt: "Fehlerbehebung: Die App startete nicht mehr — statt Kochbuch und Login erschien nur eine weiße Seite. Ursache war ein Tippfehler im Versions-Baustein, der das Laden der gesamten App verhinderte. Zusätzlich neu: Sollte so etwas je wieder passieren, zeigt die App jetzt eine Erklärung mit einem „Zwischenspeicher leeren“-Knopf statt einer leeren Seite." },
+  { v: "v2.10", txt: "Einkaufsliste mit Partner teilen: Verbinde deine Liste über Google Drive — beide sehen dieselben Artikel und können gleichzeitig hinzufügen. Aktualisieren-Knopf holt den neuesten Stand." },
+  { v: "v2.9", txt: "Küche, Saison und „Zuletzt gekocht“ erscheinen jetzt in der gewählten App-Sprache — die Filter-Chips im Kochbuch und die Detailansicht zeigen z. B. auf Englisch „Italian“ statt „Italienisch“ und „May 2026“ statt „Mai 2026“." },
+  { v: "v2.8", txt: "Einkaufsliste teilen: Tippe auf „📤 Teilen“ und die Liste landet als formatierten Text in jeder Messenger-App oder in der Zwischenablage — nach Supermarkt-Gang sortiert, erledigte Artikel mit ✓ markiert." },
+  { v: "v2.7", txt: "Sicherer beim Synchronisieren: Wenn du etwas offline änderst und die Daten in der Cloud sich inzwischen ebenfalls geändert haben, wird deine lokale Änderung nicht mehr stillschweigend überschrieben — die App behält sie und meldet „Konflikt“, statt sie zu verlieren. Außerdem barrierefreier: alle Symbol-Knöpfe (Schließen, Entfernen, +/− auf der Einkaufsliste) haben jetzt größere Tippflächen und Vorlesehilfen." },
   { v: "v2.6", txt: "Tippe oben links auf das 🍳-Symbol, um von überall zurück zur Startseite (Kochbuch) zu springen. Die Kopfzeile ist jetzt auf allen Bildschirmen einheitlich und barrierefreier (größere Tippflächen, Vorlesehilfen)." },
   { v: "v2.5", txt: "Neu im KI-Assistenten: „🥕 Aus Vorrat kochen“ schlägt Gerichte vor, die fast nur das brauchen, was du schon im Vorrat und Kühlschrank hast — frische Sachen werden bevorzugt verwertet. Außerdem sind die KI-Funktionen jetzt ehrlich: ohne Schlüssel oder offline erklären Assistent, Erfassung und Kühlschrank-Scan klar, warum sie gerade pausieren — statt einfach zu verschwinden oder fehlzuschlagen." },
   { v: "v2.4", txt: "Mehrfach-Filter: Du kannst jetzt mehrere Filter gleichzeitig anwählen. Innerhalb einer Gruppe gilt ODER (z. B. Pasta ODER Auflauf), und über die Gruppen hinweg wählst du mit dem UND/ODER-Schalter, ob alle oder irgendein Filter passen muss. Küche und Saison sind als Mehrfach-Auswahl ins „Mehr Filter“-Panel gewandert; eine Trefferanzeige zählt live mit, und „Filter zurücksetzen“ räumt alles weg." },
