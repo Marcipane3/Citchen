@@ -97,4 +97,16 @@ async function boot() {
   drive.initAuth({ silent: true });
 }
 
-boot();
+// Der Boot-Wächter in index.html zeigt nach 4s einen Fehlerdialog, solange #app
+// leer ist. Ab hier steht die Oberfläche — Wächter entschärfen.
+boot().then(
+  () => { if (window.__kochBooted) window.__kochBooted(); },
+  (err) => {
+    console.error("Boot fehlgeschlagen:", err);
+    // Nichts gerendert? Dann den Wächter sofort auslösen statt 4s leerer Seite.
+    const el = app();
+    if (el && el.children.length === 0 && window.__kochBootFailed) {
+      window.__kochBootFailed(String((err && err.message) || err));
+    }
+  }
+);
