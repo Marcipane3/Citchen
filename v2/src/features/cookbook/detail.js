@@ -8,7 +8,7 @@ import { esc, metaBadges, loadHeroInto, compressImage } from "../../ui/helpers.j
 import { openSheet, closeAllSheets } from "../../ui/sheet.js";
 import { openForm } from "./form.js";
 import { navigate } from "../../router.js";
-import { t, tn, tCat } from "../../i18n.js";
+import { t, tn, tCat, tLastCooked } from "../../i18n.js";
 
 function tippsHTML(r) {
   if (!r.tips) return "";
@@ -45,7 +45,7 @@ export function openDetail(id) {
     <div class="rmeta">${r.time ? `⏱ ${esc(r.time)}` : ""} ${r.servings ? `· ${t("detail.servings", { v: esc(r.servings) })}` : ""} ${r.cookedCount ? `· ${t("detail.timesCooked", { n: r.cookedCount })}` : ""}</div>
     ${metaBadges(r) ? `<div class="badges">${metaBadges(r)}</div>` : ""}
     ${(r.prepTime || r.cookTime || r.totalTime) ? `<p style="font-size:13px;color:var(--muted);margin-top:4px">⏱ ${[r.prepTime ? `${r.prepTime}′` : "", r.cookTime ? `${r.cookTime}′` : "", r.totalTime ? `Σ ${r.totalTime}′` : ""].filter(Boolean).join(" · ")}</p>` : ""}
-    ${r.lastCooked ? `<p style="font-size:13px;color:var(--muted);font-style:italic;margin-top:4px">${t("detail.lastCooked", { v: esc(r.lastCooked) })}</p>` : ""}
+    ${r.lastCooked ? `<p style="font-size:13px;color:var(--muted);font-style:italic;margin-top:4px">${t("detail.lastCooked", { v: esc(tLastCooked(r.lastCooked)) })}</p>` : ""}
 
     <button class="photo-add">${t("detail.addPhoto")}</button>
     ${r.photos && r.photos.length ? `<div class="photostrip">${r.photos.map((p) => `

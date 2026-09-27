@@ -1,6 +1,6 @@
 // Tests: i18n.js — Key-Parität DE/EN/ES, Interpolation, Plural, Fallback.
 import { test, assert, assertEqual } from "./runner.js";
-import { t, tn, tCat, setLang, getLang, LANGS, DICT } from "../src/i18n.js";
+import { t, tn, tCat, tCuisine, tSeason, tLastCooked, setLang, getLang, LANGS, DICT } from "../src/i18n.js";
 import { CATEGORIES } from "../src/data/schema.js";
 
 // Sammelt alle Punkt-Pfade eines verschachtelten Objekts (Blätter = Strings).
@@ -99,4 +99,49 @@ test("setLang ignoriert unbekannte Sprachen", () => {
   setLang("de");
   setLang("xx");
   assertEqual(getLang(), "de");
+});
+
+test("tCuisine: DE gibt canonical zurück, andere Sprachen übersetzen, Unbekanntes bleibt", () => {
+  setLang("de");
+  assertEqual(tCuisine("Italienisch"), "Italienisch");
+  setLang("en");
+  assertEqual(tCuisine("Italienisch"), "Italian");
+  assertEqual(tCuisine("Asiatisch"), "Asian");
+  assertEqual(tCuisine("Middle Eastern"), "Middle Eastern");
+  setLang("da");
+  assertEqual(tCuisine("Mexikanisch"), "Mexicansk");
+  assertEqual(tCuisine("Unbekannt"), "Unbekannt");
+  setLang("de");
+});
+
+test("tSeason: DE gibt canonical zurück, andere Sprachen übersetzen, Unbekanntes bleibt", () => {
+  setLang("de");
+  assertEqual(tSeason("Sommer"), "Sommer");
+  setLang("en");
+  assertEqual(tSeason("Sommer"), "Summer");
+  assertEqual(tSeason("Herbst"), "Autumn");
+  assertEqual(tSeason("Spätsommer"), "Late summer");
+  setLang("es");
+  assertEqual(tSeason("Winter"), "Invierno");
+  assertEqual(tSeason("Unbekannt"), "Unbekannt");
+  setLang("de");
+});
+
+test("tLastCooked: DE gibt unverändert zurück, andere Sprachen übersetzen Monatsnamen", () => {
+  setLang("de");
+  assertEqual(tLastCooked("Mai 2026"), "Mai 2026");
+  setLang("en");
+  assertEqual(tLastCooked("Mai 2026"), "May 2026");
+  assertEqual(tLastCooked("Januar 2025"), "January 2025");
+  assertEqual(tLastCooked("Dezember 2024"), "December 2024");
+  setLang("da");
+  assertEqual(tLastCooked("März 2026"), "marts 2026");
+  assertEqual(tLastCooked("Juni 2026"), "juni 2026");
+  setLang("es");
+  assertEqual(tLastCooked("Oktober 2025"), "octubre 2025");
+  // Unbekanntes Format bleibt unverändert
+  setLang("en");
+  assertEqual(tLastCooked("2026-05"), "2026-05");
+  assertEqual(tLastCooked(null), null);
+  setLang("de");
 });

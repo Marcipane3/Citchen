@@ -12,7 +12,7 @@ import { availableChips, chipLabel, filterRecipes, distinctValues, activeFilterC
 import { openDetail } from "./detail.js";
 import { openForm } from "./form.js";
 import { BUILD } from "../../version.js";
-import { t, tn, tCat } from "../../i18n.js";
+import { t, tn, tCat, tCuisine, tSeason, tLastCooked } from "../../i18n.js";
 
 // Filterzustand überlebt Re-Renders (Modul-Scope)
 let query = "";
@@ -39,7 +39,7 @@ function cardHTML(r) {
       ${hasImg ? `<div class="card-thumb" data-hero="${esc(r.id)}"></div>` : ""}
       <div class="cat-label">${esc(tCat(r.category))}</div>
       <div class="rname">${esc(r.name)}</div>
-      <div class="rmeta">${r.time ? `⏱ ${esc(r.time)}` : ""} ${r.lastCooked ? `· ${esc(r.lastCooked)}` : ""} ${starsMini(r.rating)}</div>
+      <div class="rmeta">${r.time ? `⏱ ${esc(r.time)}` : ""} ${r.lastCooked ? `· ${esc(tLastCooked(r.lastCooked))}` : ""} ${starsMini(r.rating)}</div>
       ${metaBadges(r, true) ? `<div class="card-badges">${metaBadges(r, true)}</div>` : ""}
     </div>`;
 }
@@ -92,18 +92,18 @@ function controlsHTML() {
     ? `<button class="chip more-toggle ${moreOpen || extraN ? "active" : ""}" id="moreToggle">${t("cookbook.moreFilters")} ${moreOpen ? "▴" : "▾"}${extraN ? ` · ${extraN}` : ""}</button>`
     : "";
 
-  const groupHTML = (label, items, attr, selected) => `
+  const groupHTML = (label, items, attr, selected, labelFn = (v) => v) => `
     <div class="filter-group">
       <span class="fg-label">${label}</span>
       <div class="fg-chips">
-        ${items.map((v) => `<button class="chip mini ${selected.includes(v) ? "active" : ""}" data-${attr}="${esc(v)}">${esc(v)}</button>`).join("")}
+        ${items.map((v) => `<button class="chip mini ${selected.includes(v) ? "active" : ""}" data-${attr}="${esc(v)}">${esc(labelFn(v))}</button>`).join("")}
       </div>
     </div>`;
 
   const morePanel = moreOpen ? `
     <div class="more-panel">
-      ${cuisines.length ? groupHTML(t("cookbook.cuisineLabel"), cuisines, "cuisine", activeCuisines) : ""}
-      ${seasons.length ? groupHTML(t("cookbook.seasonLabel"), seasons, "season", activeSeasons) : ""}
+      ${cuisines.length ? groupHTML(t("cookbook.cuisineLabel"), cuisines, "cuisine", activeCuisines, tCuisine) : ""}
+      ${seasons.length ? groupHTML(t("cookbook.seasonLabel"), seasons, "season", activeSeasons, tSeason) : ""}
     </div>` : "";
 
   const seg = nActive >= 2 ? `
