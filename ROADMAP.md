@@ -257,6 +257,11 @@ converged independently** — trust those most.
 
 ## 13. V3 — The big rebuild *(separate horizon — needs its own plan)*
 
+> **Preparation package (2026-10-01):** [`docs/v3/`](docs/v3/README.md): process, scope, the seven
+> decisions (D1–D7), questions for Marcel + checks for Claude, risks and migration, and the full
+> report [`docs/v3/V3-REPORT.html`](docs/v3/V3-REPORT.html). Recommendation: "V3 Personal Pro";
+> foundation work (one sync core, e2e tests) first as v2.x releases in Q4 2026; V3 intent in December.
+
 Not part of the 1–2 week cycle. V3 is a deliberate re-architecture; list here so the
 v2.x work stays compatible with it.
 

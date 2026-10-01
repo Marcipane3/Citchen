@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Koch V3 Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Karla:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a cookbook-style working report — sticky chapter index on the left (desktop),
+   one readable 46rem column on the right; the app's own paper/ink/terracotta identity. */
+:root {
+  --paper: #f6efe3;
+  --sheet: #fffaf2;
+  --ink: #2a1f17;
+  --ink-2: #5a4a3d;
+  --line: rgba(42, 31, 23, 0.14);
+  --line-soft: rgba(42, 31, 23, 0.07);
+  --accent: #a84c1c;
+  --accent-soft: rgba(200, 99, 46, 0.12);
+  --good: #2f6e47;
+  --good-soft: rgba(47, 110, 71, 0.12);
+  --warn: #93600f;
+  --warn-soft: rgba(201, 141, 34, 0.16);
+  --risk: #a3361b;
+  --risk-soft: rgba(179, 64, 31, 0.12);
+  --f-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --f-body: "Karla", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1b1510; --sheet: #241d16; --ink: #f0e7da; --ink-2: #c9bba9;
+    --line: rgba(240, 231, 218, 0.16); --line-soft: rgba(240, 231, 218, 0.08);
+    --accent: #ec915a; --accent-soft: rgba(236, 145, 90, 0.14);
+    --good: #84c79c; --good-soft: rgba(132, 199, 156, 0.13);
+    --warn: #e6b862; --warn-soft: rgba(230, 184, 98, 0.14);
+    --risk: #f08a6d; --risk-soft: rgba(240, 138, 109, 0.14);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #1b1510; --sheet: #241d16; --ink: #f0e7da; --ink-2: #c9bba9;
+  --line: rgba(240, 231, 218, 0.16); --line-soft: rgba(240, 231, 218, 0.08);
+  --accent: #ec915a; --accent-soft: rgba(236, 145, 90, 0.14);
+  --good: #84c79c; --good-soft: rgba(132, 199, 156, 0.13);
+  --warn: #e6b862; --warn-soft: rgba(230, 184, 98, 0.14);
+  --risk: #f08a6d; --risk-soft: rgba(240, 138, 109, 0.14);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--f-body); font-size: 17px; line-height: 1.6; padding-inline: 16px; padding-block: 0 64px; }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; }
+@media (max-width: 960px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+
+/* Index */
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; padding-top: 48px; max-height: 100vh; overflow-y: auto; }
+nav.toc h2 { font-family: var(--f-mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 12px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.toc a { display: grid; grid-template-columns: 2.2em 1fr; color: var(--ink-2); text-decoration: none; font-size: 14px; padding: 4px 8px; border-radius: 8px; }
+nav.toc a span { font-family: var(--f-mono); font-size: 12px; color: var(--accent); padding-top: 2px; }
+nav.toc a:hover, nav.toc a:focus-visible { background: var(--accent-soft); color: var(--ink); outline: none; }
+@media (max-width: 960px) { nav.toc { display: none; } }
+details.toc-m { display: none; margin: 20px 0 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--sheet); padding: 10px 14px; }
+details.toc-m summary { cursor: pointer; font-weight: 600; }
+details.toc-m ol { margin: 10px 0 4px; padding-left: 22px; }
+details.toc-m a { color: var(--ink); }
+@media (max-width: 960px) { details.toc-m { display: block; } }
+
+main { min-width: 0; max-width: 46rem; }
+
+/* Cover */
+header.cover { padding-top: 48px; padding-bottom: 28px; border-bottom: 2px solid var(--ink); }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(2.4rem, 6vw, 3.6rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.lede { font-size: 1.2rem; color: var(--ink-2); margin: 16px 0 22px; max-width: 38rem; text-wrap: pretty; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 22px; font-family: var(--f-mono); font-size: 13px; color: var(--ink-2); }
+.meta b { color: var(--ink); font-weight: 500; }
+
+/* Sections */
+section { padding-top: 44px; scroll-margin-top: 16px; }
+h2.ch { font-family: var(--f-display); font-weight: 600; font-size: 1.85rem; line-height: 1.15; margin: 0 0 6px; text-wrap: balance; display: flex; gap: 14px; align-items: baseline; }
+h2.ch .no { font-family: var(--f-mono); font-size: .95rem; font-weight: 500; color: var(--accent); flex: none; }
+.ch-sub { color: var(--ink-2); margin: 0 0 18px; }
+h3 { font-family: var(--f-display); font-weight: 600; font-size: 1.25rem; margin: 30px 0 8px; text-wrap: balance; }
+p { margin: 0 0 14px; max-width: 65ch; }
+ul, ol { margin: 0 0 14px; padding-left: 1.3em; }
+li { margin-bottom: 6px; }
+strong { font-weight: 700; }
+a { color: var(--accent); text-underline-offset: 2px; }
+code { font-family: var(--f-mono); font-size: .86em; background: var(--line-soft); padding: 1px 5px; border-radius: 5px; }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* Callouts */
+.verdict { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; margin: 18px 0; }
+.verdict h3 { margin-top: 0; }
+.rec { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 14px 18px; border-radius: 0 var(--radius) var(--radius) 0; margin: 14px 0 18px; }
+.rec .lbl { font-family: var(--f-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 4px; }
+.rec p:last-child { margin-bottom: 0; }
+
+/* Tables */
+.tbl { overflow-x: auto; margin: 10px 0 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line-soft); }
+th { font-family: var(--f-mono); font-size: 11.5px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); background: var(--line-soft); }
+tr:last-child td { border-bottom: 0; }
+td.n, th.n { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill { display: inline-block; font-family: var(--f-mono); font-size: 11.5px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.p-good { background: var(--good-soft); color: var(--good); }
+.p-warn { background: var(--warn-soft); color: var(--warn); }
+.p-risk { background: var(--risk-soft); color: var(--risk); }
+.p-acc { background: var(--accent-soft); color: var(--accent); }
+
+/* Facts strip */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin: 16px 0 22px; }
+.fact { background: var(--sheet); padding: 14px 16px; }
+.fact .v { font-family: var(--f-display); font-size: 1.7rem; font-weight: 600; line-height: 1.1; }
+.fact .k { font-size: 13px; color: var(--ink-2); }
+
+/* Stage-gate */
+.sg { overflow-x: auto; margin: 16px 0 8px; }
+.sg-row { display: flex; align-items: stretch; min-width: 760px; }
+.phase { flex: 1 1 0; background: var(--sheet); border: 1px solid var(--line); border-radius: 10px; padding: 10px 10px 12px; min-width: 0; }
+.phase .pn { font-family: var(--f-mono); font-size: 11px; color: var(--accent); }
+.phase .pt { font-weight: 700; font-size: 14px; line-height: 1.2; margin: 2px 0 4px; }
+.phase .pd { font-size: 12.5px; color: var(--ink-2); line-height: 1.35; }
+.phase .pw { font-family: var(--f-mono); font-size: 11px; color: var(--ink-2); margin-top: 6px; }
+.phase.build { background: var(--accent-soft); border-color: var(--accent); }
+.gate { flex: none; width: 30px; display: grid; place-items: center; }
+.gate i { width: 15px; height: 15px; transform: rotate(45deg); background: var(--ink); display: block; }
+.gate-lbl { display: flex; min-width: 760px; font-family: var(--f-mono); font-size: 11px; color: var(--ink-2); }
+.caption { font-size: 13px; color: var(--ink-2); margin: 4px 0 18px; }
+
+/* Decision cards */
+.dec { border: 1px solid var(--line); border-radius: var(--radius); background: var(--sheet); padding: 16px 18px; margin: 14px 0; }
+.dec-h { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.dec-h .id { font-family: var(--f-mono); font-size: 13px; color: var(--accent); }
+.dec-h h3 { margin: 0; }
+.opts { display: grid; gap: 8px; margin: 12px 0 10px; }
+.opt { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--line-soft); font-size: 15px; }
+.opt .k { font-family: var(--f-mono); font-size: 12.5px; color: var(--ink-2); padding-top: 2px; }
+.opt.pick { background: var(--good-soft); outline: 1.5px solid var(--good); }
+.opt.pick .k { color: var(--good); font-weight: 500; }
+.dec .why { font-size: 15px; color: var(--ink-2); margin: 0; }
+
+/* Architecture */
+.arch { display: grid; gap: 10px; margin: 16px 0 6px; }
+.arch-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 10px; }
+.box { border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--sheet); font-size: 14px; }
+.box b { display: block; font-size: 14.5px; }
+.box small { color: var(--ink-2); display: block; line-height: 1.35; }
+.box.new { border-color: var(--accent); border-style: dashed; }
+.lane { font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin-top: 4px; }
+
+/* Risk matrix */
+.rm { display: grid; grid-template-columns: 5.5rem repeat(3, minmax(0, 1fr)); gap: 4px; margin: 14px 0 6px; font-size: 13px; }
+.rm .ax { font-family: var(--f-mono); font-size: 11px; color: var(--ink-2); display: grid; place-items: center; text-align: center; padding: 4px; }
+.rm .cell { min-height: 4.2rem; border-radius: 8px; padding: 6px; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; }
+.c1 { background: var(--good-soft); } .c2 { background: var(--warn-soft); } .c3 { background: var(--risk-soft); }
+.rm .tag { font-family: var(--f-mono); font-size: 11.5px; background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+
+/* Timeline */
+.tl { display: grid; gap: 8px; margin: 14px 0; }
+.tl-row { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 14px; align-items: start; padding: 10px 0; border-bottom: 1px dashed var(--line); }
+.tl-row:last-child { border-bottom: 0; }
+.tl-when { font-family: var(--f-mono); font-size: 13px; color: var(--accent); padding-top: 2px; }
+.tl-what b { display: block; }
+.tl-what span { color: var(--ink-2); font-size: 15px; }
+
+/* Checklists */
+.ql { list-style: none; padding: 0; margin: 8px 0 18px; display: grid; gap: 6px; }
+.ql li { margin: 0; }
+.ql label { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr); gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--sheet); border: 1px solid var(--line-soft); cursor: pointer; font-size: 15.5px; }
+.ql input { width: 1.05rem; height: 1.05rem; margin-top: 3px; accent-color: var(--accent); }
+.ql input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ql input:checked + span { color: var(--ink-2); text-decoration: line-through; text-decoration-color: var(--line); }
+.ql .qid { font-family: var(--f-mono); font-size: 12px; color: var(--accent); margin-right: 6px; }
+.progress { font-family: var(--f-mono); font-size: 13px; color: var(--ink-2); }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 14px; }
+.two > div { min-width: 0; }
+footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); }
+dl.gl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; font-size: 15px; }
+dl.gl dt { font-weight: 700; } dl.gl dd { margin: 0; color: var(--ink-2); }
+@media (max-width: 520px) { dl.gl { grid-template-columns: minmax(0, 1fr); } dl.gl dd { margin-bottom: 8px; } }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <nav class="toc" aria-label="Chapters">
+    <h2>Chapters</h2>
+    <ol>
+      <li><a href="#summary"><span>01</span>Summary</a></li>
+      <li><a href="#baseline"><span>02</span>Where v2 stands</a></li>
+      <li><a href="#process"><span>03</span>How a major version works</a></li>
+      <li><a href="#decisions"><span>04</span>The seven decisions</a></li>
+      <li><a href="#scope"><span>05</span>Scope of work</a></li>
+      <li><a href="#target"><span>06</span>Target picture</a></li>
+      <li><a href="#money"><span>07</span>Costs and AI economics</a></li>
+      <li><a href="#data"><span>08</span>Data and migration</a></li>
+      <li><a href="#risks"><span>09</span>Risks</a></li>
+      <li><a href="#plan"><span>10</span>Plan and timeline</a></li>
+      <li><a href="#questions"><span>11</span>Questions and checks</a></li>
+      <li><a href="#next"><span>12</span>Recommendations</a></li>
+      <li><a href="#appendix"><span>A</span>Glossary and sources</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="cover">
+      <p class="eyebrow">Koch · Major-version preparation</p>
+      <h1>Koch V3 Report</h1>
+      <p class="lede">What a version 3 of the cooking app would involve, which decisions come first, what it costs, and what to do in the next weeks.</p>
+      <div class="meta">
+        <span>Prepared <b>1 Oct 2026</b></span>
+        <span>Baseline <b>v2.13</b> (live)</span>
+        <span>Status <b>preparation, nothing decided</b></span>
+        <span>For <b>Marcel</b></span>
+      </div>
+      <details class="toc-m">
+        <summary>Chapters</summary>
+        <ol>
+          <li><a href="#summary">Summary</a></li><li><a href="#baseline">Where v2 stands</a></li>
+          <li><a href="#process">How a major version works</a></li><li><a href="#decisions">The seven decisions</a></li>
+          <li><a href="#scope">Scope of work</a></li><li><a href="#target">Target picture</a></li>
+          <li><a href="#money">Costs and AI economics</a></li><li><a href="#data">Data and migration</a></li>
+          <li><a href="#risks">Risks</a></li><li><a href="#plan">Plan and timeline</a></li>
+          <li><a href="#questions">Questions and checks</a></li><li><a href="#next">Recommendations</a></li>
+          <li><a href="#appendix">Glossary and sources</a></li>
+        </ol>
+      </details>
+    </header>
+
+    <!-- 01 -->
+    <section id="summary">
+      <h2 class="ch"><span class="no">01</span>Summary</h2>
+      <p class="ch-sub">The short version, for reading on a phone.</p>
+
+      <div class="verdict">
+        <h3>Verdict</h3>
+        <p>The code does not need a V3. v2 is healthy: 206 automated tests, four languages, offline-first, Google Drive sync, and a shared shopping list. A rebuild for its own sake would cost three to five months and mostly move working code around.</p>
+        <p>A V3 makes sense when something <strong>outside the code</strong> changes: who the app is for, where people get it, or who pays for the AI. So the first V3 task is a decision, not a build.</p>
+      </div>
+
+      <h3>Five things to know</h3>
+      <ol>
+        <li><strong>Audience decides the size.</strong> "Me and my partner" is a few v2.x releases. "Friends and family" is a solid V3 of about three to four months. "Public product" is a small business with legal, support and payment duties, roughly three to five times the work.</li>
+        <li><strong>The Play Store is reachable without a rewrite.</strong> Google supports wrapping a PWA as a Trusted Web Activity. It needs a custom domain, a Lighthouse score of at least 80 and a working offline start.</li>
+        <li><strong>The iPhone App Store is the expensive part.</strong> Apple rejects "repackaged websites" (guideline 4.2). iPhone users can keep using the home-screen PWA.</li>
+        <li><strong>AI is cheap per person, but not free to share.</strong> About $0.65 per active user per month, $2.35 for heavy use. Paying for other people's AI needs a small server (a proxy), because a shared key can never ship inside the app.</li>
+        <li><strong>The real technical debts are two:</strong> recipes and the shopping list sync through two separate engines, and there are no end-to-end browser tests. Both can be fixed now, in v2.x, which makes any V3 safer.</li>
+      </ol>
+
+      <div class="rec">
+        <span class="lbl">Recommendation</span>
+        <p><strong>Plan "V3 Personal Pro"</strong>: friends and family, a PWA plus an Android Play build on your own domain, data stays in each user's Google Drive, everyone brings their own AI key, default food photos for the base recipes, one sync engine and an end-to-end test suite. Keep "V3 Product" (accounts, payments) behind a measured gate. Start with the foundation work in v2.x during Q4 2026, and decide the V3 intent in December.</p>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section id="baseline">
+      <h2 class="ch"><span class="no">02</span>Where v2 stands</h2>
+      <p class="ch-sub">The starting line. Everything a V3 does is measured against this.</p>
+
+      <div class="facts">
+        <div class="fact"><div class="v num">v2.13</div><div class="k">live on GitHub Pages</div></div>
+        <div class="fact"><div class="v num">206</div><div class="k">automated tests, all green</div></div>
+        <div class="fact"><div class="v num">47</div><div class="k">JavaScript modules, ~7,200 lines</div></div>
+        <div class="fact"><div class="v num">105</div><div class="k">base recipes in 4 languages</div></div>
+        <div class="fact"><div class="v num">0</div><div class="k">servers, frameworks, trackers</div></div>
+      </div>
+
+      <h3>What works well</h3>
+      <ul>
+        <li><strong>Offline-first.</strong> The app opens from the phone's storage first, then syncs. A missing network never blocks cooking.</li>
+        <li><strong>Your data in your Drive.</strong> Recipes live in one <code>rezepte.json</code> file in your Google Drive, with the narrow <code>drive.file</code> permission. No server holds anyone's data.</li>
+        <li><strong>A stable data contract.</strong> The recipe file follows <code>SCHEMA.md</code>, which v1 and the Claude project instance also use. Translations are display-only, so the stored data stays German and consistent.</li>
+        <li><strong>Honest AI.</strong> AI features use the user's own Anthropic key (BYOK). Without a key or network the app says why, instead of failing silently.</li>
+        <li><strong>Quality habits.</strong> Every release bumps the build and cache stamps. Tests guard translations, the offline file list, syntax, sync merges and the German-data rule. A QA agent fleet reviews architecture, bugs, data integrity, UX and releases.</li>
+      </ul>
+
+      <h3>What a V3 would have to fix or decide</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Area</th><th>Today</th><th>Why it matters for V3</th></tr></thead>
+        <tbody>
+          <tr><td>Sync</td><td>Two engines: <code>sync.js</code> (recipes, last writer wins) and <code>listSync.js</code> (list, per-item merge)</td><td>The architecture review asked for one shared core before a second writer existed. Two engines double the chance of a data bug.</td></tr>
+          <tr><td>Testing</td><td>206 unit tests in Node; no browser tests</td><td>Store builds and real users need the 10 core flows tested in a real browser.</td></tr>
+          <tr><td>Offline file list</td><td>Hand-kept list of every module in <code>sw.js</code> (guarded by a test)</td><td>A small generator script removes the chore entirely.</td></tr>
+          <tr><td>Partner sharing</td><td>Built and simulated; real two-account test pending</td><td>Needs your Google Cloud setup (test user, Picker API key).</td></tr>
+          <tr><td>AI models</td><td>Chat on Haiku 4.5; photo and URL capture on <code>claude-sonnet-4-6</code></td><td>Sonnet 5.5 is newer and cheaper ($2/$10 vs $3/$15 per million tokens). Worth switching after a quick quality check.</td></tr>
+          <tr><td>Versions</td><td>v1 still live at the repo root, v2 at <code>/v2</code>, same origin</td><td>They share browser storage. A V3 must not collide with them, and v1 should retire.</td></tr>
+          <tr><td>Distribution</td><td>Install from the browser only</td><td>No store presence, so nobody finds it without a link.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 03 -->
+    <section id="process">
+      <h2 class="ch"><span class="no">03</span>How a major version works</h2>
+      <p class="ch-sub">A stage-gate process, the same logic as a capital project: short phases, each closed by a gate with evidence.</p>
+
+      <p>A feature release adds to a structure that stays. A major version may change the structure itself: platform, data model, distribution, business model. That freedom is what makes it risky. The typical failure is not bad code. It is rebuilding everything without a clear reason and carrying the old problems into the new structure.</p>
+      <p>The counter-measure is to spend little until the evidence is in. The first four phases are mostly thinking and small throwaway prototypes. The build only starts when the decisions are written down and the risky assumptions are tested.</p>
+
+      <div class="sg" role="img" aria-label="Phases 0 to 8 with gates G0 to G7 between them">
+        <div class="sg-row">
+          <div class="phase"><div class="pn">P0</div><div class="pt">Intent</div><div class="pd">Why V3, for whom, success metric, no-go list</div><div class="pw">~1 wk</div></div>
+          <div class="gate"><i></i></div>
+          <div class="phase"><div class="pn">P1</div><div class="pt">Discovery</div><div class="pd">Usage review, partner interview, pain list</div><div class="pw">1–2 wk</div></div>
+          <div class="gate"><i></i></div>
+          <div class="phase"><div class="pn">P2</div><div class="pt">Decisions</div><div class="pd">ADRs for D1–D7</div><div class="pw">~1 wk</div></div>
+          <div class="gate"><i></i></div>
+          <div class="phase"><div class="pn">P3</div><div class="pt">Spikes</div><div class="pd">Prove or kill risky assumptions</div><div class="pw">1–2 wk</div></div>
+          <div class="gate"><i></i></div>
+          <div class="phase"><div class="pn">P4</div><div class="pt">Plan</div><div class="pd">Slices, tests, migration, release</div><div class="pw">days</div></div>
+          <div class="gate"><i></i></div>
+          <div class="phase build"><div class="pn">P5</div><div class="pt">Build</div><div class="pd">Vertical slices in <code>/v3</code>, v2 stays live</div><div class="pw">4–8 wk</div></div>
+          <div class="gate"><i></i></div>
+          <div class="phase"><div class="pn">P6</div><div class="pt">Beta</div><div class="pd">Closed test, migration rehearsal</div><div class="pw">2–4 wk</div></div>
+          <div class="gate"><i></i></div>
+          <div class="phase"><div class="pn">P7–8</div><div class="pt">Launch, operate</div><div class="pd">Switch default, keep fallback</div><div class="pw">1 wk, then ongoing</div></div>
+        </div>
+      </div>
+      <p class="caption">Diamonds are gates G0–G7. Highlighted: the build phase, where time and risk concentrate. Total for a part-time owner with Claude Code implementing: about three to five months.</p>
+
+      <h3>The gates</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Gate</th><th>Question</th><th>Evidence</th></tr></thead>
+        <tbody>
+          <tr><td class="num">G0</td><td>Is there a reason for V3 that v2.x releases cannot deliver?</td><td>Written intent with at least one structural change</td></tr>
+          <tr><td class="num">G1</td><td>Do we know which problems matter most?</td><td>Ranked pain list from usage and interviews</td></tr>
+          <tr><td class="num">G2</td><td>Are the seven decisions made and recorded?</td><td>Merged ADRs, open points with owners</td></tr>
+          <tr><td class="num">G3</td><td>Is every high-risk assumption tested?</td><td>Spike results: works, does not work, cost</td></tr>
+          <tr><td class="num">G4</td><td>Can the MVP be finished in eight weeks or less?</td><td>Plan of independently shippable slices</td></tr>
+          <tr><td class="num">G5</td><td>Safe to put in front of users?</td><td>All tests green, end-to-end suite, migration rehearsed on real data copies</td></tr>
+          <tr><td class="num">G6</td><td>Ready for everyone?</td><td>No data loss, sync verified with two accounts, cost within budget</td></tr>
+          <tr><td class="num">G7</td><td>Is the switch reversible for 30 days?</td><td>v2 fallback works, backups exist</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>Ways of working during the build</h3>
+      <ul>
+        <li><strong>Parallel run.</strong> V3 grows next to v2, as v2 grew next to v1. Nobody switches until gate G6.</li>
+        <li><strong>Vertical slices.</strong> Each slice goes end to end (screen, data, test, translations, docs) and could ship on its own.</li>
+        <li><strong>Definition of Done</strong> per slice: tests green, all four languages, dark and light checked, phone width checked, changelog line, roadmap updated.</li>
+        <li><strong>One decision log.</strong> Every structural choice becomes an ADR. Changing course means a new ADR, not a quiet drift.</li>
+        <li><strong>Weekly phone demo.</strong> Ten minutes with the real build in hand catches what tests miss.</li>
+      </ul>
+    </section>
+
+    <!-- 04 -->
+    <section id="decisions">
+      <h2 class="ch"><span class="no">04</span>The seven decisions</h2>
+      <p class="ch-sub">Highlighted options are the recommendation for "V3 Personal Pro". Each becomes an ADR once you decide.</p>
+
+      <div class="dec">
+        <div class="dec-h"><span class="id">D1</span><h3>Purpose and audience</h3></div>
+        <div class="opts">
+          <div class="opt"><span class="k">1a</span><span><strong>Personal.</strong> You and your partner. v2.x releases already cover almost everything.</span></div>
+          <div class="opt pick"><span class="k">1b</span><span><strong>Friends and family, up to ~100.</strong> Strangers to the code install it with their own Google account. Needs onboarding, a privacy policy and the Google sign-in app out of test mode.</span></div>
+          <div class="opt"><span class="k">1c</span><span><strong>Public product.</strong> Store listing, accounts, support, possibly payments. An ongoing operation.</span></div>
+        </div>
+        <p class="why">Move from 1b to 1c only after a validation gate, for example ten weekly active users who are not you, four weeks in a row.</p>
+      </div>
+
+      <div class="dec">
+        <div class="dec-h"><span class="id">D2</span><h3>Distribution</h3></div>
+        <div class="opts">
+          <div class="opt"><span class="k">2a</span><span><strong>PWA only</strong> (today). Works on Android and iPhone via "Add to Home Screen". Found only by link.</span></div>
+          <div class="opt pick"><span class="k">2b</span><span><strong>PWA plus an Android Play build (TWA).</strong> Same code, wrapped with Bubblewrap. Needs Digital Asset Links at the domain root, Lighthouse 80+, offline start returning HTTP 200.</span></div>
+          <div class="opt"><span class="k">2c</span><span><strong>Plus iPhone App Store (Capacitor).</strong> Apple's guideline 4.2 rejects thin web wrappers, so it needs real native features. Yearly Apple fee.</span></div>
+        </div>
+        <p class="why">On a project-pages address like <code>marcipane3.github.io/Citchen/</code> the domain root belongs to a different repository, so a custom domain is the clean route for 2b.</p>
+      </div>
+
+      <div class="dec">
+        <div class="dec-h"><span class="id">D3</span><h3>Stack and code base</h3></div>
+        <div class="opts">
+          <div class="opt"><span class="k">3a</span><span><strong>Plain ES modules, no build</strong> (today). Hand-editable, zero dependencies, fast.</span></div>
+          <div class="opt pick"><span class="k">3b</span><span><strong>Plain modules plus one small build script</strong> that generates the offline file list and versioned asset names. Keeps 3a's strengths, removes its one chore.</span></div>
+          <div class="opt"><span class="k">3c</span><span><strong>Light framework</strong> (Svelte or Preact with Vite). Components and an ecosystem, but a rewrite of 47 modules and a larger dependency surface.</span></div>
+          <div class="opt"><span class="k">3d</span><span><strong>Native apps</strong> (Kotlin, Swift). Two code bases, nothing reused.</span></div>
+        </div>
+        <p class="why">Keeping third-party scripts at zero is also a security control: the AI key lives in browser storage, and any added script could read it.</p>
+      </div>
+
+      <div class="dec">
+        <div class="dec-h"><span class="id">D4</span><h3>Data and sync</h3></div>
+        <div class="opts">
+          <div class="opt pick"><span class="k">4a</span><span><strong>Each user's own Google Drive</strong> (today), plus one shared sync engine with a merge rule per file type.</span></div>
+          <div class="opt"><span class="k">4b</span><span><strong>Backend database</strong> (Supabase or Firebase). Easier accounts and sharing, but you become the GDPR data controller, pay for hosting, and the Claude project can no longer edit the recipe file directly.</span></div>
+          <div class="opt"><span class="k">4c</span><span><strong>Hybrid.</strong> Drive for data, a tiny server only for what Drive cannot do (public share links, AI proxy).</span></div>
+        </div>
+        <p class="why">4a is the app's privacy promise and costs nothing. 4c is the natural next step if D5 ever needs a proxy.</p>
+      </div>
+
+      <div class="dec">
+        <div class="dec-h"><span class="id">D5</span><h3>AI and money</h3></div>
+        <div class="opts">
+          <div class="opt pick"><span class="k">5a</span><span><strong>Bring your own key</strong> (today), with all model calls kept behind one client module so a proxy can be added later.</span></div>
+          <div class="opt"><span class="k">5b</span><span><strong>Sponsored quota.</strong> You pay for friends and family up to a cap. Needs a proxy with per-user limits.</span></div>
+          <div class="opt"><span class="k">5c</span><span><strong>Paid tier.</strong> Subscription covers AI. Needs proxy, entitlement checks and store billing or a web checkout link.</span></div>
+        </div>
+        <p class="why">BYOK is the right default for a technical circle. For non-technical friends it is the biggest friction point, so 5b is the likely second step.</p>
+      </div>
+
+      <div class="dec">
+        <div class="dec-h"><span class="id">D6</span><h3>Content</h3></div>
+        <div class="opts">
+          <div class="opt pick"><span class="k">6a</span><span><strong>Default food photos</strong> for the 105 base recipes: AI-generated in one consistent style, WebP up to ~80 KB each (about 8 MB total), loaded on demand rather than pre-cached.</span></div>
+          <div class="opt pick"><span class="k">6b</span><span><strong>Calories and macros</strong> from a bundled USDA/Frida table with an AI fallback (roadmap Epic L).</span></div>
+          <div class="opt"><span class="k">6c</span><span><strong>"Gesund &amp; Langlebig" knowledge section</strong> (Epic N). Better after nutrition data exists.</span></div>
+        </div>
+      </div>
+
+      <div class="dec">
+        <div class="dec-h"><span class="id">D7</span><h3>Domain and old versions</h3></div>
+        <div class="opts">
+          <div class="opt pick"><span class="k">7a</span><span><strong>Custom domain</strong> for V3 (about €10–15 a year), independent of the GitHub username.</span></div>
+          <div class="opt pick"><span class="k">7b</span><span><strong>Retire v1</strong> with a redirect; keep v2 reachable read-only for 30 days after launch.</span></div>
+          <div class="opt"><span class="k">7c</span><span><strong>Stay on the GitHub address</strong> and run V3 at <code>/v3</code>. Cheapest, but blocks a clean Play build.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 -->
+    <section id="scope">
+      <h2 class="ch"><span class="no">05</span>Scope of work</h2>
+      <p class="ch-sub">Nine workstreams. Path A is the recommended "Personal Pro"; Path B is "Product".</p>
+
+      <div class="tbl"><table>
+        <thead><tr><th>Workstream</th><th>Path A: Personal Pro</th><th>Path B adds</th><th>Size</th></tr></thead>
+        <tbody>
+          <tr><td>W1 Product and UX</td><td>Intent, usage review, first-run guide for new users, "what can I cook now" home card, accessibility check</td><td>Full onboarding, account screens</td><td><span class="pill p-acc">M</span></td></tr>
+          <tr><td>W2 Platform</td><td>Custom domain, Android TWA, Play closed test, retire v1</td><td>iPhone App Store build</td><td><span class="pill p-warn">L</span></td></tr>
+          <tr><td>W3 Code and quality</td><td>One sync core, generated offline list, end-to-end tests, model config, performance budget</td><td>Bundler if a framework is chosen</td><td><span class="pill p-warn">L</span></td></tr>
+          <tr><td>W4 Data and sync</td><td>Same Drive files, local data carry-over, Google sign-in out of test mode</td><td>Accounts, backend, public share links</td><td><span class="pill p-acc">M</span></td></tr>
+          <tr><td>W5 AI</td><td>Cost guardrails, prompt caching, Sonnet 5.5 for capture</td><td>Proxy with quotas</td><td><span class="pill p-good">S</span></td></tr>
+          <tr><td>W6 Money</td><td>none</td><td>Pricing, store billing or web checkout, entitlements</td><td><span class="pill p-risk">XL</span></td></tr>
+          <tr><td>W7 Content</td><td>Default photos, nutrition data</td><td>Longevity section</td><td><span class="pill p-warn">L</span></td></tr>
+          <tr><td>W8 Legal and store</td><td>Privacy policy, data-safety form, content rating, developer account</td><td>Terms, EU trader status, image licence register</td><td><span class="pill p-good">S</span></td></tr>
+          <tr><td>W9 Operations</td><td>Backup and restore guide, monthly cost and quarterly QA routine</td><td>Error reporting, support inbox</td><td><span class="pill p-good">S</span></td></tr>
+        </tbody>
+      </table></div>
+      <p class="caption">Sizes: S under half a day · M half a day to two days · L three to five days · XL more than a week. Claude Code implements; you decide and test.</p>
+
+      <div class="two">
+        <div>
+          <h3>Out of scope (unless D1 changes)</h3>
+          <ul>
+            <li>Native rewrite in Kotlin or Swift</li>
+            <li>Real-time co-editing of recipes</li>
+            <li>Social feed, public comments, ratings by strangers</li>
+            <li>A server that stores user data (Path A)</li>
+            <li>Grocery delivery integrations</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Rough totals</h3>
+          <div class="tbl"><table>
+            <thead><tr><th>Path</th><th>Build</th><th>Calendar</th></tr></thead>
+            <tbody>
+              <tr><td>A</td><td>6–9 weeks of slices</td><td>3–4 months</td></tr>
+              <tr><td>B</td><td>4–6 months</td><td>6–9 months</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 -->
+    <section id="target">
+      <h2 class="ch"><span class="no">06</span>Target picture</h2>
+      <p class="ch-sub">How "V3 Personal Pro" fits together. Dashed boxes are new; everything else exists today.</p>
+
+      <div class="arch" role="img" aria-label="Architecture: devices, app layers, user's Google Drive and Anthropic">
+        <div class="lane">Where people get it</div>
+        <div class="arch-row">
+          <div class="box"><b>Browser PWA</b><small>Android, iPhone, laptop. Install via "Add to Home Screen".</small></div>
+          <div class="box new"><b>Play Store build</b><small>Trusted Web Activity wrapping the same PWA.</small></div>
+          <div class="box new"><b>Custom domain</b><small>Serves the app and <code>/.well-known/assetlinks.json</code>.</small></div>
+        </div>
+        <div class="lane">Inside the app</div>
+        <div class="arch-row">
+          <div class="box"><b>Screens</b><small>Cookbook, cooking mode, planner, shopping, Lager, capture, assistant. Tab bar, four languages.</small></div>
+          <div class="box"><b>Shared catalog and logic</b><small>Pure, tested modules. One catalog for icons and aisles.</small></div>
+          <div class="box new"><b>One sync core</b><small>Recipes: last writer wins. List: per-item merge. Same engine.</small></div>
+          <div class="box"><b>Local store</b><small>IndexedDB + service worker. Works offline.</small></div>
+        </div>
+        <div class="lane">Outside services (user's own accounts)</div>
+        <div class="arch-row">
+          <div class="box"><b>User's Google Drive</b><small><code>rezepte.json</code>, <code>einkaufsliste.json</code>, photos. <code>drive.file</code> scope.</small></div>
+          <div class="box"><b>Anthropic API</b><small>With the user's own key. Haiku 4.5 for chat, Sonnet 5.5 for capture.</small></div>
+          <div class="box new"><b>Optional AI proxy</b><small>Only if D5 moves to a sponsored quota. Holds the key server-side.</small></div>
+        </div>
+      </div>
+      <p class="caption">No server stores user data. The only optional server is the AI proxy, and only if you decide to pay for other people's AI.</p>
+
+      <h3>What stays exactly as it is</h3>
+      <ul>
+        <li>The recipe file format (<code>SCHEMA.md</code>, flat-v3). New fields such as nutrition are added, never renamed.</li>
+        <li>German as the stored language; translations as overlays.</li>
+        <li>The Claude project instance can keep editing the recipe file directly.</li>
+        <li>Every release bumps the build and cache stamps.</li>
+      </ul>
+    </section>
+
+    <!-- 07 -->
+    <section id="money">
+      <h2 class="ch"><span class="no">07</span>Costs and AI economics</h2>
+      <p class="ch-sub">Fixed costs are small. AI is the only variable cost, and with BYOK each user pays their own.</p>
+
+      <h3>Fixed costs</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Item</th><th>Path</th><th class="n">Cost</th></tr></thead>
+        <tbody>
+          <tr><td>Hosting (GitHub Pages)</td><td>A, B</td><td class="n">free</td></tr>
+          <tr><td>Custom domain</td><td>A, B</td><td class="n">~€10–15 / year</td></tr>
+          <tr><td>Google Play developer account</td><td>A, B</td><td class="n">$25 once</td></tr>
+          <tr><td>Google Cloud (sign-in, Drive API, Picker)</td><td>A, B</td><td class="n">free at this scale</td></tr>
+          <tr><td>Apple developer programme</td><td>B with iPhone app</td><td class="n">$99 / year</td></tr>
+          <tr><td>AI proxy (e.g. a serverless worker)</td><td>B, or A with 5b</td><td class="n">free tier likely enough</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>AI cost per action (estimates)</h3>
+      <p>Current list prices: Haiku 4.5 at $1 input and $5 output per million tokens; Sonnet 5.5 at $2 and $10. Token counts below are estimates for this app's prompts, not measurements. Check C-10 replaces them with real numbers from the API responses.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Action</th><th>Model</th><th class="n">Input tok.</th><th class="n">Output tok.</th><th class="n">Cost</th></tr></thead>
+        <tbody>
+          <tr><td>Photo scan of a recipe</td><td>Sonnet 5.5</td><td class="n">~2,500</td><td class="n">~800</td><td class="n">$0.013</td></tr>
+          <tr><td>URL import (page read via web fetch)</td><td>Sonnet 5.5</td><td class="n">~15,000</td><td class="n">~800</td><td class="n">$0.038</td></tr>
+          <tr><td>Assistant suggestion (sends the recipe list)</td><td>Haiku 4.5</td><td class="n">~5,000</td><td class="n">~500</td><td class="n">$0.0075</td></tr>
+          <tr><td>Bulk "AI ideas" (6 recipes)</td><td>Haiku 4.5</td><td class="n">~1,500</td><td class="n">~4,000</td><td class="n">$0.022</td></tr>
+          <tr><td>Fridge photo scan</td><td>Sonnet 5.5</td><td class="n">~3,000</td><td class="n">~600</td><td class="n">$0.012</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="tbl"><table>
+        <thead><tr><th>Monthly profile</th><th>Usage</th><th class="n">AI cost / month</th></tr></thead>
+        <tbody>
+          <tr><td>Typical</td><td>8 photo scans, 4 URL imports, 40 suggestions, 2 bulk runs, 4 fridge scans</td><td class="n">~$0.65</td></tr>
+          <tr><td>Heavy</td><td>25 scans, 15 imports, 150 suggestions, 8 bulk runs, 10 fridge scans</td><td class="n">~$2.35</td></tr>
+          <tr><td>Sponsoring 20 friends (typical)</td><td>20 × typical</td><td class="n">~$13</td></tr>
+        </tbody>
+      </table></div>
+      <p>Two cheap savings exist today. Caching the assistant's system prompt (it repeats the full recipe list on every call) cuts the suggestion cost by roughly half. Moving capture from <code>claude-sonnet-4-6</code> to <code>claude-sonnet-5-5</code> cuts capture cost by about a third.</p>
+
+      <h3>If V3 ever charges money (Path B)</h3>
+      <p>From 30 June 2026, Google Play charges a 10% service fee on auto-renewing subscriptions in the US, EEA and UK, plus a 5% billing fee when Play Billing processes the payment. Developers may also link out to their own web checkout under Google's billing-choice programme. At a €2.99 monthly subscription, about €2.54 remains after Play fees. A typical user's AI costs about €0.60, so roughly €1.90 per paying user is left before support time and taxes. A heavy user nearly cancels that out, which is why any paid tier needs usage caps.</p>
+      <div class="rec">
+        <span class="lbl">Read this as</span>
+        <p>Money is not a reason to build V3. At family scale the whole app costs under €20 a year to run. Payments only make sense if D1 becomes "public product", and then they are an operational commitment, not a feature.</p>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section id="data">
+      <h2 class="ch"><span class="no">08</span>Data and migration</h2>
+      <p class="ch-sub">What moves, what does not, and the one trap with a new domain.</p>
+
+      <div class="tbl"><table>
+        <thead><tr><th>Data</th><th>Lives in</th><th>On move to V3</th></tr></thead>
+        <tbody>
+          <tr><td>Recipes</td><td>Your Drive, <code>rezepte.json</code></td><td><span class="pill p-good">safe</span> Same file, same schema, nothing to migrate</td></tr>
+          <tr><td>Shopping list</td><td>Drive, <code>einkaufsliste.json</code></td><td><span class="pill p-good">safe</span> Same file and merge format</td></tr>
+          <tr><td>Photos</td><td>Drive files</td><td><span class="pill p-good">safe</span> Referenced by id from recipes</td></tr>
+          <tr><td>Pantry, fridge, cook profile, theme, language</td><td>Browser storage only</td><td><span class="pill p-warn">carry over</span> Same address: automatic. New domain: export and import</td></tr>
+          <tr><td>AI key</td><td>Browser storage only</td><td><span class="pill p-warn">re-enter</span> New domain means pasting the key again</td></tr>
+          <tr><td>Unsynced edits</td><td>Browser storage only</td><td><span class="pill p-risk">at risk</span> Sync before switching; the app should check and warn</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>The domain trap</h3>
+      <p>Browser storage belongs to an origin (scheme plus host), not to a folder. Today v1, v2 and any <code>/v3</code> folder all share <code>marcipane3.github.io</code>, so they see each other's storage. That is convenient for migration and dangerous for collisions. A custom domain is a new origin: Drive data is unaffected, but everything stored only in the browser starts empty. The fix is a small "move to the new app" helper in v2 that exports local settings, plus a check that nothing is waiting to sync.</p>
+
+      <h3>Rehearsal before beta (gate G5)</h3>
+      <ol>
+        <li>Copy the real <code>rezepte.json</code> and <code>einkaufsliste.json</code>.</li>
+        <li>Run V3 against the copies in a clean browser profile.</li>
+        <li>Compare every recipe after a round trip: id, name, ingredient count, photo references.</li>
+        <li>Run v2's test fixtures through V3's loaders.</li>
+        <li>Only then point V3 at the real files.</li>
+      </ol>
+
+      <h3>Rollback</h3>
+      <p>Because the file format stays the same, v2 can read anything V3 writes. Keep v2 reachable for 30 days after launch. In the Play console, a bad release can be halted and the previous one kept. Feature flags switch off risky features without a new build.</p>
+    </section>
+
+    <!-- 09 -->
+    <section id="risks">
+      <h2 class="ch"><span class="no">09</span>Risks</h2>
+      <p class="ch-sub">Likelihood times impact, each on a scale of 1 to 3. Review at every gate.</p>
+
+      <div class="rm" role="img" aria-label="Risk matrix, likelihood across, impact down">
+        <div class="ax"></div><div class="ax">Likelihood low</div><div class="ax">medium</div><div class="ax">high</div>
+        <div class="ax">Impact high</div>
+        <div class="cell c2"><span class="tag">R7 AI cost</span><span class="tag">R10 privacy</span></div>
+        <div class="cell c3"><span class="tag">R2 data loss</span><span class="tag">R5 contract</span></div>
+        <div class="cell c3"><span class="tag">R1 scope creep</span></div>
+        <div class="ax">medium</div>
+        <div class="cell c1"></div>
+        <div class="cell c2"><span class="tag">R4 Play</span><span class="tag">R6 sign-in</span><span class="tag">R8 cache</span><span class="tag">R9 model</span></div>
+        <div class="cell c3"><span class="tag">R3 owner time</span></div>
+        <div class="ax">low</div>
+        <div class="cell c1"></div>
+        <div class="cell c1"><span class="tag">R12 testers</span></div>
+        <div class="cell c2"><span class="tag">R11 Apple</span></div>
+      </div>
+      <p class="caption">Red cells need a named counter-measure before the build starts.</p>
+
+      <div class="tbl"><table>
+        <thead><tr><th>Risk</th><th class="n">Score</th><th>Counter-measure</th></tr></thead>
+        <tbody>
+          <tr><td><strong>R1</strong> Scope creep turns V3 into an endless rewrite</td><td class="n"><span class="pill p-risk">9</span></td><td>Written no-go list; MVP capped at eight weeks at gate G4; v2 stays the product until G6</td></tr>
+          <tr><td><strong>R2</strong> Recipe data lost or corrupted in migration</td><td class="n"><span class="pill p-risk">6</span></td><td>Schema unchanged; backup export; rehearsal on copies; round-trip tests</td></tr>
+          <tr><td><strong>R3</strong> Owner time runs out (contract ends Dec 2026)</td><td class="n"><span class="pill p-risk">6</span></td><td>Time budget in the intent; small slices; foundation work done early in v2.x</td></tr>
+          <tr><td><strong>R5</strong> v1 or Claude-project contract broken</td><td class="n"><span class="pill p-risk">6</span></td><td>Additive fields only; contract test against <code>SCHEMA.md</code>; data-guardian review</td></tr>
+          <tr><td><strong>R4</strong> Play rejects the TWA build</td><td class="n"><span class="pill p-warn">4</span></td><td>Spike in phase 3 on the custom domain; offline start in end-to-end tests</td></tr>
+          <tr><td><strong>R6</strong> Partner or friends cannot sign in (Google test mode)</td><td class="n"><span class="pill p-warn">4</span></td><td>Add test users now; plan verification before the friends beta</td></tr>
+          <tr><td><strong>R8</strong> Stale offline cache mixes old and new files</td><td class="n"><span class="pill p-warn">4</span></td><td>Generated file list; "update available" prompt; cache bump test</td></tr>
+          <tr><td><strong>R9</strong> A model is retired and capture breaks</td><td class="n"><span class="pill p-warn">4</span></td><td>Model ids in one config; ten-sample capture check per model change</td></tr>
+          <tr><td><strong>R7</strong> AI cost runaway</td><td class="n"><span class="pill p-warn">3</span></td><td>BYOK default; proxy with per-user caps if sponsoring</td></tr>
+          <tr><td><strong>R10</strong> Privacy leak through an added script</td><td class="n"><span class="pill p-warn">3</span></td><td>Zero third-party scripts written down as a security rule</td></tr>
+          <tr><td><strong>R11</strong> Apple rejects an iPhone wrapper</td><td class="n"><span class="pill p-warn">3</span></td><td>Not built on Path A; iPhone users keep the PWA</td></tr>
+          <tr><td><strong>R12</strong> Play's closed-test rule delays launch</td><td class="n"><span class="pill p-good">2</span></td><td>Recruit testers during the build</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 10 -->
+    <section id="plan">
+      <h2 class="ch"><span class="no">10</span>Plan and timeline</h2>
+      <p class="ch-sub">A realistic calendar for Path A, shaped around a busy Q4 2026.</p>
+
+      <p>The idea: the foundation work that any V3 needs is also useful in v2 right now. Doing it in Q4 as normal v2.x releases makes V3 smaller and safer, and it delivers value even if V3 never happens.</p>
+
+      <div class="tl">
+        <div class="tl-row"><div class="tl-when">Oct 2026</div><div class="tl-what"><b>Close open v2 loops</b><span>Partner sharing set up and tested with two real accounts. Decide the nutrition model (Epic L1). Switch capture to Sonnet 5.5 after a ten-sample check.</span></div></div>
+        <div class="tl-row"><div class="tl-when">Nov 2026</div><div class="tl-what"><b>Foundation in v2.x</b><span>One sync core for recipes and list. End-to-end browser tests for the core flows. Generated offline file list. Calories on recipes (L2, L3).</span></div></div>
+        <div class="tl-row"><div class="tl-when">Dec 2026</div><div class="tl-what"><b>P0–P2: Intent, discovery, decisions</b><span>About three hours of your time in total: answer chapter 11, talk to your partner, decide D1–D7. Claude writes the ADRs. Gates G0–G2.</span></div></div>
+        <div class="tl-row"><div class="tl-when">Jan 2027</div><div class="tl-what"><b>P3–P4: Spikes and plan</b><span>Custom domain and a test TWA build through Play's checks. Photo pipeline sample. Migration helper prototype. Slice plan. Gates G3–G4.</span></div></div>
+        <div class="tl-row"><div class="tl-when">Feb–Mar 2027</div><div class="tl-what"><b>P5: Build</b><span>Six to eight weekly slices in <code>/v3</code>: onboarding, home card, default photos, Play build, privacy policy, migration helper, polish. Gate G5 with the rehearsal.</span></div></div>
+        <div class="tl-row"><div class="tl-when">Apr 2027</div><div class="tl-what"><b>P6: Beta</b><span>Play closed test with your partner and friends. Fix, re-test. Gate G6.</span></div></div>
+        <div class="tl-row"><div class="tl-when">May 2027</div><div class="tl-what"><b>P7: Launch</b><span>Switch the default address, redirect v1, keep v2 as fallback for 30 days. Gate G7.</span></div></div>
+      </div>
+
+      <h3>Roles</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Role</th><th>Who</th><th>Does</th></tr></thead>
+        <tbody>
+          <tr><td>Product owner</td><td>Marcel</td><td>Intent, decisions, priorities, acceptance at each gate, phone testing</td></tr>
+          <tr><td>Architect and builder</td><td>Claude Code</td><td>Spikes, ADR drafts, code, tests, docs, release mechanics</td></tr>
+          <tr><td>Reviewers</td><td>QA agent fleet</td><td>Architecture, bugs, data integrity, UX, release go/no-go</td></tr>
+          <tr><td>Testers</td><td>Partner, friends</td><td>Real devices, real use, feedback</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 11 -->
+    <section id="questions">
+      <h2 class="ch"><span class="no">11</span>Questions and checks</h2>
+      <p class="ch-sub">Tick what you have answered. Ticks are saved in this browser only. The full list (with space for answers) is in <code>docs/v3/03-QUESTIONS.md</code>.</p>
+      <p class="progress" id="qprog" aria-live="polite"></p>
+
+      <h3>For you: the ones that decide everything</h3>
+      <ul class="ql">
+        <li><label><input type="checkbox" id="q-a1"><span><span class="qid">A1</span>In one sentence: what should V3 let you or others do that v2 cannot?</span></label></li>
+        <li><label><input type="checkbox" id="q-a2"><span><span class="qid">A2</span>Who is it for: only you and your partner, friends and family, or anyone?</span></label></li>
+        <li><label><input type="checkbox" id="q-a3"><span><span class="qid">A3</span>If others: what do they get that Paprika, Mealime or Samsung Food do not give them?</span></label></li>
+        <li><label><input type="checkbox" id="q-a4"><span><span class="qid">A4</span>What does success look like three months after launch? One measurable thing.</span></label></li>
+        <li><label><input type="checkbox" id="q-a5"><span><span class="qid">A5</span>What is explicitly not part of V3? Three to five no-gos.</span></label></li>
+        <li><label><input type="checkbox" id="q-b1"><span><span class="qid">B1</span>How many hours a week can you give V3 for testing and decisions, Oct 2026 to Mar 2027?</span></label></li>
+        <li><label><input type="checkbox" id="q-b3"><span><span class="qid">B3</span>Small v2.x improvements now and V3 in 2027, or pause v2.x and focus on V3?</span></label></li>
+      </ul>
+
+      <h3>For you: distribution, money, data</h3>
+      <ul class="ql">
+        <li><label><input type="checkbox" id="q-c1"><span><span class="qid">C1</span>Is the Google Play Store a real goal, or is installing from the browser enough?</span></label></li>
+        <li><label><input type="checkbox" id="q-c2"><span><span class="qid">C2</span>Do you or your partner use an iPhone?</span></label></li>
+        <li><label><input type="checkbox" id="q-c3"><span><span class="qid">C3</span>Are you OK buying a custom domain (about €10–15 a year)?</span></label></li>
+        <li><label><input type="checkbox" id="q-c4"><span><span class="qid">C4</span>Can v1, the old app at the repo root, be retired?</span></label></li>
+        <li><label><input type="checkbox" id="q-d1"><span><span class="qid">D1</span>Should V3 ever earn money: no, cover costs, or side income?</span></label></li>
+        <li><label><input type="checkbox" id="q-d2"><span><span class="qid">D2</span>Who pays for AI: each user, you up to a cap, or a subscription?</span></label></li>
+        <li><label><input type="checkbox" id="q-e1"><span><span class="qid">E1</span>Must every user's data stay in their own Google Drive?</span></label></li>
+        <li><label><input type="checkbox" id="q-e3"><span><span class="qid">E3</span>Must the Claude project keep editing <code>rezepte.json</code> directly?</span></label></li>
+        <li><label><input type="checkbox" id="q-f1"><span><span class="qid">F1</span>Which v2 screens do you use weekly, and which never?</span></label></li>
+        <li><label><input type="checkbox" id="q-f2"><span><span class="qid">F2</span>Default food photos: AI-generated, licensed stock, or your own?</span></label></li>
+        <li><label><input type="checkbox" id="q-g1"><span><span class="qid">G1</span>What would make you stop using the app?</span></label></li>
+        <li><label><input type="checkbox" id="q-g2"><span><span class="qid">G2</span>Is it fine if V3 launches with fewer features than v2, if it is more solid?</span></label></li>
+      </ul>
+
+      <h3>For Claude Code: checks before anything is built</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Check</th><th>What is verified</th></tr></thead>
+        <tbody>
+          <tr><td class="num">C-1</td><td>Where <code>assetlinks.json</code> can be served for a TWA; custom domain versus user-site repository</td></tr>
+          <tr><td class="num">C-2</td><td>Play requirements at enrolment time: target API level, closed-test rule for new personal accounts, data-safety fields</td></tr>
+          <tr><td class="num">C-3</td><td>Lighthouse 80+ and an offline start that returns HTTP 200</td></tr>
+          <tr><td class="num">C-5</td><td>No storage or service-worker scope collisions between v1, v2 and v3 on the shared origin</td></tr>
+          <tr><td class="num">C-6</td><td>Round trip of the real recipe file (a copy) through V3 is byte-stable</td></tr>
+          <tr><td class="num">C-7</td><td>One sync core passes all existing tests plus two-instance tests</td></tr>
+          <tr><td class="num">C-8</td><td>Google sign-in limits in test mode and what production verification needs</td></tr>
+          <tr><td class="num">C-9</td><td>Sonnet 5.5 capture quality on ten real photos and URLs</td></tr>
+          <tr><td class="num">C-10</td><td>Real token usage per action, replacing the estimates in chapter 07</td></tr>
+          <tr><td class="num">C-13</td><td>End-to-end suite for the ten core flows, including update from v2 and offline start</td></tr>
+          <tr><td class="num">C-14</td><td>No new third-party scripts; content-security policy possible on the new host</td></tr>
+          <tr><td class="num">C-17</td><td>Privacy policy draft: Drive data stays with the user, AI goes from the device to Anthropic with the user's key, no tracking</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 12 -->
+    <section id="next">
+      <h2 class="ch"><span class="no">12</span>Recommendations</h2>
+      <p class="ch-sub">What to do now, and what to focus on afterwards.</p>
+
+      <h3>Your open tasks today</h3>
+      <ol>
+        <li><strong>Google Cloud setup for partner sharing</strong> (about 15 minutes, steps in <code>v2/docs/SHARING.md</code>): add your partner as a test user, turn on the Google Picker API, create a restricted API key and send it to Claude Code.</li>
+        <li><strong>Real two-account test</strong> of the shared shopping list with your partner (the nine-step table in the same guide).</li>
+        <li><strong>Try v2.13 on your phone with your AI key:</strong> capture a recipe by photo, by URL and with "KI-Ideen". These paths could not be tested live without a key.</li>
+        <li><strong>Review roadmap sections 16–18</strong> and decide the nutrition model (L1), plus approve the reading list for the longevity section (N3).</li>
+        <li><strong>Small leftover decision:</strong> Markdown export in German only, or in the app language (roadmap S2).</li>
+        <li><strong>Housekeeping:</strong> the root <code>rezepte.json</code> copy and a local <code>.planning/config.json</code> change are not committed. Decide whether to keep, ignore or delete them.</li>
+      </ol>
+
+      <h3>What to focus on afterwards, in order</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>#</th><th>Focus</th><th>Why this order</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td>Finish partner sharing</td><td>It is the only shipped feature not yet proven with real accounts.</td></tr>
+          <tr><td class="num">2</td><td>Calories (Epic L1–L3)</td><td>Your most concrete open ask; it also unlocks the fitness filters.</td></tr>
+          <tr><td class="num">3</td><td>Sync core and end-to-end tests</td><td>The two debts every V3 path needs paid; cheaper now than during a rebuild.</td></tr>
+          <tr><td class="num">4</td><td>Capture on Sonnet 5.5, prompt caching</td><td>Lower AI cost, newer model; small and testable.</td></tr>
+          <tr><td class="num">5</td><td>V3 intent and decisions (December)</td><td>Decide with the foundation already in place, not before.</td></tr>
+          <tr><td class="num">6</td><td>Fitness preferences (Epic M)</td><td>Cheap once nutrition data exists.</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="rec">
+        <span class="lbl">Bottom line</span>
+        <p>Do not start building V3 yet. Spend Q4 closing open loops and paying the two technical debts as normal v2.x releases. Then answer chapter 11 in one sitting in December. If the answer to A2 is "only me and my partner", V3 shrinks to a Play build plus photos, and that is a good outcome.</p>
+      </div>
+    </section>
+
+    <!-- Appendix -->
+    <section id="appendix">
+      <h2 class="ch"><span class="no">A</span>Glossary and sources</h2>
+
+      <dl class="gl">
+        <dt>PWA</dt><dd>Progressive Web App. A website that installs to the home screen and works offline.</dd>
+        <dt>TWA</dt><dd>Trusted Web Activity. Google's way to publish a PWA in the Play Store without rewriting it.</dd>
+        <dt>Digital Asset Links</dt><dd>A small file on the website (<code>assetlinks.json</code>) that proves the app and the site belong together.</dd>
+        <dt>BYOK</dt><dd>Bring your own key. Each user pastes their own Anthropic API key; the app never holds a shared one.</dd>
+        <dt>Proxy</dt><dd>A small server that holds a secret key and forwards AI calls, with limits per user.</dd>
+        <dt>ADR</dt><dd>Architecture Decision Record. One page: context, options, decision, consequences.</dd>
+        <dt>Stage-gate</dt><dd>Work in phases; each ends with a go/no-go decision based on evidence.</dd>
+        <dt>Origin</dt><dd>Scheme plus host of a web address. Browser storage is kept per origin.</dd>
+        <dt>LWW</dt><dd>Last writer wins. On conflict, the newer version replaces the older one.</dd>
+        <dt>Item merge</dt><dd>Conflicts resolved per list item, so two people can edit the same list at once.</dd>
+      </dl>
+
+      <h3>Sources</h3>
+      <ul>
+        <li>Android Developers, <a href="https://developer.android.com/develop/ui/views/layout/webapps/trusted-web-activities" rel="noopener">Overview of Trusted Web Activities</a></li>
+        <li>Google Codelab, <a href="https://developers.google.com/codelabs/pwa-in-play" rel="noopener">Adding your Progressive Web App to Google Play</a></li>
+        <li>MobiLoud, <a href="https://www.mobiloud.com/blog/publishing-pwa-app-store/" rel="noopener">Can you publish a PWA to the App Store and Google Play? (2026)</a></li>
+        <li>Android Developers Blog, <a href="https://android-developers.googleblog.com/2026/06/play-expanded-billing.html" rel="noopener">Expanded billing choice and lower fees on Google Play (June 2026)</a></li>
+        <li>Play Console Help, <a href="https://support.google.com/googleplay/android-developer/answer/12348241?hl=en" rel="noopener">Alternative billing for users in the EEA</a></li>
+        <li>Anthropic model pricing, cached 25 Sep 2026: Haiku 4.5 $1/$5, Sonnet 5.5 $2/$10, Sonnet 4.6 $3/$15 per million input/output tokens</li>
+        <li>Internal: <code>qa/findings/architect.md</code> (architecture review), <code>ROADMAP.md</code> §13 (V3 horizon), <code>v2/docs/SHARING.md</code></li>
+      </ul>
+
+      <footer>
+        Koch V3 Report · prepared by Claude Code for Marcel · 1 October 2026 · Working files: <code>docs/v3/</code> in the Citchen repository. Estimates are marked as such; facts about store rules should be re-checked at enrolment time (check C-2).
+      </footer>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  var KEY = "koch-v3-report-questions";
+  var boxes = Array.prototype.slice.call(document.querySelectorAll(".ql input[type=checkbox]"));
+  var prog = document.getElementById("qprog");
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { saved = {}; }
+  function paint() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    prog.textContent = done + " of " + boxes.length + " questions answered";
+  }
+  boxes.forEach(function (b) {
+    if (saved[b.id]) b.checked = true;
+    b.addEventListener("change", function () {
+      saved[b.id] = b.checked;
+      try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) { /* storage unavailable */ }
+      paint();
+    });
+  });
+  paint();
+})();
+</script>
+
+</body>
+</html>
