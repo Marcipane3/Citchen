@@ -328,6 +328,7 @@ label.check input { width: auto; }
 .stock-chip { padding: 7px 13px; border-radius: 20px; border: 1.5px solid var(--line); background: transparent; font-weight: 600; font-size: 13px; color: var(--muted-strong); white-space: nowrap; }
 .stock-chip.on { background: var(--badge-alltag-bg); color: var(--badge-alltag-fg); border-color: var(--badge-alltag-fg); }
 .stock-chip .x { margin-left: 6px; opacity: .5; }
+.stock-chip .sc-ic { margin-right: 5px; }
 .fridge-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
 .fridge-item .fi-ic { font-size: 18px; flex: 0 0 auto; }
 .fridge-item .fi-name { flex: 1; font-size: 15px; }
@@ -403,3 +404,13 @@ body.no-tabbar .tabbar { display: none; }
   body.typing .tabbar { display: none; }
   body.typing .ai-inputbar { bottom: env(safe-area-inset-bottom); }
 }
+
+/* ---------- D2: Zutaten mit Katalog-Symbol (Detail + Kochmodus) ---------- */
+.sheet .ing-list, .ing-list { list-style: none; padding-left: 0; }
+.ing-list li { display: flex; gap: 10px; align-items: baseline; }
+.ing-ic { flex: 0 0 1.4em; text-align: center; font-size: .95em; color: var(--muted); }
+
+/* ---------- C2: Fortschritt/Meldungen in der jeweiligen Erfassungs-Karte ---------- */
+.cap-slot:empty { display: none; }
+.cap-slot { margin-top: 10px; }
+.cap-msg { margin: 0; }

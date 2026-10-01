@@ -12,8 +12,10 @@ import { t, tCat } from "../../i18n.js";
  * Neues Rezept / Bearbeiten / Entwurf prüfen.
  * draft=true: existing füllt nur die Felder vor (Review-vor-Speichern,
  * z.B. aus der Erfassung) — gespeichert wird als NEUES Rezept via addRecipe.
+ * onSubmit(fields): statt zu speichern nur die Felder zurückgeben (C2: Bearbeiten in der
+ * Sammel-Erfassung — gespeichert wird dort erst mit „Ausgewählte speichern“, kein Duplikat).
  */
-export function openForm(existing, { draft = false } = {}) {
+export function openForm(existing, { draft = false, onSubmit = null } = {}) {
   const prefill = existing || null;       // füllt die Felder
   const ed = draft ? null : prefill;      // nur echte Rezepte werden aktualisiert
 
@@ -44,7 +46,7 @@ export function openForm(existing, { draft = false } = {}) {
     <label>${t("form.ingredients")}</label><div id="f-ing"></div>
     <label>${t("form.steps")}</label><div id="f-steps"></div>
     <label>${t("form.tips")}</label><textarea class="f" id="f-tips" rows="3" placeholder="${t("form.tipsPlaceholder")}"></textarea>
-    <button class="save-btn">${t("common.save")}</button>
+    <button class="save-btn">${onSubmit ? t("form.apply") : t("common.save")}</button>
   `;
 
   const { el, close } = openSheet(html);
@@ -91,6 +93,8 @@ export function openForm(existing, { draft = false } = {}) {
       mealPrep: el.querySelector("#f-mealprep").checked,
       toTry: el.querySelector("#f-totry").checked,
     };
+
+    if (onSubmit) { close(); onSubmit(fields); return; }
 
     try {
       if (ed) {

@@ -5,6 +5,7 @@ import { state, getRecipe, getRecipeDe, updateRecipe, deleteRecipe } from "../..
 import * as drive from "../../data/drive.js";
 import { parseTipps, hasStructuredTipps } from "../../data/derive.js";
 import { esc, metaBadges, loadHeroInto, compressImage } from "../../ui/helpers.js";
+import { ingredientIcons } from "../../data/catalog.js";
 import { openSheet, closeAllSheets } from "../../ui/sheet.js";
 import { openForm } from "./form.js";
 import { navigate } from "../../router.js";
@@ -51,7 +52,7 @@ export function openDetail(id) {
     ${r.photos && r.photos.length ? `<div class="photostrip">${r.photos.map((p) => `
       <div class="ph"><div class="thumb" data-photo="${esc(p.id)}"></div><button class="rm" data-rm="${esc(p.id)}" aria-label="${t("common.remove")}">✕</button></div>`).join("")}</div>` : ""}
 
-    ${r.ingredients && r.ingredients.length ? `<h3>${t("detail.ingredients")}</h3><ul>${r.ingredients.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>
+    ${r.ingredients && r.ingredients.length ? `<h3>${t("detail.ingredients")}</h3><ul class="ing-list">${ingLines(r)}</ul>
       <button class="btn-sec add-ing-shop" style="width:100%;margin-top:6px">${t("detail.toShopping")}</button>` : ""}
     ${r.steps && r.steps.length ? `<h3>${t("detail.steps")}</h3><ol>${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>` : ""}
     ${tippsHTML(r)}
@@ -184,4 +185,11 @@ export function openDetail(id) {
     (r.photos || []).forEach((p) => drive.deleteFile(p.id)); // Drive-Fotos mit aufräumen
     try { await deleteRecipe(r.id); close(); } catch (err) { alert(err.message); }
   };
+}
+
+/** D2: Zutaten mit Katalog-Symbol (Match auf der deutschen Zeile, Anzeige lokalisiert). */
+function ingLines(r) {
+  const de = getRecipeDe(r.id);
+  const icons = ingredientIcons(r.ingredients, (de && de.ingredients) || []);
+  return r.ingredients.map((i, n) => `<li><span class="ing-ic" aria-hidden="true">${icons[n] || "·"}</span><span>${esc(i)}</span></li>`).join("");
 }

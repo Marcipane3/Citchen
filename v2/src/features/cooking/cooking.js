@@ -3,7 +3,8 @@
 // Fortschritt, Schritt-Timer mit Alarm, einklappbare Zutaten ohne Re-Render)
 // + v2: Portions-Scaler (live skalierte Mengen) und kontextuelle Tipps.
 
-import { getRecipe } from "../../store.js";
+import { getRecipe, getRecipeDe } from "../../store.js";
+import { ingredientIcons } from "../../data/catalog.js";
 import * as db from "../../data/db.js";
 import { parseMinutes, parseTipps, hasStructuredTipps, scaleIngredient, parseServings } from "../../data/derive.js";
 import { esc } from "../../ui/helpers.js";
@@ -50,6 +51,7 @@ export function renderCook(container, id) {
   if (!r) { navigate("cookbook"); return () => {}; }
 
   const ings = r.ingredients || [], steps = r.steps || [];
+  const ingIcons = ingredientIcons(ings, (getRecipeDe(r.id) || {}).ingredients || []); // D2
   const tipps = parseTipps(r.tips || "");
   const baseServings = parseServings(r.servings);
 
@@ -138,7 +140,7 @@ export function renderCook(container, id) {
     if (!ings.length) return "";
     return `<div class="cook-sec foldhead" data-fold="ing">${t("cooking.ingredients")} <span class="chev">${ingOpen ? "▾" : "▸"}</span></div>
       <div class="foldbody-ing"${ingOpen ? "" : ' style="display:none"'}>
-        ${ings.map((txt, idx) => `<div class="cook-ing ${prog.ings[idx] ? "done" : ""}" data-ing="${idx}"><span class="tick"></span><span>${esc(factor !== 1 ? scaleIngredient(txt, factor) : txt)}</span></div>`).join("")}
+        ${ings.map((txt, idx) => `<div class="cook-ing ${prog.ings[idx] ? "done" : ""}" data-ing="${idx}"><span class="tick"></span><span class="ing-ic" aria-hidden="true">${ingIcons[idx] || "·"}</span><span>${esc(factor !== 1 ? scaleIngredient(txt, factor) : txt)}</span></div>`).join("")}
       </div>`;
   }
 

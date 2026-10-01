@@ -4,7 +4,7 @@
 // (Projektwissen) per Substring-Match.
 
 import { parseIngredient, scaleIngredient } from "../../data/derive.js";
-import { ingMatchCat, SECTION_ORDER, sectionIcon } from "./catalog.js";
+import { ingMatchCat, SECTION_ORDER, sectionIcon } from "../../data/catalog.js";
 
 /** Vorrats-Grundausstattung aus Projektwissen1.md — in Phase 3 editierbar (Settings). */
 export const DEFAULT_STAPLES = [

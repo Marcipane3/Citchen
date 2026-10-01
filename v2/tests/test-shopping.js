@@ -2,7 +2,7 @@
 // Aggregation mit Mengensummen, Katalog-Zuordnung, Merge-Verhalten.
 import { test, assert, assertEqual } from "./runner.js";
 import { needsBuying, aggregateIngredients, mergeItems, itemKey, itemLabel, formatListAsText, DEFAULT_STAPLES } from "../src/features/shopping/logic.js";
-import { ingMatchCat, CATALOG, SECTION_ORDER } from "../src/features/shopping/catalog.js";
+import { ingMatchCat, CATALOG, SECTION_ORDER } from "../src/data/catalog.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";

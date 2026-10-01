@@ -158,6 +158,7 @@ export const DICT = {
       tippTopping: "🧀 Topping", tippVariation: "🔄 Variation", tippUpgrade: "✨ Alltags-Upgrade", tippTechnik: "🧑‍🍳 Technik",
     },
     form: {
+      apply: "Übernehmen",
       newRecipe: "Neues Rezept", editRecipe: "Rezept bearbeiten", reviewDraft: "Rezept-Entwurf prüfen",
       name: "Name", namePlaceholder: "z.B. Linsensuppe", category: "Kategorie",
       time: "Zeit", servings: "Portionen", effort: "Aufwand", difficulty: "Schwierigkeit",
@@ -268,6 +269,11 @@ export const DICT = {
       lockedNote: "🔒 braucht deinen API-Schlüssel", keyOk: "🔑 API-Schlüssel vorhanden", offlineNote: "Offline — KI-Erfassung (Foto/URL) braucht Internet. Der manuelle Weg geht immer.",
       enterUrl: "Bitte zuerst eine URL eingeben.", parseFailed: "Analyse fehlgeschlagen: {e}",
       gotRecipe: "Rezept erkannt — bitte prüfen und speichern.",
+      bulkMins: "{n} Min",
+      bulkIngs: "{n} Zutaten",
+      bulkEdited: "Änderungen übernommen — speichern mit „Ausgewählte speichern“.",
+      bulkSomeFailed: "{n} konnten nicht gespeichert werden.",
+      err: { disabled: "Die automatische Bild-/URL-Analyse ist noch deaktiviert.", noText: "Bitte zuerst Text einfügen.", noRecipes: "Keine gültigen Rezepte erkannt — Text prüfen oder anders formulieren.", noRecipe: "Kein Rezept erkannt — anderes Foto bzw. andere Seite versuchen oder manuell erfassen.", invalid: "Das Ergebnis passte nicht ins Rezept-Schema", noInput: "Kein Foto und keine URL angegeben." },
     },
     lager: {
       title: "Lager", subtitle: "Vorrat & Kühlschrank",
@@ -396,6 +402,7 @@ export const DICT = {
       tippTopping: "🧀 Topping", tippVariation: "🔄 Variation", tippUpgrade: "✨ Everyday upgrade", tippTechnik: "🧑‍🍳 Technique",
     },
     form: {
+      apply: "Apply",
       newRecipe: "New recipe", editRecipe: "Edit recipe", reviewDraft: "Review recipe draft",
       name: "Name", namePlaceholder: "e.g. Lentil soup", category: "Category",
       time: "Time", servings: "Servings", effort: "Effort", difficulty: "Difficulty",
@@ -506,6 +513,11 @@ export const DICT = {
       lockedNote: "🔒 needs your API key", keyOk: "🔑 API key present", offlineNote: "Offline — AI capture (photo/URL) needs internet. The manual path always works.",
       enterUrl: "Please enter a URL first.", parseFailed: "Analysis failed: {e}",
       gotRecipe: "Recipe detected — please review and save.",
+      bulkMins: "{n} min",
+      bulkIngs: "{n} ingredients",
+      bulkEdited: "Changes applied — save with “Save selected”.",
+      bulkSomeFailed: "{n} could not be saved.",
+      err: { disabled: "Automatic photo/URL analysis is still turned off.", noText: "Please paste some text first.", noRecipes: "No valid recipes found — check the text or phrase it differently.", noRecipe: "No recipe found — try another photo or page, or add it manually.", invalid: "The result didn’t fit the recipe schema", noInput: "No photo and no URL given." },
     },
     lager: {
       title: "Stock", subtitle: "Pantry & fridge",
@@ -634,6 +646,7 @@ export const DICT = {
       tippTopping: "🧀 Topping", tippVariation: "🔄 Variación", tippUpgrade: "✨ Mejora diaria", tippTechnik: "🧑‍🍳 Técnica",
     },
     form: {
+      apply: "Aplicar",
       newRecipe: "Nueva receta", editRecipe: "Editar receta", reviewDraft: "Revisar borrador",
       name: "Nombre", namePlaceholder: "p. ej. Sopa de lentejas", category: "Categoría",
       time: "Tiempo", servings: "Raciones", effort: "Esfuerzo", difficulty: "Dificultad",
@@ -744,6 +757,11 @@ export const DICT = {
       lockedNote: "🔒 necesita tu clave API", keyOk: "🔑 clave API presente", offlineNote: "Sin conexión — la captura con IA (foto/URL) necesita internet. La vía manual siempre funciona.",
       enterUrl: "Introduce primero una URL.", parseFailed: "Análisis fallido: {e}",
       gotRecipe: "Receta detectada — revisa y guarda.",
+      bulkMins: "{n} min",
+      bulkIngs: "{n} ingredientes",
+      bulkEdited: "Cambios aplicados — guarda con “Guardar seleccionadas”.",
+      bulkSomeFailed: "{n} no se pudieron guardar.",
+      err: { disabled: "El análisis automático de foto/URL aún está desactivado.", noText: "Pega primero algo de texto.", noRecipes: "No se reconocieron recetas válidas — revisa el texto o formúlalo de otra forma.", noRecipe: "No se reconoció ninguna receta — prueba otra foto u otra página, o añádela a mano.", invalid: "El resultado no encajó en el esquema de receta", noInput: "No hay foto ni URL." },
     },
     lager: {
       title: "Despensa", subtitle: "Despensa y nevera",
@@ -872,6 +890,7 @@ export const DICT = {
       tippTopping: "🧀 Topping", tippVariation: "🔄 Variation", tippUpgrade: "✨ Hverdags-upgrade", tippTechnik: "🧑‍🍳 Teknik",
     },
     form: {
+      apply: "Anvend",
       newRecipe: "Ny opskrift", editRecipe: "Rediger opskrift", reviewDraft: "Tjek opskriftsudkast",
       name: "Navn", namePlaceholder: "f.eks. Linsesuppe", category: "Kategori",
       time: "Tid", servings: "Portioner", effort: "Indsats", difficulty: "Sværhedsgrad",
@@ -982,6 +1001,11 @@ export const DICT = {
       lockedNote: "🔒 kræver din API-nøgle", keyOk: "🔑 API-nøgle til stede", offlineNote: "Offline — AI-registrering (foto/URL) kræver internet. Den manuelle vej virker altid.",
       enterUrl: "Indtast venligst en URL først.", parseFailed: "Analyse mislykkedes: {e}",
       gotRecipe: "Opskrift fundet — tjek og gem.",
+      bulkMins: "{n} min",
+      bulkIngs: "{n} ingredienser",
+      bulkEdited: "Ændringer anvendt — gem med „Gem valgte“.",
+      bulkSomeFailed: "{n} kunne ikke gemmes.",
+      err: { disabled: "Automatisk foto-/URL-analyse er stadig slået fra.", noText: "Indsæt først noget tekst.", noRecipes: "Ingen gyldige opskrifter fundet — tjek teksten eller formulér den anderledes.", noRecipe: "Ingen opskrift fundet — prøv et andet foto eller en anden side, eller tilføj den manuelt.", invalid: "Resultatet passede ikke til opskriftsskemaet", noInput: "Intet foto og ingen URL angivet." },
     },
     lager: {
       title: "Lager", subtitle: "Forråd & køleskab",

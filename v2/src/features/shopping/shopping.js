@@ -8,7 +8,7 @@ import * as listSync from "../../data/listSync.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { touch, newItemId, ensureItemMeta } from "./listMerge.js";
-import { CATALOG, SECTION_ORDER, sectionIcon } from "./catalog.js";
+import { CATALOG, SECTION_ORDER, sectionIcon } from "../../data/catalog.js";
 import { itemKey, itemLabel, formatListAsText } from "./logic.js";
 import { BUILD } from "../../version.js";
 import { t, getLang } from "../../i18n.js";
