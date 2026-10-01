@@ -38,6 +38,25 @@ export function buildCollectionContext(recipes) {
   }).join("\n");
 }
 
+/**
+ * C3: Das Koch-Profil als Prompt-Block — EINE Quelle für Assistent (System-Prompt) und
+ * Erfassung/KI-Ideen (capture/parse.js), damit beide denselben Ton/dieselbe Ernährung treffen.
+ */
+export function profileBlock(profile = DEFAULT_PROFILE) {
+  const p = { ...DEFAULT_PROFILE, ...(profile || {}) };
+  return `KOCH-PROFIL:
+- ${p.level}. ${p.diet}.
+- Immer ${p.servings} Portionen (Reste werden über mehrere Tage gegessen).
+- Wochentags: ${p.weekday}. Wochenende: ${p.weekend}.
+${p.shopping ? `- Einkauf: ${p.shopping}.\n` : ""}- Ausstattung: ${p.equipment}. Kein Spezialgerät voraussetzen.
+${p.notes ? `- ${p.notes}\n` : ""}`;
+}
+
+/** C3: 🛒-Regel — Zutaten außerhalb des Vorrats markieren (die Einkaufsliste nutzt die Marker). */
+export function shopMarkerRule(staples = []) {
+  return `Zutaten, die NICHT im Vorrat sind, bekommen am Ende " 🛒". VORRAT (immer da): ${staples.join(", ")}`;
+}
+
 export function buildSystemPrompt({ recipes, staples, fridge = [], profile = DEFAULT_PROFILE, lang = "de" }) {
   const p = { ...DEFAULT_PROFILE, ...(profile || {}) };
   const langName = LANG_NAMES[lang] || "Deutsch";
@@ -46,12 +65,7 @@ export function buildSystemPrompt({ recipes, staples, fridge = [], profile = DEF
     : "";
   return `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
 
-KOCH-PROFIL:
-- ${p.level}. ${p.diet}.
-- Immer ${p.servings} Portionen (Reste werden über mehrere Tage gegessen).
-- Wochentags: ${p.weekday}. Wochenende: ${p.weekend}.
-${p.shopping ? `- Einkauf: ${p.shopping}.\n` : ""}- Ausstattung: ${p.equipment}. Kein Spezialgerät voraussetzen.
-${p.notes ? `- ${p.notes}\n` : ""}
+${profileBlock(p)}
 VORRAT (immer da — alles andere muss gekauft werden):
 ${(staples || []).join(", ")}
 Gewürze nur: ${p.spices}. Andere Gewürze gelten als zu kaufen.${fridgeLine}

@@ -1,9 +1,10 @@
 // version.js — sichtbarer Build-Stempel (Deploy-Kontrolle) + App-Version & Changelog.
-export const BUILD = "2026-10-01-v2.12";
-export const APP_VERSION = "2.12";
+export const BUILD = "2026-10-01-v2.13";
+export const APP_VERSION = "2.13";
 
 // Changelog (neueste zuerst) — im Guide angezeigt.
 export const CHANGELOG = [
+  { v: "v2.13", txt: "Zutaten mit Symbolen: In der Rezeptansicht, im Kochmodus und bei den Vorrats-Chips im Lager steht jetzt vor jeder Zutat ihr Symbol — alles aus einem gemeinsamen Katalog, der auch die Einkaufsliste sortiert. Einzahl wird jetzt erkannt („1 Zwiebel“ landet im Gemüse-Gang statt unter „Aus Rezepten“). Rezept erfassen: Fortschritt und Meldungen erscheinen direkt bei der Karte, die du angetippt hast; URL geht auch mit Enter. „KI-Ideen“ richten sich nach deinem Koch-Profil (Ernährung, Portionen, Ausstattung), und erfasste Rezepte bekommen 🛒-Marker für fehlende Zutaten. Fehler behoben: „Bearbeiten“ in der Sammel-Erfassung speicherte das Rezept doppelt." },
   { v: "v2.12", txt: "Neue Leiste unten: Rezepte, Lager, Einkauf, Plan und KI-Assistent sind jetzt mit einem Daumen-Tipp erreichbar — von überall. Der Einkauf-Tab zeigt, wie viele Artikel noch offen sind (auch wenn dein Partner etwas hinzufügt). Nochmal auf den aktiven Tab tippen scrollt nach oben. Swipe-Match, Rezept erfassen, Einstellungen, Features & Versionen und Export findest du weiter im ☰-Menü. Im Kochmodus und beim Tippen verschwindet die Leiste." },
   { v: "v2.11", txt: "Geteilte Einkaufsliste repariert: Gelöschte und abgehakte Artikel kommen jetzt zuverlässig beim Partner an (vorher tauchten gelöschte wieder auf), und die Liste wird nicht mehr bei jedem Abgleich neu geschrieben. „Partner verbinden“ funktioniert wieder (die Google-Dateiauswahl wurde nie geladen). Neue Sync-Karte zeigt, wo deine Liste liegt und wann sie zuletzt abgeglichen wurde — mit Schritt-für-Schritt-Anleitung zum Teilen. Lesbar im dunklen Design. Artikel aus Rezepten erscheinen in deiner App-Sprache." },
   { v: "v2.10.1", txt: "Fehlerbehebung: Die App startete nach dem letzten Update nicht (leerer Bildschirm). Behoben — ein neuer automatischer Test verhindert, dass so etwas wieder live geht." },

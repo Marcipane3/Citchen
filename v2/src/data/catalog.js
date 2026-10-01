@@ -1,5 +1,7 @@
-// catalog.js — Supermarkt-Katalog (14 Gänge, aus v1 übernommen) + Zuordnung
-// von Freitext-Zutaten zu Gängen. Pur, unit-testbar.
+// catalog.js — D2: der EINE Artikel-Katalog der App (14 Gänge, aus v1 übernommen).
+// Name → Symbol → Gang für alle drei Nutzer: Einkaufsliste (Gänge + Kacheln), Lager
+// (Vorrat-Chips, Kühlschrank) und Rezept-Zutaten (Detail + Kochmodus). Pur, unit-testbar.
+// Neue Artikel/Symbole NUR hier pflegen — nirgends sonst Name→Symbol-Tabellen anlegen.
 
 export const CATALOG = [
   { name: "Gemüse", icon: "🥦", items: [
@@ -7,19 +9,21 @@ export const CATALOG = [
     { name: "Tomaten", icon: "🍅" }, { name: "Paprika", icon: "🫑" }, { name: "Gurke", icon: "🥒" }, { name: "Kartoffeln", icon: "🥔" },
     { name: "Süßkartoffel", icon: "🍠" }, { name: "Salat", icon: "🥬" }, { name: "Spinat", icon: "🥬" }, { name: "Zucchini", icon: "🥒" },
     { name: "Aubergine", icon: "🍆" }, { name: "Champignons", icon: "🍄" }, { name: "Mais", icon: "🌽" }, { name: "Blumenkohl", icon: "🥦" },
-    { name: "Lauch", icon: "🥬" }, { name: "Avocado", icon: "🥑" }, { name: "Ingwer", icon: "🫚" }, { name: "Chili", icon: "🌶️" } ] },
+    { name: "Lauch", icon: "🥬" }, { name: "Avocado", icon: "🥑" }, { name: "Ingwer", icon: "🫚" }, { name: "Chili", icon: "🌶️" },
+    { name: "Petersilie", icon: "🌿" }, { name: "Basilikum", icon: "🌿" }, { name: "Koriander", icon: "🌿" }, { name: "Dill", icon: "🌿" },
+    { name: "Minze", icon: "🌿" }, { name: "Schalotten", icon: "🧅" } ] },
   { name: "Obst", icon: "🍎", items: [
     { name: "Äpfel", icon: "🍎" }, { name: "Bananen", icon: "🍌" }, { name: "Orangen", icon: "🍊" }, { name: "Zitronen", icon: "🍋" },
     { name: "Limetten", icon: "🍋" }, { name: "Trauben", icon: "🍇" }, { name: "Erdbeeren", icon: "🍓" }, { name: "Blaubeeren", icon: "🫐" },
     { name: "Birnen", icon: "🍐" }, { name: "Kiwi", icon: "🥝" }, { name: "Mango", icon: "🥭" }, { name: "Ananas", icon: "🍍" },
-    { name: "Wassermelone", icon: "🍉" }, { name: "Datteln", icon: "🌴" } ] },
+    { name: "Wassermelone", icon: "🍉" }, { name: "Datteln", icon: "🌴" }, { name: "Apfel", icon: "🍎" }, { name: "Beeren", icon: "🫐" } ] },
   { name: "Milch & Eier", icon: "🥛", items: [
     { name: "Milch", icon: "🥛" }, { name: "Eier", icon: "🥚" }, { name: "Butter", icon: "🧈" }, { name: "Naturjoghurt", icon: "🥛" },
     { name: "Joghurt", icon: "🥛" }, { name: "Sahne", icon: "🥛" }, { name: "Quark", icon: "🥛" }, { name: "Skyr", icon: "🥛" },
     { name: "Buttermilch", icon: "🥛" }, { name: "Hafermilch", icon: "🌾" } ] },
   { name: "Käse", icon: "🧀", items: [
     { name: "Gouda", icon: "🧀" }, { name: "Mozzarella", icon: "🧀" }, { name: "Parmesan", icon: "🧀" }, { name: "Feta", icon: "🧀" },
-    { name: "Frischkäse", icon: "🧀" }, { name: "Halloumi", icon: "🧀" }, { name: "Reibekäse", icon: "🧀" } ] },
+    { name: "Frischkäse", icon: "🧀" }, { name: "Halloumi", icon: "🧀" }, { name: "Reibekäse", icon: "🧀" }, { name: "Käse", icon: "🧀" } ] },
   { name: "Fleisch & Fisch", icon: "🥩", items: [
     { name: "Hähnchen", icon: "🍗" }, { name: "Hackfleisch", icon: "🥩" }, { name: "Speck", icon: "🥓" }, { name: "Lachs", icon: "🐟" },
     { name: "Thunfisch", icon: "🐟" }, { name: "Garnelen", icon: "🦐" }, { name: "Schinken", icon: "🍖" }, { name: "Wurst", icon: "🌭" } ] },
@@ -29,16 +33,19 @@ export const CATALOG = [
   { name: "Nudeln, Reis & Co.", icon: "🍝", items: [
     { name: "Nudeln (Fusilli)", icon: "🍝" }, { name: "Spaghetti", icon: "🍝" }, { name: "Penne", icon: "🍝" }, { name: "Reis", icon: "🍚" },
     { name: "Basmatireis", icon: "🍚" }, { name: "Couscous", icon: "🌾" }, { name: "Bulgur", icon: "🌾" }, { name: "Quinoa", icon: "🌾" },
-    { name: "Haferflocken", icon: "🌾" }, { name: "Mehl", icon: "🌾" }, { name: "Lasagneplatten", icon: "🍝" } ] },
+    { name: "Haferflocken", icon: "🌾" }, { name: "Mehl", icon: "🌾" }, { name: "Lasagneplatten", icon: "🍝" }, { name: "Pasta", icon: "🍝" } ] },
   { name: "Konserven & Vorrat", icon: "🥫", items: [
     { name: "Dosentomaten", icon: "🥫" }, { name: "Tomatenmark", icon: "🥫" }, { name: "Kokosmilch", icon: "🥥" }, { name: "Kichererbsen (Dose)", icon: "🫘" },
     { name: "Bohnen (Dose)", icon: "🫘" }, { name: "Mais (Dose)", icon: "🌽" }, { name: "Linsen", icon: "🫘" }, { name: "Oliven", icon: "🫒" },
-    { name: "Brühe", icon: "🥣" }, { name: "Erdnussbutter", icon: "🥜" }, { name: "Honig", icon: "🍯" }, { name: "Marmelade", icon: "🍓" } ] },
+    { name: "Brühe", icon: "🥣" }, { name: "Erdnussbutter", icon: "🥜" }, { name: "Honig", icon: "🍯" }, { name: "Marmelade", icon: "🍓" },
+    { name: "Tahin", icon: "🥣" }, { name: "Mandeln", icon: "🌰" }, { name: "Sonnenblumenkerne", icon: "🌻" }, { name: "Hefe", icon: "🍞" },
+    { name: "Kakao", icon: "🍫" }, { name: "Natron", icon: "🧂" } ] },
   { name: "Gewürze & Öl", icon: "🧂", items: [
     { name: "Salz", icon: "🧂" }, { name: "Pfeffer", icon: "🧂" }, { name: "Olivenöl", icon: "🫒" }, { name: "Sonnenblumenöl", icon: "🌻" },
     { name: "Essig", icon: "🫗" }, { name: "Sojasauce", icon: "🥢" }, { name: "Zucker", icon: "🍬" }, { name: "Currypulver", icon: "🍛" },
     { name: "Paprikapulver", icon: "🌶️" }, { name: "Kreuzkümmel", icon: "🌿" }, { name: "Chiliflocken", icon: "🌶️" }, { name: "Oregano", icon: "🌿" },
-    { name: "Backpulver", icon: "🧁" }, { name: "Senf", icon: "🟡" }, { name: "Ketchup", icon: "🍅" }, { name: "Mayonnaise", icon: "🥚" } ] },
+    { name: "Backpulver", icon: "🧁" }, { name: "Curry", icon: "🍛" }, { name: "Zimt", icon: "🟤" }, { name: "Muskatnuss", icon: "🌰" },
+    { name: "Rosmarin", icon: "🌿" }, { name: "Sojasoße", icon: "🥢" }, { name: "Senf", icon: "🟡" }, { name: "Ketchup", icon: "🍅" }, { name: "Mayonnaise", icon: "🥚" } ] },
   { name: "Brot & Backwaren", icon: "🍞", items: [
     { name: "Brot", icon: "🍞" }, { name: "Vollkornbrot", icon: "🍞" }, { name: "Toast", icon: "🍞" }, { name: "Brötchen", icon: "🥖" },
     { name: "Baguette", icon: "🥖" }, { name: "Tortillas", icon: "🌯" }, { name: "Croissant", icon: "🥐" }, { name: "Knäckebrot", icon: "🍘" } ] },
@@ -60,6 +67,15 @@ export const CATALOG = [
 /** Anzeige-Reihenfolge der Gänge in der Liste (v1: Katalog-Reihenfolge + Sonderfächer). */
 export const SECTION_ORDER = [...CATALOG.map((s) => s.name), "Aus Rezepten", "Sonstiges"];
 
+/** Suchformen eines Katalog-Artikels: Name ohne Klammerzusatz + Singular für Plural auf -n
+ *  („Zwiebeln“ findet auch „1 Zwiebel“, „Karotten“ auch „Karotte“). */
+function forms(name) {
+  const base = name.toLowerCase().replace(/\s*\(.*?\)\s*/g, " ").trim();
+  return base.length >= 6 && base.endsWith("n") ? [base, base.slice(0, -1)] : [base];
+}
+const INDEX = CATALOG.flatMap((sec) => sec.items.flatMap((it) =>
+  forms(it.name).filter((f) => f.length >= 3).map((f) => ({ f, cat: sec.name, icon: it.icon || sec.icon }))));
+
 /**
  * Ordnet eine Freitext-Zutat einem Katalog-Gang zu. Substring-Match gegen
  * Katalog-Artikel (ohne Klammerzusatz); der LÄNGSTE Treffer gewinnt —
@@ -68,16 +84,25 @@ export const SECTION_ORDER = [...CATALOG.map((s) => s.name), "Aus Rezepten", "So
 export function ingMatchCat(text) {
   const low = (text || "").toLowerCase();
   let best = null, bestLen = 0;
-  for (const sec of CATALOG) {
-    for (const it of sec.items) {
-      const base = it.name.toLowerCase().replace(/\s*\(.*?\)\s*/g, " ").trim();
-      if (base.length >= 3 && base.length > bestLen && low.includes(base)) {
-        best = { cat: sec.name, icon: it.icon || sec.icon };
-        bestLen = base.length;
-      }
-    }
+  for (const x of INDEX) {
+    if (x.f.length > bestLen && low.includes(x.f)) { best = { cat: x.cat, icon: x.icon }; bestLen = x.f.length; }
   }
   return best;
+}
+
+/** Symbol für einen Artikel-/Zutatennamen (oder `fallback`, wenn nichts passt). */
+export function itemIcon(text, fallback = "") {
+  const m = ingMatchCat(text);
+  return m ? m.icon : fallback;
+}
+
+/**
+ * Symbole für eine Zutatenliste. Gematcht wird auf der DEUTSCHEN Zeile (der Katalog ist deutsch),
+ * angezeigt wird die lokalisierte — beide sind 1:1, solange die Längen gleich sind (wie S3).
+ */
+export function ingredientIcons(display = [], german = []) {
+  const src = german.length === display.length ? german : display;
+  return display.map((_, i) => itemIcon(src[i]));
 }
 
 export function sectionIcon(name) {

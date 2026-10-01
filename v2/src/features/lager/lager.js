@@ -9,7 +9,7 @@ import { compressImage, esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { BUILD } from "../../version.js";
 import { t } from "../../i18n.js";
 import * as store from "../../data/lager.js";
-import { CATALOG, ingMatchCat } from "../shopping/catalog.js";
+import { CATALOG, ingMatchCat, itemIcon } from "../../data/catalog.js";
 import {
   togglePantry, addPantryItem, removePantryItem, groupPantry,
   addFridgeItem, removeFridgeItem, mergeFridge, PANTRY_CATEGORIES,
@@ -21,9 +21,7 @@ let openCatSection = null; // D1: aufgeklappter Katalog-Gang im Kühlschrank
 
 /** Icon für einen Frischware-Namen: gespeichert → Katalog-Treffer → Default. */
 function fridgeIcon(f) {
-  if (f.icon) return f.icon;
-  const m = ingMatchCat(f.name);
-  return (m && m.icon) || "🧊";
+  return f.icon || itemIcon(f.name, "🧊");
 }
 
 export function renderLager(container) {
@@ -114,7 +112,7 @@ function paintPantry(container) {
     <div class="lager-cat">${esc(g.cat)}</div>
     <div class="stock-grid">
       ${g.items.map((it) => `<button class="stock-chip ${it.on ? "on" : ""}" data-toggle="${esc(it.name)}">
-        ${esc(it.name)}${it.custom ? `<span class="x" data-rm="${esc(it.name)}">✕</span>` : ""}</button>`).join("")}
+        ${itemIcon(it.name) ? `<span class="sc-ic" aria-hidden="true">${itemIcon(it.name)}</span>` : ""}${esc(it.name)}${it.custom ? `<span class="x" data-rm="${esc(it.name)}">✕</span>` : ""}</button>`).join("")}
     </div>`).join("");
 
   el.querySelectorAll("[data-toggle]").forEach((b) => {

@@ -2,7 +2,7 @@
 
 > Master plan for the next 1–2 weeks of v2 work, plus the v3 rebuild horizon.
 > Owner: Marcel · Maintained for Claude Code as the working backlog.
-> Last structured: 2026-10-01 · Current build: v2.12 (`/v2`, flat-v3 schema, 195 tests).
+> Last structured: 2026-10-01 · Current build: v2.13 (`/v2`, flat-v3 schema, 206 tests).
 > **New for review (2026-10-01):** §16 Epic L (calories & nutrition), §17 Epic M (fitness & diet
 > preferences), §18 Epic N („Gesund & Langlebig“ knowledge section).
 
@@ -101,8 +101,8 @@ Make getting recipes *in* fast — single, bulk, photo, URL.
 | # | Item | Detail & acceptance | Pri | Eff |
 |---|------|---------------------|-----|-----|
 | C1 | ✅ **Bulk add / multi-recipe prompt** *(shipped v2.2)* | Capture page now has a "📋 Several at once" card: paste many recipes OR ask the AI for several ideas → batch review list (per-item checkbox + edit) → save selected. | P1 | M |
-| C2 | **Capture polish** | Covered by A1/A2 — keep them together with intake when building. | P0 | S |
-| C3 | **Flexible AI prompt** | Covered by A3 — the same profile that drives suggestions drives capture/generation tone. | P1 | M |
+| ✅ **C2** | **Capture polish** *(shipped v2.13)* | On top of A1/A2: busy spinner + messages now render **inside the card you tapped** (were at the page bottom, off-screen on phones) and scroll into view; only one AI run at a time (all AI buttons lock); URL submits with Enter/„Los“; error messages are coded + translated in 4 languages (were hardcoded German); bulk rows translated; preview object-URL freed. **Bug fixed:** „Bearbeiten“ in bulk review saved the recipe immediately and „Ausgewählte speichern“ saved it again → duplicate. Now `openForm(…, { onSubmit })` only applies the edits to the list. | P0 | S |
+| ✅ **C3** | **Flexible AI prompt** *(shipped v2.13)* | New `profileBlock(profile)` in `ai/prompts.js` = one source for the assistant system prompt **and** capture. „✨ KI-Ideen“ (bulk generate) now follow the cook profile (diet, servings, time budget, equipment, spices). Photo/URL/text extraction stays **faithful to the source** (no profile rewriting) but now adds 🛒 markers for ingredients not in the pantry — the capture page already promised that. Recipe data stays canonical German. | P1 | M |
 
 ---
 
@@ -113,7 +113,7 @@ Marcel: "I want to add fridge/pantry items the same icon-driven way as the shopp
 | # | Item | Detail & acceptance | Pri | Eff |
 |---|------|---------------------|-----|-----|
 | D1 | ✅ **Icon-based add for Lager** *(shipped v2.2)* | Fridge section now has the `shopping/catalog.js` icon picker (collapsible aisles); tapping adds with its emoji. Free-text adds also auto-match an icon via `ingMatchCat`. Fridge rows now show icons. | P1 | M |
-| D2 | **Shared item catalog** | Promote `CATALOG` to a shared module so shopping + Lager + (later) recipe ingredients all map names→icons→aisles from one source. **Done:** one catalog, three consumers, no duplication. | P2 | S |
+| ✅ **D2** | **Shared item catalog** *(shipped v2.13)* | `features/shopping/catalog.js` → **`src/data/catalog.js`** with `ingMatchCat`, `itemIcon`, `ingredientIcons`. Three consumers: shopping (aisles + tiles), Lager (pantry chips now with icons, fridge), recipe ingredients (detail + cook mode, matched on the German line, shown localized). Matcher now finds singulars („1 Zwiebel“ → 🧅 Gemüse instead of „Aus Rezepten“); +24 catalog items (herbs, Zimt, Curry, Tahin, Mandeln, Hefe…). Coverage of base-recipe ingredient lines 79 % → 97 % (guarded by a test). | P2 | S |
 
 ---
 

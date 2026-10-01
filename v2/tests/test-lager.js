@@ -5,7 +5,7 @@ import {
   seedPantry, togglePantry, addPantryItem, removePantryItem, groupPantry,
   addFridgeItem, removeFridgeItem, mergeFridge, getInStockNames, PANTRY_CATEGORIES,
 } from "../src/features/lager/logic.js";
-import { ingMatchCat } from "../src/features/shopping/catalog.js";
+import { ingMatchCat } from "../src/data/catalog.js";
 
 test("seedPantry: Projektwissen-Defaults, alle on", () => {
   const p = seedPantry();

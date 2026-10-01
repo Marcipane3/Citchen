@@ -8,15 +8,14 @@ import { complete, visionMessage, blobToBase64, VISION_MODEL, WEB_FETCH_TOOL } f
 import { extractJson, coerceRecipe } from "../../ai/parse.js";
 import { compressImage } from "../../ui/helpers.js";
 import { CATEGORIES } from "../../data/schema.js";
+import { profileBlock, shopMarkerRule } from "../../ai/prompts.js";
 
+// C2: Fehler tragen einen CODE — die UI übersetzt ihn via t("capture.err.<code>"); Details optional.
 export class CaptureDisabledError extends Error {
-  constructor() {
-    super("Die automatische Bild-/URL-Analyse ist noch deaktiviert (kommt mit einem späteren Update).");
-    this.kind = "disabled";
-  }
+  constructor() { super("disabled"); this.kind = "disabled"; this.code = "disabled"; }
 }
 export class CaptureParseError extends Error {
-  constructor(msg) { super(msg); this.kind = "parse"; }
+  constructor(code, detail = "") { super(detail || code); this.kind = "parse"; this.code = code; this.detail = detail; }
 }
 
 /** "shakshuka-mit-feta_2024" → "Shakshuka Mit Feta" */
@@ -55,8 +54,12 @@ export function draftFromInput({ url = "", note = "" } = {}) {
   };
 }
 
-/** Pur & testbar: der Extraktions-Prompt (flaches v3-Schema, 16 Kategorien). */
-export function buildCapturePrompt(sourceHint = "") {
+/**
+ * Pur & testbar: der Extraktions-Prompt (flaches v3-Schema, 16 Kategorien).
+ * C3: Mit `staples` (Vorrat) markiert die KI fehlende Zutaten mit 🛒 — inhaltlich bleibt das
+ * Rezept der Quelle treu (beim Abschreiben wird nichts ans Profil angepasst).
+ */
+export function buildCapturePrompt(sourceHint = "", { staples = [] } = {}) {
   return `Extrahiere EIN Rezept ${sourceHint} und gib es als GENAU EIN JSON-Objekt zurück (ohne Markdown-Zaun, ohne Text davor/danach), exakt in diesem flachen Schema:
 {"name":string,"category":string,"time":"25 Min","servings":"~4","effort":"alltag"|"besonders"|"","difficulty":"einfach"|"mittel"|"aufwändig"|"","cuisine":string,"prepTime":int,"cookTime":int,"totalTime":int,"mealPrep":bool,"toTry":true,"season":string,"tags":[string],"ingredients":[string],"steps":[string],"tips":string}
 Regeln:
@@ -64,15 +67,20 @@ Regeln:
 - "ingredients": eine Zutat pro Eintrag, mit Menge ("400g Kichererbsen (Dose)").
 - "steps": kurze, nummerierbare Schritte; Zeitangaben als "X Min".
 - "tips": ein String (Konvention "Topping: … Swap: … Alltags-Upgrade: …"), darf leer sein.
+- Übernimm das Rezept inhaltlich treu (Mengen, Portionen, Zutaten) — nichts erfinden oder umschreiben.${staples.length ? "\n- " + shopMarkerRule(staples) : ""}
 - Wenn kein Rezept erkennbar ist, gib {"error":"kein Rezept erkennbar"} zurück.
 - Antworte auf Deutsch.`;
 }
 
-/** C1: Prompt für MEHRERE Rezepte auf einmal (Text einfügen ODER KI-Ideen). */
-export function buildBulkPrompt({ generate = false, wish = "", count = 5 } = {}) {
+/**
+ * C1: Prompt für MEHRERE Rezepte auf einmal (Text einfügen ODER KI-Ideen).
+ * C3: Beim Erfinden richtet sich die KI nach dem Koch-Profil (Ernährung, Portionen, Zeit,
+ * Ausstattung, Gewürze); beim Auslesen bleibt der Text maßgeblich. Beide markieren mit 🛒.
+ */
+export function buildBulkPrompt({ generate = false, wish = "", count = 5, profile = null, staples = [] } = {}) {
   const head = generate
-    ? `Erfinde ${count} verschiedene, alltagstaugliche Rezepte${wish ? " zum Wunsch: " + wish : ""}. Keine Duplikate untereinander.`
-    : "Extrahiere ALLE Rezepte aus dem folgenden Text (ein oder mehrere, in beliebigem Format).";
+    ? `Erfinde ${count} verschiedene, alltagstaugliche Rezepte${wish ? " zum Wunsch: " + wish : ""}. Keine Duplikate untereinander.${profile ? "\nRichte dich nach diesem Profil (Ernährung, Portionen, Zeitbudget, Ausstattung, Gewürze):\n" + profileBlock(profile) : ""}`
+    : "Extrahiere ALLE Rezepte aus dem folgenden Text (ein oder mehrere, in beliebigem Format). Übernimm sie inhaltlich treu.";
   return `${head}
 Gib GENAU EIN JSON-Objekt zurück (ohne Markdown-Zaun, ohne Text davor/danach):
 {"recipes":[ <Rezept>, <Rezept>, … ]}
@@ -82,7 +90,7 @@ Regeln:
 - "category" MUSS exakt eine von diesen 16 sein: ${CATEGORIES.join(" / ")}
 - "ingredients": eine Zutat pro Eintrag, mit Menge ("400g Kichererbsen (Dose)").
 - "steps": kurze, nummerierbare Schritte; Zeitangaben als "X Min".
-- "tips": String (Konvention "Topping: … Swap: … Alltags-Upgrade: …"), darf leer sein.
+- "tips": String (Konvention "Topping: … Swap: … Alltags-Upgrade: …"), darf leer sein.${staples.length ? "\n- " + shopMarkerRule(staples) : ""}
 - Wenn keine Rezepte erkennbar sind, gib {"recipes":[]} zurück.
 - Antworte auf Deutsch.`;
 }
@@ -91,10 +99,10 @@ Regeln:
  * input = { text?, generate?, wish?, count? } → Promise<Rezept-Entwürfe[]>.
  * Liefert nur schema-konforme Rezepte; ungültige werden verworfen.
  */
-export async function parseBulk({ text = "", generate = false, wish = "", count = 5 } = {}) {
+export async function parseBulk({ text = "", generate = false, wish = "", count = 5, profile = null, staples = [] } = {}) {
   if (!FLAGS.captureParse) throw new CaptureDisabledError();
-  if (!generate && !text.trim()) throw new CaptureParseError("Kein Text zum Auslesen angegeben.");
-  const prompt = buildBulkPrompt({ generate, wish, count });
+  if (!generate && !text.trim()) throw new CaptureParseError("noText");
+  const prompt = buildBulkPrompt({ generate, wish, count, profile, staples });
   const content = generate ? prompt : `${prompt}\n\nTEXT:\n${text}`;
   const { text: out } = await complete({ messages: [{ role: "user", content }], maxTokens: 4000 });
   const json = extractJson(out);
@@ -104,16 +112,16 @@ export async function parseBulk({ text = "", generate = false, wish = "", count 
     const { recipe } = coerceRecipe(raw);
     if (recipe) recipes.push(recipe);
   }
-  if (!recipes.length) throw new CaptureParseError("Keine gültigen Rezepte erkannt.");
+  if (!recipes.length) throw new CaptureParseError("noRecipes");
   return recipes;
 }
 
 async function runAndCoerce(messages, { tools = null } = {}) {
   const { text } = await complete({ messages, model: VISION_MODEL, maxTokens: 2000, tools });
   const json = extractJson(text);
-  if (json && json.error) throw new CaptureParseError(String(json.error));
+  if (json && json.error) throw new CaptureParseError("noRecipe");
   const { recipe, errors } = coerceRecipe(json && (json.recipe || json));
-  if (!recipe) throw new CaptureParseError(errors.join("; ") || "kein gültiges Rezept erkannt");
+  if (!recipe) throw new CaptureParseError(errors.length ? "invalid" : "noRecipe", errors.join("; "));
   return recipe;
 }
 
@@ -127,11 +135,11 @@ export async function parseCapture(input = {}) {
   if (input.photoBlob) {
     const blob = await compressImage(input.photoBlob, 1568, 0.8);
     const b64 = await blobToBase64(blob);
-    return runAndCoerce([visionMessage([b64], buildCapturePrompt("aus diesem Bild"))]);
+    return runAndCoerce([visionMessage([b64], buildCapturePrompt("aus diesem Bild", { staples: input.staples || [] }))]);
   }
   if (input.url) {
-    const prompt = `${buildCapturePrompt("von dieser URL")}\nURL: ${input.url}\nNutze das web_fetch-Werkzeug, um die Seite zu lesen.`;
+    const prompt = `${buildCapturePrompt("von dieser URL", { staples: input.staples || [] })}\nURL: ${input.url}\nNutze das web_fetch-Werkzeug, um die Seite zu lesen.`;
     return runAndCoerce([{ role: "user", content: prompt }], { tools: [WEB_FETCH_TOOL] });
   }
-  throw new CaptureParseError("Kein Foto und keine URL angegeben.");
+  throw new CaptureParseError("noInput");
 }
