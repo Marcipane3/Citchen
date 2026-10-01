@@ -1,9 +1,10 @@
 // version.js — sichtbarer Build-Stempel (Deploy-Kontrolle) + App-Version & Changelog.
-export const BUILD = "2026-09-27-v2.10.1";
-export const APP_VERSION = "2.10.1";
+export const BUILD = "2026-10-01-v2.11";
+export const APP_VERSION = "2.11";
 
 // Changelog (neueste zuerst) — im Guide angezeigt.
 export const CHANGELOG = [
+  { v: "v2.11", txt: "Geteilte Einkaufsliste repariert: Gelöschte und abgehakte Artikel kommen jetzt zuverlässig beim Partner an (vorher tauchten gelöschte wieder auf), und die Liste wird nicht mehr bei jedem Abgleich neu geschrieben. „Partner verbinden“ funktioniert wieder (die Google-Dateiauswahl wurde nie geladen). Neue Sync-Karte zeigt, wo deine Liste liegt und wann sie zuletzt abgeglichen wurde — mit Schritt-für-Schritt-Anleitung zum Teilen. Lesbar im dunklen Design. Artikel aus Rezepten erscheinen in deiner App-Sprache." },
   { v: "v2.10.1", txt: "Fehlerbehebung: Die App startete nach dem letzten Update nicht (leerer Bildschirm). Behoben — ein neuer automatischer Test verhindert, dass so etwas wieder live geht." },
   { v: `v2.10`, txt: `Einkaufsliste mit Partner teilen: Verbinde deine Liste über Google Drive — beide sehen dieselben Artikel und können gleichzeitig hinzufügen. Aktualisieren-Knopf holt den neuesten Stand.` },
   { v: `v2.9`, txt: `Küche, Saison und „Zuletzt gekocht” erscheinen jetzt in der gewählten App-Sprache — die Filter-Chips im Kochbuch und die Detailansicht zeigen z. B. auf Englisch „Italian” statt „Italienisch” und „May 2026” statt „Mai 2026”.` },

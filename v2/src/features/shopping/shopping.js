@@ -6,18 +6,23 @@ import * as db from "../../data/db.js";
 import * as drive from "../../data/drive.js";
 import * as listSync from "../../data/listSync.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
+import { openSheet } from "../../ui/sheet.js";
+import { touch, newItemId, ensureItemMeta } from "./listMerge.js";
 import { CATALOG, SECTION_ORDER, sectionIcon } from "./catalog.js";
 import { itemKey, itemLabel, formatListAsText } from "./logic.js";
 import { BUILD } from "../../version.js";
-import { t } from "../../i18n.js";
+import { t, getLang } from "../../i18n.js";
 
 const LIST_ID = "current";
 const SORT_KEY = "shopSort"; // E2: "aisle" | "alpha"
-let ITEMS = [];           // [{name, amount, unit, cat, icon, qty, done}]
+// [{id, name, nameDe?, amount, unit, cat, icon, qty, done, updated, author, deleted}]
+// ITEMS enthält auch Tombstones (deleted:true) — nur so erreicht eine Löschung den Partner (CR-01).
+// Angezeigt wird immer live(): ITEMS ohne Tombstones.
+let ITEMS = [];
 let search = "";
 let openSection = null;
 let sortMode = "aisle";   // E2: Sortierung der Liste
-let undoSnapshot = null;  // E1: zuletzt geleerte Liste, für „Rückgängig"
+let undoSnapshot = null;  // E1: ids der zuletzt geleerten Artikel, für „Rückgängig"
 let undoTimer = null;
 
 async function load() {
@@ -25,14 +30,22 @@ async function load() {
   ITEMS = row && Array.isArray(row.items) ? row.items : [];
   sortMode = await db.kvGet(SORT_KEY, "aisle");
 }
+const live = () => ITEMS.filter((x) => !x.deleted);
+
 function save() {
-  db.put("lists", { id: LIST_ID, items: ITEMS, updated: new Date().toISOString() }).catch(() => {});
-  listSync.saveList(ITEMS).catch(() => {}); // Drive push (dirty-flag pattern)
+  ITEMS = ensureItemMeta(ITEMS);
+  listSync.saveList(ITEMS).catch(() => {}); // IndexedDB sofort + gebündelter Drive-Abgleich
+}
+
+/** Artikel als gelöscht markieren (Tombstone) statt aus ITEMS zu entfernen. */
+function remove(it, now) {
+  it.deleted = true;
+  touch(it, now);
 }
 
 async function shareList(container) {
-  if (!ITEMS.length) return;
-  const text = `${t("shopping.shareTitle")}\n\n${formatListAsText(ITEMS)}`;
+  if (!live().length) return;
+  const text = `${t("shopping.shareTitle")}\n\n${formatListAsText(live())}`;
   if (navigator.share) {
     try { await navigator.share({ text }); return; }
     catch (e) { if (e.name === "AbortError") return; }
@@ -54,10 +67,14 @@ export function shopAdd(name, cat, icon) {
   name = (name || "").trim();
   if (!name) return;
   const key = itemKey(name, null);
-  const it = ITEMS.find((x) => itemKey(x.name, x.unit) === key);
-  if (it) { it.qty++; it.done = false; it.updated = new Date().toISOString(); }
+  const same = (x) => itemKey(x.nameDe || x.name, x.unit) === key || itemKey(x.name, x.unit) === key;
+  // Lebenden Artikel bevorzugen; sonst einen gelöschten wiederbeleben (gleiche id → Partner sieht es).
+  const it = ITEMS.find((x) => !x.deleted && same(x)) || ITEMS.find(same);
+  if (it && it.deleted) Object.assign(it, { deleted: false, done: false, qty: 1, amount: null, unit: null });
+  else if (it) { it.qty++; it.done = false; }
+  if (it) touch(it);
   else ITEMS.push({
-    id: "li-" + Date.now(),
+    id: newItemId(),
     name, cat: cat || "Sonstiges", icon: icon || "🛒",
     qty: 1, done: false, amount: null, unit: null,
     updated: new Date().toISOString(),
@@ -90,11 +107,10 @@ export function renderShopping(container) {
       <div class="shop-add">
         <input id="shop-custom" placeholder="${t("shopping.customPlaceholder")}" />
         <button class="add-custom">${t("shopping.addBtn")}</button>
-      </div>
-      <button class="sl-refresh" aria-label="${t('shopping.refresh')}">${t('shopping.refreshBtn')}</button>
-      <button class="sl-link-partner">${t('shopping.linkPartner')}</button>`,
+      </div>`,
     })}
     <main class="app-main">
+      <div id="shop-sync"></div>
       <div id="shop-list"></div>
       <div id="shop-catalog"></div>
     </main>
@@ -111,54 +127,99 @@ export function renderShopping(container) {
   container.querySelector(".add-custom").onclick = addCustom;
   custom.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } });
 
-  const refreshBtn = container.querySelector(".sl-refresh");
-  if (refreshBtn) refreshBtn.onclick = () => {
-    refreshBtn.disabled = true;
-    listSync.syncListWithDrive().then((result) => {
-      if (result.changed && Array.isArray(result.items)) {
-        ITEMS = result.items.filter(x => !x.deleted);
-        paintList(container); paintCatalog(container);
-      }
-      refreshBtn.disabled = false;
-    }).catch(() => { refreshBtn.disabled = false; });
-  };
-
-  const linkBtn = container.querySelector(".sl-link-partner");
-  if (linkBtn) linkBtn.onclick = () => {
-    drive.openPickerForFile("application/json", async (fileId, fileName) => {
-      // Dateinamen validieren, bevor wir der fileId vertrauen (Sicherheit: Spoofing)
-      if (!fileName.includes("einkaufsliste")) {
-        console.warn("Picker: gewählte Datei ist keine Einkaufsliste:", fileName);
-        return;
-      }
-      let meta = await db.kvGet("listMeta", {});
-      await db.kvSet("listMeta", { ...meta, fileId, linked: true, source: "linked",
-        updated: "", dirty: false });
-      listSync.syncListWithDrive().then((result) => {
-        if (result.changed && Array.isArray(result.items)) {
-          ITEMS = result.items.filter(x => !x.deleted);
-          paintList(container); paintCatalog(container);
-        }
-      }).catch(() => {});
-    });
-  };
+  // Sync-Ereignisse → neu zeichnen (auch die aus dem gebündelten Hintergrund-Abgleich).
+  const offChange = listSync.onChange((items) => { ITEMS = items; paintList(container); paintCatalog(container); });
+  const offStatus = listSync.onStatus(() => paintSync(container));
+  const offAuth = drive.onAuthChange((signedIn) => { paintSync(container); if (signedIn) listSync.syncListWithDrive(); });
 
   load().then(() => {
-    paintList(container); paintCatalog(container);
-    // Background Drive sync — repaint if remote had newer items
-    listSync.syncListWithDrive().then((result) => {
-      if (result.changed && Array.isArray(result.items)) {
-        ITEMS = result.items.filter(x => !x.deleted);
-        paintList(container); paintCatalog(container);
-      }
-    }).catch(() => {});
+    paintSync(container); paintList(container); paintCatalog(container);
+    listSync.syncListWithDrive(); // Ergebnis kommt über onChange/onStatus
   });
+
+  return () => { offChange(); offStatus(); offAuth(); };
 }
+
+/* ---------- Sync- & Partner-Karte ---------- */
+
+function timeLabel(iso) {
+  if (!iso) return "";
+  const loc = { de: "de-DE", en: "en-GB", es: "es-ES", da: "da-DK" }[getLang()] || undefined;
+  try { return new Date(iso).toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; }
+}
+
+async function paintSync(container) {
+  const el = container.querySelector("#shop-sync");
+  if (!el) return;
+  const signedIn = drive.isSignedIn();
+  const meta = await listSync.getMeta().catch(() => ({}));
+  const st = signedIn ? listSync.getStatus() : "local";
+  const where = !signedIn ? t("shopping.syncLocalTitle") : meta.linked ? t("shopping.syncSharedTitle") : t("shopping.syncDriveTitle");
+  const line = st === "synced" ? t("shopping.syncDone", { time: timeLabel(meta.lastSync) }) : t("shopping.syncState." + st);
+  const warn = st === "error" || st === "auth" || st === "notFound";
+  el.innerHTML = `
+    <div class="sl-sync ${warn ? "warn" : ""}">
+      <div class="sl-sync-row">
+        <span class="sl-sync-ic" aria-hidden="true">${!signedIn ? "📱" : meta.linked ? "👥" : "☁️"}</span>
+        <div class="sl-sync-txt"><strong>${where}</strong><span>${esc(line)}</span></div>
+        ${signedIn ? `<button class="sl-btn sl-refresh" aria-label="${t("shopping.refresh")}" ${st === "syncing" ? "disabled" : ""}>🔄</button>` : ""}
+      </div>
+      ${signedIn
+        ? `<button class="sl-btn sl-wide sl-partner">${t("shopping.partnerBtn")}</button>`
+        : `<button class="sl-btn sl-wide sl-login">${t("shopping.connectGoogle")}</button>`}
+    </div>`;
+  const r = el.querySelector(".sl-refresh");
+  if (r) r.onclick = () => listSync.syncListWithDrive();
+  const p = el.querySelector(".sl-partner");
+  if (p) p.onclick = () => openPartnerSheet(container);
+  const l = el.querySelector(".sl-login");
+  if (l) l.onclick = () => drive.login().catch(() => alert(t("shopping.loginFailed")));
+}
+
+async function openPartnerSheet(container) {
+  const meta = await listSync.getMeta();
+  const ownId = meta.ownFileId || (!meta.linked ? meta.fileId : null);
+  const driveLink = ownId ? `https://drive.google.com/file/d/${encodeURIComponent(ownId)}/view` : "";
+  const { el, close } = openSheet(`
+    <div class="sheet-head"><span class="cat-label">${t("shopping.partnerTitle")}</span><button class="icon-btn close" aria-label="${t("common.close")}">✕</button></div>
+    ${meta.linked ? `<div class="sl-linked">👥 ${t("shopping.linkedNote")}</div>` : ""}
+    <h3>${t("shopping.stepShareTitle")}</h3>
+    <p class="sl-help">${t("shopping.stepShareBody")}</p>
+    ${driveLink
+      ? `<a class="btn-sec sl-wide" href="${driveLink}" target="_blank" rel="noopener">${t("shopping.openInDrive")}</a>`
+      : `<p class="sl-help"><em>${t("shopping.noFileYet")}</em></p>`}
+    <h3>${t("shopping.stepLinkTitle")}</h3>
+    <p class="sl-help">${t("shopping.stepLinkBody")}</p>
+    <button class="btn-primary sl-wide sl-pick">${t("shopping.linkPartner")}</button>
+    <p class="sl-help sl-pick-msg" role="status"></p>
+    ${meta.linked ? `<button class="btn-sec sl-wide sl-unlink">${t("shopping.unlinkPartner")}</button>` : ""}
+  `);
+  const msg = el.querySelector(".sl-pick-msg");
+  el.querySelector(".sl-pick").onclick = () => {
+    msg.textContent = t("shopping.pickerOpening");
+    drive.openPickerForFile("application/json", async (fileId, fileName) => {
+      // Dateinamen prüfen, bevor wir der fileId vertrauen (keine falsche Datei überschreiben).
+      if (!/einkaufsliste/i.test(fileName)) { msg.textContent = t("shopping.pickWrongFile", { name: fileName }); return; }
+      msg.textContent = t("shopping.syncState.syncing");
+      const res = await listSync.linkToFile(fileId);
+      if (res.error) { msg.textContent = t("shopping.linkFailed"); return; }
+      close(); paintSync(container);
+    }).then(() => { msg.textContent = ""; })
+      .catch(() => { msg.textContent = t("shopping.pickerFailed"); });
+  };
+  const u = el.querySelector(".sl-unlink");
+  if (u) u.onclick = async () => {
+    if (!confirm(t("shopping.unlinkConfirm"))) return;
+    await listSync.unlink(); close(); paintSync(container);
+  };
+}
+
+/* ---------- Liste ---------- */
 
 function paintList(container) {
   const el = container.querySelector("#shop-list");
   if (!el) return;
-  const visible = ITEMS.filter(x => !x.deleted);
+  const visible = live();
   const doneCount = visible.filter((x) => x.done).length;
   const openCount = visible.length - doneCount;
   const sub = container.querySelector("#shop-sub");
@@ -172,13 +233,16 @@ function paintList(container) {
     const ub = el.querySelector(".sl-undo-btn");
     if (ub) ub.onclick = () => {
       if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
-      ITEMS = undoSnapshot; undoSnapshot = null; save();
-      paintList(container); paintCatalog(container);
+      const ids = new Set(undoSnapshot); undoSnapshot = null;
+      const now = new Date().toISOString();
+      ITEMS.forEach((x) => { if (ids.has(x.id)) { x.deleted = false; touch(x, now); } });
+      save(); paintList(container); paintCatalog(container);
     };
     return;
   }
 
-  // E2: data-i bleibt IMMER der Original-Index in ITEMS (Handler mutieren per Index).
+  // E2: data-i ist IMMER der Original-Index in ITEMS. Seit v2.11 wird nie mehr gesplict
+  // (nur Tombstones), die Indizes bleiben also zwischen Render und Klick stabil (CR-03).
   // Erledigte rutschen innerhalb der Anzeige nach unten.
   const rowHTML = (it, i) => {
     const hasAmount = it.amount !== null && it.amount !== undefined;
@@ -198,7 +262,6 @@ function paintList(container) {
   </div>`;
   let html = `<div class="sl-top"><div class="sl-title">${t("shopping.myList")}</div><div class="sl-actions">${doneCount ? `<button class="sl-clear">${t("shopping.clearDone")}</button>` : ""}<button class="sl-clear-all">${t("shopping.clearAll")}</button><button class="sl-share">${t("shopping.share")}</button></div></div>${sortBar}`;
 
-  // Build indexed from visible only; preserve original ITEMS index for mutation handlers
   const indexed = ITEMS.map((it, i) => ({ it, i })).filter(({ it }) => !it.deleted);
   if (sortMode === "alpha") {
     indexed.sort((a, b) => (a.it.done - b.it.done) || a.it.name.localeCompare(b.it.name));
@@ -217,34 +280,43 @@ function paintList(container) {
   }
   el.innerHTML = html;
 
+  // Jede Änderung → touch(), sonst übernimmt der Partner-Sync sie nicht.
+  const at = (b) => ITEMS[+b.dataset.i];
   el.querySelectorAll(".sl-name").forEach((n) => {
-    n.onclick = () => { const it = ITEMS[+n.dataset.i]; if (it) { it.done = !it.done; save(); paintList(container); } };
+    n.onclick = () => { const it = at(n); if (it) { it.done = !it.done; touch(it); save(); paintList(container); } };
   });
   el.querySelectorAll(".sl-dec").forEach((b) => {
     b.onclick = () => {
-      const i = +b.dataset.i, it = ITEMS[i];
+      const it = at(b);
       if (!it) return;
       it.qty--;
-      if (it.qty <= 0) ITEMS.splice(i, 1);
+      if (it.qty <= 0) remove(it); else touch(it);
       save(); paintList(container); paintCatalog(container);
     };
   });
   el.querySelectorAll(".sl-inc").forEach((b) => {
-    b.onclick = () => { const it = ITEMS[+b.dataset.i]; if (it) { it.qty++; save(); paintList(container); paintCatalog(container); } };
+    b.onclick = () => { const it = at(b); if (it) { it.qty++; touch(it); save(); paintList(container); paintCatalog(container); } };
   });
   el.querySelectorAll(".sl-rm").forEach((b) => {
-    b.onclick = () => { ITEMS.splice(+b.dataset.i, 1); save(); paintList(container); paintCatalog(container); };
+    b.onclick = () => { const it = at(b); if (it) { remove(it); save(); paintList(container); paintCatalog(container); } };
   });
   el.querySelectorAll(".sl-sortbtn").forEach((b) => {
     b.onclick = () => { sortMode = b.dataset.sort; db.kvSet(SORT_KEY, sortMode).catch(() => {}); paintList(container); };
   });
   const clr = el.querySelector(".sl-clear");
-  if (clr) clr.onclick = () => { ITEMS = ITEMS.filter((x) => !x.done); save(); paintList(container); paintCatalog(container); };
+  if (clr) clr.onclick = () => {
+    const now = new Date().toISOString();
+    live().filter((x) => x.done).forEach((x) => remove(x, now));
+    save(); paintList(container); paintCatalog(container);
+  };
   const clrAll = el.querySelector(".sl-clear-all");
   if (clrAll) clrAll.onclick = () => {
-    if (!ITEMS.length) return;
-    undoSnapshot = ITEMS;            // E1: für „Rückgängig" merken
-    ITEMS = []; save();
+    const visibleNow = live();
+    if (!visibleNow.length) return;
+    undoSnapshot = visibleNow.map((x) => x.id);   // E1: für „Rückgängig" merken
+    const now = new Date().toISOString();
+    visibleNow.forEach((x) => remove(x, now));
+    save();
     if (undoTimer) clearTimeout(undoTimer);
     undoTimer = setTimeout(() => { undoSnapshot = null; undoTimer = null; paintList(container); }, 6000);
     paintList(container); paintCatalog(container);
@@ -254,7 +326,8 @@ function paintList(container) {
 }
 
 function catItemHTML(name, cat, icon) {
-  const inList = ITEMS.find((x) => x.name.toLowerCase() === name.toLowerCase());
+  const low = name.toLowerCase();
+  const inList = live().find((x) => (x.nameDe || x.name).toLowerCase() === low);
   return `<button class="cat-item" data-name="${esc(name)}" data-cat="${esc(cat)}" data-icon="${esc(icon || "🛒")}">
     <span class="ci-ic">${icon || "🛒"}</span><span class="ci-nm">${esc(name)}</span>
     ${inList ? `<span class="ci-badge">${inList.qty}</span>` : ""}
@@ -288,7 +361,9 @@ function paintCatalog(container) {
   el.querySelectorAll(".cat-item").forEach((b) => {
     b.onclick = () => {
       shopAdd(b.dataset.name, b.dataset.cat, b.dataset.icon);
-      const it = ITEMS.find((x) => x.name.toLowerCase() === b.dataset.name.toLowerCase());
+      const low = b.dataset.name.toLowerCase();
+      const it = live().find((x) => (x.nameDe || x.name).toLowerCase() === low);
+      if (!it) return;
       let badge = b.querySelector(".ci-badge");
       if (!badge) { badge = document.createElement("span"); badge.className = "ci-badge"; b.appendChild(badge); }
       badge.textContent = it.qty;

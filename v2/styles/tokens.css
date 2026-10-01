@@ -2,6 +2,7 @@
    Theme-Steuerung: html[data-theme="light"|"dark"], Default folgt dem System. */
 
 :root {
+  color-scheme: light; /* native Controls (Inputs, Scrollbars) passend zum Theme */
   /* Farben (hell — v1-Identität) */
   --accent: #c8632e;
   --accent-2: #e8a13a;
@@ -46,6 +47,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --accent: #e07a3e;
     --accent-2: #e8a13a;
     --ink: #f0e7da;
@@ -67,6 +69,7 @@
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --accent: #e07a3e;
   --accent-2: #e8a13a;
   --ink: #f0e7da;

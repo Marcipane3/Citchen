@@ -2,7 +2,9 @@
 
 > Master plan for the next 1–2 weeks of v2 work, plus the v3 rebuild horizon.
 > Owner: Marcel · Maintained for Claude Code as the working backlog.
-> Last structured: 2026-06-14 · Current build: v2.5 (`/v2`, flat-v3 schema, 145 tests).
+> Last structured: 2026-10-01 · Current build: v2.11 (`/v2`, flat-v3 schema, 186 tests).
+> **New for review (2026-10-01):** §16 Epic L (calories & nutrition), §17 Epic M (fitness & diet
+> preferences), §18 Epic N („Gesund & Langlebig“ knowledge section).
 
 This file replaces the loose backlog at the bottom of `04_BUILD_PLAN.md`. Marcel's raw
 notes were regrouped into themed epics, de-duplicated, and prioritised. Claude's own
@@ -61,7 +63,7 @@ The "make the existing app not feel broken" pass. Small, high-impact.
 **Bug-sweep findings still open (low priority, 2026-06-13):**
 - ✅ **S1 · Untranslated display fields in non-DE UI** *(shipped v2.9)* — `lastCooked` ("Mai 2026") now translates month names via `tLastCooked()` in cookbook cards and detail view. Cuisine/season filter chips now translate via `tCuisine()`/`tSeason()` (data attrs stay canonical German for filtering). `time` ("35 Min") left as-is — free-form string, not worth P3·S effort. `tCuisine`/`tSeason`/`tLastCooked` follow the same pattern as `tCat`; 3 new unit tests; 166 green. P3·S.
 - **S2 · Mixed-language Markdown export** — `exportMarkdown` keeps German section headers + field labels but the recipe bodies are now localized. Works; slightly inconsistent. Decide: all-German export (use `recipesDe`) vs. fully-localized. P3·S.
-- **S3 · Localized shopping item names** — shopping list items are currently German (so the German aisle-catalog matches). To show item names in the UI language *and* keep aisle/icon matching, pass both arrays (1:1 guaranteed) into `aggregateIngredients` and match on the German one. P2·M.
+- ✅ **S3 · Localized shopping item names** *(shipped v2.11)* — `aggregateIngredients(..., { displayById })` shows names in the UI language, keeps `nameDe` for aisle/icon matching and merging. Was: shopping list items are currently German (so the German aisle-catalog matches). To show item names in the UI language *and* keep aisle/icon matching, pass both arrays (1:1 guaranteed) into `aggregateIngredients` and match on the German one. P2·M.
 
 ---
 
@@ -201,7 +203,7 @@ the friends step doesn't force a rewrite.
 | # | Item | Detail & acceptance | Pri | Eff |
 |---|------|---------------------|-----|-----|
 | ✅ **I1** | **Share the list (one-way, ship now)** *(shipped 2026-06-17, v2.8)* | "📤 Teilen" button in the list's action bar emits the list as plain text via Web Share API (native share sheet) with clipboard fallback. Aisle-grouped, open items (•) before done items (✓), qty shown. `formatListAsText()` is pure + unit-tested (5 cases). i18n DE/EN/ES/DA. | P2 | S |
-| 🔄 **I2** | **Couples: two-way shared list (Model A — shared Drive file, refresh-to-sync)** *(Plan 01 shipped v2.10 — core sync done; Picker handshake pending Plan 02)* | ✅ `listMerge.js` pure mergeList + 7 unit tests. ✅ `listSync.js` mirrors sync.js (syncListWithDrive, saveList, onStatus, getStatus). ✅ `drive.js` createFile accepts fileName param. ✅ `shopping.js` wired: Drive sync on load, save dirty-flag, Refresh button, tombstone filter. ✅ `einkaufsliste.json` created on Drive on first sync. ✅ 173 tests green, CACHE "koch-v2.10-1". **Pending (Plan 02):** Google Picker integration for partner linking (sl-link-partner button stub is in place); cross-account share handshake UX. | P3 | L |
+| ✅ **I2** | **Couples: two-way shared list (Model A — shared Drive file, refresh-to-sync)** *(v2.10 + fixes in v2.11)* | v2.10 shipped the sync core but had 3 blockers, fixed in v2.11: **CR-01** deletes now write tombstones (deleted items no longer come back from the partner); **CR-02** one timestamp + write-only-on-change (no more rewrite on every sync); **Picker never loaded** (`api.js` was missing, `setAppId` unset). Plus: every edit bumps `updated` (ticks now reach the partner), collision-free ids, no duplicate file on a 2nd device, debounced pushes, merge-on-save instead of blind overwrite. New sync card + step-by-step partner sheet, readable in dark mode. 12 new tests simulate two devices. **Open:** Marcel adds a Picker API key (`v2/docs/SHARING.md`) and runs one real two-account test. | P3 | L |
 | I3 | **Friends: open contribution (Model C — needs the backend decision)** | The real end goal: a shareable **link** that lets someone **without the app or a Google account** add an item to my list. This is **not reachable inside `drive.file`** (a non-Google friend can't touch a Drive file). Honest options: **(a)** constrain "friends" to "people who also run the app + Google" → then it's just I2 with a multi-party share (no new tech); **(b)** stand up a **minimal free-tier backend** (Firebase/Supabase) holding the list behind an invite link + a tiny add-item web form, with the same item-merge model. **This is a deliberate architecture decision, almost certainly V3** (it reverses the "no server" constraint). **Done:** decision recorded (a vs b); if (b), a spike proving link → friend adds item → owner sees it after refresh. | P3 | L |
 
 > **Sequencing & honesty:**
@@ -306,7 +308,7 @@ Eat, Samsung Food, Clove) — features that are now table-stakes and fit this ar
    surface it as a first-class home-screen card, not only an assistant tool. *(P2, S)*
 10. **Cook-mode hands-free / voice step advance** — "next step" by voice while your hands are messy.
     Web Speech API, no backend, BYOK-free. A genuine delight differentiator. *(P3, M)*
-11. **Nutrition / macro estimate per recipe** — optional AI-estimated calories & protein (relevant to
+11. → **Moved to §16 Epic L** (2026-10-01). **Nutrition / macro estimate per recipe** — optional AI-estimated calories & protein (relevant to
     Marcel's eggs-as-protein, fitness focus). BYOK, cached on the recipe. *(P3, M)*
 
 ---
@@ -335,6 +337,100 @@ F3 Match compare · E3 photo-removal · G1 file-edit contract · stand up H1 bug
 let it refill this backlog.
 
 **Continuous:** run H1/H2 between epics; append findings here; keep `SCHEMA.md` the contract.
+
+---
+
+## 16. Epic L — Nutrition & calories per recipe *(Marcel's ask, 2026-10-01 · for review)*
+
+**The ask:** calories (and ideally protein/carbs/fat) shown on every recipe, and checked for plausibility.
+
+**Why this needs a design decision first:** nothing in `rezepte.json` holds nutrition today. Three ways
+to get numbers, each with a different trade-off:
+
+| Source | How it works | Cost / offline | Accuracy | Verdict |
+|--------|--------------|----------------|----------|---------|
+| **(a) Bundled nutrient table** | Ship a small table (~300 common ingredients, per 100 g) built from **USDA FoodData Central** (public domain / CC0) or Denmark's **Frida** (DTU, free, attribution required). The existing `parseIngredient()` gives amount + unit → convert to grams → sum → divide by servings. | Free, **works offline, no key** | Good for whole foods; weak on vague amounts („1 Handvoll“, „etwas Öl“) | **Recommended core.** Fits the free tier and the offline-first promise. |
+| **(b) AI estimate (BYOK)** | Ask Claude for kcal + macros per serving from the ingredient list; cache it on the recipe. | Needs key + network; ~1 cheap Haiku call per recipe, once | Plausible but unverified; can hallucinate | **Fallback** for recipes where (a) can't match ingredients. |
+| **(c) Live API** (USDA FDC API with a free data.gov key, Open Food Facts) | Look up each ingredient online. | Network, rate limits (FDC ~1,000 req/h), key handling | Same data as (a), but slower and online-only | **Skip** — (a) gives the same data offline. |
+
+**Schema impact (must respect the flat-v3 contract):** add one **optional** flat field per recipe, e.g.
+`nutrition: "kcal 520 · P 24 · KH 61 · F 18"`, *or* four optional numeric fields `kcal`, `protein`,
+`carbs`, `fat` (per serving) + `nutritionSource: "table" | "ai" | "manual"`. Additive only — v1 and
+project-Claude pass unknown fields through (G1). Needs a `SCHEMA.md` update so project-Claude can fill it
+too when it adds recipes.
+
+| # | Item | Detail & acceptance | Pri | Eff |
+|---|------|---------------------|-----|-----|
+| L1 | **Decide the nutrition model** | Pick (a)+(b) vs. (b)-only; pick the field shape; update `SCHEMA.md`. **Done:** decision recorded here + schema section written. | P1 | S |
+| L2 | **Offline calorie calculator** | Bundled `nutrients.json` (USDA/Frida subset) + unit→gram table (EL/TL/Stück/Dose…) + pure `estimateNutrition(recipe)` with unit tests. Shows "≈ 520 kcal / Portion" on cards + detail; marks "≈" when < 80 % of ingredient weight matched. | P1 | M |
+| L3 | **"Check calories" plausibility pass** | One-off job (Node tool, like `build-snapshots.mjs`) that runs L2 over all 105 base recipes and lists outliers (e.g. salad > 1,200 kcal, curry < 150 kcal) for manual review. That is the "checked" part of the ask. | P1 | S |
+| L4 | **AI fallback for unmatched recipes** | BYOK: fills `kcal/protein/…` where L2 coverage is low; tagged `nutritionSource: "ai"` and shown with a small ✨ so estimates are never passed off as measured. | P2 | S |
+| L5 | **Scale with portions** | Cooking-mode portion scaler and planner totals use the per-serving numbers ("this week ≈ 1,850 kcal/day from dinners"). | P3 | S |
+
+---
+
+## 17. Epic M — Fitness & diet preferences *(Marcel's ask, 2026-10-01 · for review · depends on L)*
+
+**The ask:** settings for fitness-oriented users — high protein, low fat, high fat (keto-ish), etc.
+Market check: macro targets and "high-protein" filters are now standard in recipe apps (Samsung Food,
+Eat This Much, Mealime), so this is table-stakes once Epic L exists, not a niche feature.
+
+| # | Item | Detail & acceptance | Pri | Eff |
+|---|------|---------------------|-----|-----|
+| M1 | **Nutrition goal in the cook profile** | Extend the existing editable cook profile (A3, `data/settings.js`) with a goal preset: *Ausgewogen · High Protein · Low Carb · Low Fat · High Fat/Keto · Kalorienbewusst* + optional daily kcal / protein target (e.g. g/kg body weight). Stored locally only. | P2 | S |
+| M2 | **Macro filter chips** | Cookbook chips "💪 ≥ 25 g Protein", "🪶 < 500 kcal", "🥑 Low Carb" — derived in memory from L2 numbers (like `derive.js` does today), never written to Drive. | P2 | S |
+| M3 | **Goal-aware AI** | The profile goal flows into the assistant system prompt (it already reads the profile) so "Was koche ich heute?" proposes e.g. high-protein vegetarian dishes. Near-zero code. | P2 | S |
+| M4 | **Planner respects the goal** | Weekly planner scoring adds a small bonus for recipes matching the goal (e.g. protein per serving), plus a weekly macro summary. | P3 | M |
+| M5 | **"Protein boost" tips** | For a chosen recipe, suggest swaps/add-ons that raise protein (eggs, Greek yogurt, lentils, tofu, cottage cheese, seeds). Good fit for Marcel's vegetarian + eggs pattern. Rule-based list first, AI optional. | P3 | S |
+
+**Guardrail:** no medical claims, no "diet plan" for weight loss. Show numbers and preferences; the user decides.
+
+---
+
+## 18. Epic N — "Gesund & Langlebig" knowledge section *(Marcel's idea, 2026-10-01 · for review)*
+
+**The idea:** a place in the app to read up on ingredients and on what's good for health and
+longevity: short explainers, current research/trends, and links onwards to good articles, books,
+websites and YouTube channels.
+
+**What fits this app (research summary).** The evidence base is fairly consistent and maps well onto
+a mostly-vegetarian cookbook:
+- Higher intake of **nuts, whole grains, fruit, vegetables, legumes and fish** is associated with lower
+  all-cause mortality; **red/processed meat and sugary drinks** with higher. *(Umbrella review, Advances in Nutrition 2025)*
+- **Legumes:** meta-analysis of 32 studies / 1.1 M people: highest vs. lowest intake ≈ **6 % lower** premature mortality.
+  Denmark's official dietary guidelines (2021) recommend **100 g cooked legumes per day**.
+- **Ultra-processed food:** each +10 % of intake ≈ **+9 % all-cause mortality** in dose-response meta-analysis; also covered by the Nordic Nutrition Recommendations 2023.
+- **Protein with age:** PROT-AGE/ESPEN recommend **1.0–1.2 g/kg/day** for adults over 65 (more when ill), and ~25–30 g per meal. A natural bridge to Epic M.
+
+**Design principle — curate, don't preach.** Short, sourced, evidence-graded cards beat a feed.
+Every claim carries a source link and a confidence marker (🟢 strong / 🟡 mixed / 🔴 hype). This keeps
+the section trustworthy and avoids the influencer-supplement trap.
+
+| # | Item | Detail & acceptance | Pri | Eff |
+|---|------|---------------------|-----|-----|
+| N1 | **Ingredient cards ("Zutaten-Wissen")** | Tap an ingredient in a recipe (e.g. Kichererbsen) → card: what it brings (protein/fibre/…), why it matters, storage tip, 1–2 sources. Start with ~30 cards for the ingredients used most in the 105 recipes. Bundled JSON, offline, translated like the recipe snapshots. | P2 | M |
+| N2 | **"Gesund & Langlebig" hub page** | New menu page with 6–8 evidence-graded topic cards: Hülsenfrüchte · Ballaststoffe · Protein & Muskeln im Alter · Ultra-verarbeitete Lebensmittel · Mediterrane/Nordische Ernährung · Fermentiertes · Olivenöl & Nüsse · Blue Zones (myth vs. data). Each card: 3-line summary, "What this means in the kitchen", links. | P2 | M |
+| N3 | **Curated reading & watching list** | A short, opinionated list with a one-line "why" per entry. Candidate seed list (Marcel to approve): **Websites:** Harvard T.H. Chan *The Nutrition Source*; Fødevarestyrelsen *De officielle kostråd*; DGE (German guidelines); examine.com. **Books:** Tim Spector *Food for Life*; Peter Attia *Outlive*; Dan Buettner *The Blue Zones Kitchen*. **YouTube/podcasts:** *Nutrition Made Simple!* (Gil Carvalho, evidence-focused); ZOE Science & Nutrition; Peter Attia *The Drive*. Mark known biases openly (e.g. advocacy or commercial ties). | P2 | S |
+| N4 | **Recipe longevity badges** | Derived in memory (no schema change): 🫘 legume-rich, 🌾 whole grain, 🥜 nuts/seeds, 🫒 olive oil, 🥬 ≥ 3 veg. Optional cookbook filter "Langlebig". Rules unit-tested like `derive.js`. | P2 | S |
+| N5 | **"Weekly longevity check"** | Planner summary: "This week: legumes on 4/7 days · ~32 g fibre/day · 2 fish-free veggie days". Compares against the Danish guideline (100 g legumes/day) without nagging. Builds on L2. | P3 | M |
+| N6 | **Ask the AI about an ingredient (BYOK)** | From an ingredient card: "Frag die KI" → answer constrained to cite sources and say when evidence is weak. Optional, key-gated. | P3 | S |
+| N7 | **"Trends & news" feed** | Periodically updated research notes (e.g. quarterly, written by project-Claude into a bundled file). **Flag:** keeping it fresh is ongoing work, and a stale "news" page hurts trust. Only do this if N2 is used. | P3 | M |
+
+**Recommended order:** L1 → L2 → L3 (calories, the concrete ask) → M1–M3 (cheap once numbers exist) →
+N4 + N2 + N3 (badges + hub, mostly content) → N1 → the rest. Content items (N1–N3) need Marcel's review
+of the sources before shipping.
+
+**Sources used for this section:**
+[Umbrella review, Advances in Nutrition 2025](https://advances.nutrition.org/article/S2161-8313(25)00029-8/pdf) ·
+[UPF & mortality dose-response meta-analysis](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8747520/) ·
+[UPF scoping review, NNR 2023](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11077402/) ·
+[Legume meta-analysis summary](https://newsletter.onehealthtweakaweek.com/p/the-bean-swap-linked-to-a-longer-c8c) ·
+[Plant protein & life expectancy (ScienceDaily 2025)](https://www.sciencedaily.com/releases/2025/04/250415144002.htm) ·
+[PROT-AGE position paper](https://www.sciencedirect.com/science/article/pii/S1525861013003265) ·
+[Danish legume guideline (EU Knowledge4Policy)](https://knowledge4policy.ec.europa.eu/health-promotion-knowledge-gateway/dietary-recommendations-legumes-pulses-intake_en) ·
+[USDA FoodData Central API guide](https://fdc.nal.usda.gov/api-guide) ·
+[Frida food database, DTU](https://frida.fooddata.dk/?lang=en) ·
+[Recipe apps with nutrition, 2026 overview](https://www.innerbuddies.com/blogs/gut-health/best-recipe-apps-with-nutrition-info)
 
 ---
 

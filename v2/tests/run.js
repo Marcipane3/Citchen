@@ -15,6 +15,7 @@ import "./test-sw-shell.js";
 import "./test-syntax.js";
 import "./test-decide-sync.js";
 import "./test-list-merge.js";
+import "./test-list-sync.js";
 import "./test-canonical.js";
 import { run } from "./runner.js";
 
