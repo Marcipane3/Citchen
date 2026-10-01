@@ -6,8 +6,13 @@
 //  - Anmeldung ist OPTIONAL: ohne Token läuft die App rein lokal weiter.
 
 const GOOGLE_CLIENT_ID = "977952120262-lht1tbbinnj8kmehmvqe1dpu5gp7k8d8.apps.googleusercontent.com";
-const GOOGLE_API_KEY = "";   // Set to your Google Cloud API key if Picker requires it
-const GOOGLE_APP_ID = "";    // Set to your Google Cloud project number if Picker requires it
+// Google Picker (Partner-Verknüpfung der Einkaufsliste):
+//  - APP_ID = Cloud-Projektnummer (= Zahlen-Präfix der Client-ID). PFLICHT für drive.file:
+//    nur so darf die App die im Picker gewählte (fremde, geteilte) Datei danach lesen.
+//  - API_KEY = Browser-API-Schlüssel mit aktivierter „Google Picker API“ (Google-Doku: Pflicht).
+//    Einrichtung: siehe v2/docs/SHARING.md. Leer = Picker wird trotzdem versucht.
+const GOOGLE_API_KEY = "";
+const GOOGLE_APP_ID = "977952120262";
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
 const FILE_NAME = "rezepte.json";
 export const KNOWN_FILE_ID = "1t6KRviicPspYVj9oFjsUTJ6n8kZLHP1y";
@@ -143,6 +148,14 @@ export async function findFile() {
   return j.files && j.files.length ? j.files[0].id : null;
 }
 
+/** Eigene (von diesem Konto angelegte) Datei per Name finden — NICHT die geteilte eines Partners. */
+export async function findOwnFileByName(name) {
+  const q = encodeURIComponent(`name='${name}' and trashed=false and 'me' in owners`);
+  const r = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)&orderBy=createdTime`);
+  const j = await r.json();
+  return j.files && j.files.length ? j.files[0].id : null;
+}
+
 export async function readFile(id) {
   const r = await driveFetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`);
   return r.json();
@@ -208,28 +221,44 @@ export async function imageUrl(fileId) {
 
 let pickerLoaded = null;
 
-export function openPickerForFile(mimeType, onFilePicked) {
-  if (!TOKEN) return; // Nicht angemeldet — lautlos abbrechen
-  if (!pickerLoaded) {
-    pickerLoaded = new Promise((resolve) => gapi.load("picker", resolve));
-  }
-  pickerLoaded.then(() => {
-    const view = new google.picker.View(google.picker.ViewId.DOCS);
-    view.setMimeTypes(mimeType);
-    const builder = new google.picker.PickerBuilder()
-      .setOAuthToken(TOKEN)
-      .addView(view)
-      .setCallback((data) => {
-        if (data.action === google.picker.Action.PICKED) {
-          const doc = data[google.picker.Response.DOCUMENTS][0];
-          const fileId = doc[google.picker.Document.ID];
-          const fileName = doc[google.picker.Document.NAME] || "";
-          onFilePicked(fileId, fileName);
-        }
-      });
-    // Einkommentieren, falls Picker "developer key invalid" wirft:
-    // if (GOOGLE_API_KEY) builder.setDeveloperKey(GOOGLE_API_KEY);
-    // if (GOOGLE_APP_ID) builder.setAppId(GOOGLE_APP_ID);
-    builder.build().setVisible(true);
-  });
+function loadPickerApi() {
+  if (pickerLoaded) return pickerLoaded;
+  pickerLoaded = new Promise((resolve, reject) => {
+    const ready = () => gapi.load("picker", { callback: resolve, onerror: () => reject(new Error("Picker nicht ladbar")) });
+    if (typeof gapi !== "undefined" && gapi.load) return ready();
+    // Bug bis v2.10: api.js wurde nie geladen → gapi undefined → „Partner verbinden“ tat nichts.
+    const s = document.createElement("script");
+    s.src = "https://apis.google.com/js/api.js";
+    s.async = true;
+    s.onload = ready;
+    s.onerror = () => reject(new Error("Google-API nicht ladbar (offline?)"));
+    document.head.appendChild(s);
+  }).catch((e) => { pickerLoaded = null; throw e; });
+  return pickerLoaded;
+}
+
+/**
+ * Öffnet den Google Picker. Zeigt JSON-Dateien „Für mich freigegeben“ zuerst, dann „Meine Ablage“.
+ * Rückgabe: Promise, die bei Ladefehler/nicht angemeldet rejected. onFilePicked(fileId, fileName).
+ */
+export async function openPickerForFile(mimeType, onFilePicked) {
+  if (!TOKEN) throw new DriveError("Nicht angemeldet", 401);
+  await loadPickerApi();
+  const shared = new google.picker.DocsView(google.picker.ViewId.DOCS)
+    .setMimeTypes(mimeType).setOwnedByMe(false).setMode(google.picker.DocsViewMode.LIST);
+  const mine = new google.picker.DocsView(google.picker.ViewId.DOCS)
+    .setMimeTypes(mimeType).setOwnedByMe(true).setMode(google.picker.DocsViewMode.LIST);
+  const builder = new google.picker.PickerBuilder()
+    .setOAuthToken(TOKEN)
+    .setAppId(GOOGLE_APP_ID)
+    .addView(shared)
+    .addView(mine)
+    .setCallback((data) => {
+      if (data.action === google.picker.Action.PICKED) {
+        const doc = data[google.picker.Response.DOCUMENTS][0];
+        onFilePicked(doc[google.picker.Document.ID], doc[google.picker.Document.NAME] || "");
+      }
+    });
+  if (GOOGLE_API_KEY) builder.setDeveloperKey(GOOGLE_API_KEY);
+  builder.build().setVisible(true);
 }

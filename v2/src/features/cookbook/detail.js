@@ -153,8 +153,9 @@ export function openDetail(id) {
       import("../shopping/shopping.js"),
       import("../../data/settings.js"),
     ]);
-    // Einkaufsliste matcht gegen den deutschen Katalog → deutsches Rezept aggregieren.
-    const { items, skipped } = aggregateIngredients([getRecipeDe(r.id) || r], { staples: await getStaples() });
+    // Einkaufsliste matcht gegen den deutschen Katalog → deutsches Rezept aggregieren;
+    // angezeigt wird der Artikelname in der UI-Sprache (S3).
+    const { items, skipped } = aggregateIngredients([getRecipeDe(r.id) || r], { staples: await getStaples(), displayById: { [r.id]: r } });
     if (!items.length) { alert(skipped ? t("detail.allInStock") : t("detail.nothingToAdd")); return; }
     await addItemsToList(items);
     const msg = t("detail.addedToShopping", { n: items.length }) + (skipped ? t("detail.inStockSkipped", { n: skipped }) : "") + ".\n" + t("detail.switchToList");

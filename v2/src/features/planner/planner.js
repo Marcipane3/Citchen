@@ -167,7 +167,8 @@ export function renderPlanner(container) {
     const staples = await getStaples();
     // Einkaufsliste matcht gegen den deutschen Katalog → deutsche Rezepte aggregieren.
     const recipes = planRecipeIds(PLAN).map((id) => getRecipeDe(id)).filter(Boolean);
-    const { items, skipped } = aggregateIngredients(recipes, { staples });
+    const displayById = Object.fromEntries(recipes.map((x) => [x.id, getRecipe(x.id)]));
+    const { items, skipped } = aggregateIngredients(recipes, { staples, displayById }); // S3: Namen in UI-Sprache
     await addItemsToList(items);
     btn.disabled = false;
     const msg = t("detail.addedToShopping", { n: items.length }) + (skipped ? t("detail.inStockSkipped", { n: skipped }) : "") + ".\n" + t("detail.switchToList");

@@ -51,13 +51,22 @@ export function itemKey(item, unit) {
   return `${(item || "").toLowerCase().replace(/\s+/g, " ").trim()}|${(unit || "").toLowerCase()}`;
 }
 
+/** Artikelname aus einer (ggf. skalierten) Zutatenzeile. */
+function nameOf(raw) {
+  const p = parseIngredient(raw);
+  return (p.item || p.raw.replace(/🛒/g, "").trim()).replace(/\s+/g, " ").trim();
+}
+
 /**
  * Aggregiert die Kauf-Zutaten mehrerer Rezepte zu Einkaufsartikeln.
- * factorById: optionaler Skalierungsfaktor pro Rezept (Portions-Anpassung).
+ * recipes MÜSSEN die deutschen (kanonischen) Rezepte sein: Vorrat, Katalog-Gang und Icon
+ * matchen deutsch. factorById: optionaler Skalierungsfaktor pro Rezept (Portions-Anpassung).
+ * displayById (S3): optional { id: lokalisiertes Rezept } — dann zeigt `name` die Zutat in der
+ * UI-Sprache (gleiche Position, Overlay garantiert 1:1), `nameDe` behält den deutschen Schlüssel.
  * Gleicher Artikeltext + gleiche Einheit → Mengen werden summiert.
- * Rückgabe: [{ name, amount, unit, cat, icon, qty, done, sources }]
+ * Rückgabe: [{ name, nameDe, amount, unit, cat, icon, qty, done, sources }]
  */
-export function aggregateIngredients(recipes, { staples = DEFAULT_STAPLES, factorById = {} } = {}) {
+export function aggregateIngredients(recipes, { staples = DEFAULT_STAPLES, factorById = {}, displayById = {} } = {}) {
   const map = new Map();
   let skipped = 0;
 
@@ -65,12 +74,16 @@ export function aggregateIngredients(recipes, { staples = DEFAULT_STAPLES, facto
     const list = r.ingredients || [];
     const usesMarkers = list.some((i) => /🛒/.test(i));
     const factor = factorById[r.id] || 1;
+    const disp = displayById[r.id];
+    const dispList = disp && Array.isArray(disp.ingredients) && disp.ingredients.length === list.length ? disp.ingredients : null;
 
-    for (const raw of list) {
+    for (let j = 0; j < list.length; j++) {
+      const raw = list[j];
       if (!needsBuying(raw, { recipeUsesMarkers: usesMarkers, staples })) { skipped++; continue; }
       const scaled = factor !== 1 ? scaleIngredient(raw, factor) : raw;
       const p = parseIngredient(scaled);
-      const name = (p.item || p.raw.replace(/🛒/g, "").trim()).replace(/\s+/g, " ").trim();
+      const name = nameOf(scaled);
+      const shown = (dispList && nameOf(dispList[j])) || name;
       const key = itemKey(name, p.unit);
       const m = ingMatchCat(name);
       const existing = map.get(key);
@@ -80,7 +93,8 @@ export function aggregateIngredients(recipes, { staples = DEFAULT_STAPLES, facto
         if (!existing.sources.includes(r.id)) existing.sources.push(r.id);
       } else {
         map.set(key, {
-          name,
+          name: shown,
+          nameDe: name,
           amount: p.amount,
           unit: p.unit,
           cat: m ? m.cat : "Aus Rezepten",
@@ -97,14 +111,19 @@ export function aggregateIngredients(recipes, { staples = DEFAULT_STAPLES, facto
 
 /**
  * Mischt neue Artikel in eine bestehende Liste (mutiert nicht; gibt neue Liste).
- * Gleicher Schlüssel: Mengen summieren bzw. qty erhöhen, done zurücksetzen (v1-Verhalten).
+ * Gleicher Schlüssel (deutscher Name + Einheit): Mengen summieren bzw. qty erhöhen,
+ * done zurücksetzen (v1-Verhalten). Gelöschte Artikel (Tombstones) werden wiederbelebt
+ * statt aufaddiert. Jede Änderung setzt `updated`, damit der Partner-Sync sie übernimmt.
  */
-export function mergeItems(existing, incoming) {
+export function mergeItems(existing, incoming, now = new Date().toISOString()) {
   const out = existing.map((x) => ({ ...x }));
+  const keyOf = (x) => itemKey(x.nameDe || x.name, x.unit);
   for (const inc of incoming) {
-    const key = itemKey(inc.name, inc.unit);
-    const hit = out.find((x) => itemKey(x.name, x.unit) === key);
-    if (hit) {
+    const key = keyOf(inc);
+    const hit = out.find((x) => keyOf(x) === key);
+    if (hit && hit.deleted) {
+      Object.assign(hit, { ...inc, id: hit.id, author: hit.author, deleted: false, done: false });
+    } else if (hit) {
       if (hit.amount !== null && hit.amount !== undefined && inc.amount !== null && inc.amount !== undefined) {
         hit.amount += inc.amount;
       } else {
@@ -112,8 +131,10 @@ export function mergeItems(existing, incoming) {
       }
       hit.done = false;
     } else {
-      out.push({ ...inc });
+      out.push({ ...inc, updated: now });
+      continue;
     }
+    hit.updated = now;
   }
   return out;
 }
