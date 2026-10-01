@@ -56,3 +56,8 @@ export function syncStep(local = [], remote = [], now = new Date().toISOString()
   const merged = pruneTombstones(mergeList(local, remote), now);
   return { merged, writeRemote: !sameItems(remote, merged), writeLocal: !sameItems(local, merged) };
 }
+
+/** J2-Badge: offene Artikel = nicht gelöscht und nicht abgehakt. */
+export function countOpen(items = []) {
+  return items.filter((it) => !it.deleted && !it.done).length;
+}

@@ -1,4 +1,5 @@
-// menu.js — ☰ Navigations-Sheet. i18n-fähig; Lager als Top-Level-Eintrag.
+// menu.js — ☰ Navigations-Sheet für die Nebenbereiche. Die 5 Hauptbereiche stehen seit J2
+// in der Tab-Leiste unten (ui/tabs.js) und werden hier bewusst NICHT doppelt geführt.
 
 import { state } from "../store.js";
 import * as drive from "../data/drive.js";
@@ -7,15 +8,11 @@ import { navigate } from "../router.js";
 import { copyExport } from "./cookbook/export.js";
 import { t } from "../i18n.js";
 
-const ITEMS = [
-  { go: "cookbook", icon: "📖", k: "nav.cookbook" },
+export const ITEMS = [
   { go: "match", icon: "🔥", k: "nav.match" },
-  { go: "lager", icon: "📦", k: "nav.lager" },
-  { go: "shopping", icon: "🛒", k: "nav.shopping" },
-  { go: "planner", icon: "🗓", k: "nav.planner" },
-  { go: "assistant", icon: "✨", k: "nav.assistant" },
   { go: "capture", icon: "📸", k: "nav.capture" },
   { go: "settings", icon: "⚙️", k: "nav.settings" },
+  { go: "guide", icon: "ℹ️", k: "nav.guide" },
   { go: "__export", icon: "⬇️", k: "nav.export" },
 ];
 

@@ -20,6 +20,7 @@ import { initTheme } from "./data/settings.js";
 import { getLang, hasLang, onLangChange } from "./i18n.js";
 import { showLanguageModal } from "./features/onboarding/language.js";
 import { closeAllSheets } from "./ui/sheet.js";
+import { mountTabBar, setActiveTab } from "./ui/tabbar.js";
 import { esc } from "./ui/helpers.js";
 import { BUILD } from "./version.js";
 
@@ -32,6 +33,7 @@ function mount(name, renderFn) {
   if (currentCleanup) { try { currentCleanup(); } catch (e) { /* egal */ } currentCleanup = null; }
   closeAllSheets();
   currentRouteName = name;
+  setActiveTab(name); // J2: aktiven Tab markieren / im Kochmodus ausblenden
   const maybeCleanup = renderFn(app());
   if (typeof maybeCleanup === "function") currentCleanup = maybeCleanup;
 }
@@ -62,7 +64,8 @@ async function boot() {
   // 1b. Anzeige-Overlay für die aktive Sprache (Basis-Rezepte übersetzt; nur Anzeige)
   await applyLanguageOverlay(getLang());
 
-  // 2. Routen
+  // 2. Routen (+ J2: feste Tab-Leiste unten, außerhalb von #app)
+  mountTabBar();
   router.register("cookbook", () => mount("cookbook", renderCookbook));
   router.register("match", () => mount("match", renderMatch));
   router.register("cook/:id", ({ id }) => mount("cook", (c) => renderCook(c, id)));

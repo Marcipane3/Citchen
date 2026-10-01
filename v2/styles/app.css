@@ -43,7 +43,7 @@
 .card-heart { position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 22px; line-height: 1; padding: 4px; z-index: 2; color: var(--accent); }
 .rate-mini { color: var(--accent-2); letter-spacing: 1px; }
 .fab {
-  position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); right: max(24px, calc(50% - 296px));
+  position: fixed; bottom: calc(18px + var(--tabbar-h) + env(safe-area-inset-bottom)); right: max(24px, calc(50% - 296px));
   width: 58px; height: 58px; border-radius: 18px; background: var(--accent); color: #fff; border: none;
   font-size: 30px; box-shadow: 0 6px 20px rgba(200, 99, 46, .35); z-index: 20; transition: transform .12s;
 }
@@ -291,7 +291,7 @@ label.check input { width: auto; }
 .ai-msg.ai { margin-right: auto; background: var(--card); border: 1.5px solid var(--line); border-bottom-left-radius: 4px; }
 .ai-msg.ai a { color: var(--accent); }
 .ai-busy { color: var(--muted); font-weight: 600; padding: 8px 0; }
-.ai-inputbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: var(--maxw); display: flex; gap: 8px; padding: 12px var(--pad) calc(12px + env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--line-soft); z-index: 15; }
+.ai-inputbar { position: fixed; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: 100%; max-width: var(--maxw); display: flex; gap: 8px; padding: 10px var(--pad); background: var(--paper); border-top: 1px solid var(--line-soft); z-index: 15; }
 .ai-inputbar input { flex: 1; border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 14px; font-size: 15px; background: var(--card); color: var(--ink); outline: none; }
 .ai-inputbar input:focus { outline: 2px solid var(--accent); }
 .ai-inputbar .btn-primary { padding: 12px 18px; }
@@ -371,3 +371,35 @@ label.check input { width: auto; }
 .guide-feat .gf-b { font-size: 14px; color: var(--muted-strong); line-height: 1.5; }
 .guide-changelog { font-size: 14px; line-height: 1.7; color: var(--muted-strong); }
 .guide-changelog li { margin-bottom: 2px; }
+
+/* ---------- J2: Tab-Leiste unten (5 Hauptbereiche) ---------- */
+/* z-index: über FAB (20) und KI-Eingabe (15), unter Sheets/Overlays (50) und Kochmodus (60). */
+.tabbar {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 40;
+  width: 100%; max-width: var(--maxw); display: flex;
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  padding: 0 4px env(safe-area-inset-bottom);
+  background: var(--paper); border-top: 1px solid var(--line);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, .06);
+}
+body.no-tabbar .tabbar { display: none; }
+.tab {
+  flex: 1 1 0; min-width: 0; min-height: 44px; background: none; border: 0; border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  color: var(--muted-strong); font-size: 11px; font-weight: 600; line-height: 1.1; padding: 6px 2px;
+}
+.tab-ic { position: relative; font-size: 22px; line-height: 1; filter: grayscale(.6); opacity: .8; transition: transform .12s; }
+.tab-lbl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab.on { color: var(--accent); }
+.tab.on .tab-ic { filter: none; opacity: 1; transform: translateY(-1px) scale(1.08); }
+.tab.on .tab-lbl { font-weight: 700; }
+.tab:active .tab-ic { transform: scale(.9); }
+.tab-badge {
+  position: absolute; top: -6px; left: 60%; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--accent); color: #fff; border: 2px solid var(--paper);
+  font-size: 10px; font-weight: 700; line-height: 14px; text-align: center; font-family: var(--font-body);
+}
+@media (pointer: coarse) {
+  body.typing .tabbar { display: none; }
+  body.typing .ai-inputbar { bottom: env(safe-area-inset-bottom); }
+}
