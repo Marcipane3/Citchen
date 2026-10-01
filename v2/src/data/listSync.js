@@ -10,7 +10,7 @@
 
 import * as db from "./db.js";
 import * as drive from "./drive.js";
-import { mergeList, ensureItemMeta, sameItems, syncStep } from "../features/shopping/listMerge.js";
+import { mergeList, ensureItemMeta, sameItems, syncStep, countOpen } from "../features/shopping/listMerge.js";
 
 const META_KEY = "listMeta";           // { fileId, ownFileId, linked, dirty, lastSync }
 const LIST_FILE_NAME = "einkaufsliste.json";
@@ -25,6 +25,12 @@ export function onStatus(fn) { statusListeners.add(fn); return () => statusListe
 export function onChange(fn) { changeListeners.add(fn); return () => changeListeners.delete(fn); }
 export function getStatus() { return status; }
 function setStatus(s) { status = s; for (const fn of statusListeners) fn(s); }
+
+// J2: Anzahl offener Artikel für das 🛒-Badge der Tab-Leiste (bei jedem Speichern + Partner-Sync).
+const countListeners = new Set();
+export function onCount(fn) { countListeners.add(fn); return () => countListeners.delete(fn); }
+function emitCount(items) { const n = countOpen(items); for (const fn of countListeners) fn(n); }
+export async function getOpenCount() { return countOpen(await loadLocalList()); }
 
 export async function getMeta() { return db.kvGet(META_KEY, {}); }
 
@@ -94,7 +100,7 @@ async function doSync() {
     meta = { ...meta, fileId, dirty: stillDirty, lastSync: now };
     await db.kvSet(META_KEY, meta);
     setStatus("synced");
-    if (localChanged) for (const fn of changeListeners) fn(final);
+    if (localChanged) { for (const fn of changeListeners) fn(final); emitCount(final); }
     if (stillDirty) schedulePush();
     return { changed: localChanged, items: final, meta };
   } catch (e) {
@@ -118,6 +124,7 @@ function schedulePush() {
 export async function saveList(items) {
   const now = new Date().toISOString();
   await db.put("lists", { id: LIST_DB_ID, items: ensureItemMeta(items, now), updated: now });
+  emitCount(items);
   const meta = await getMeta();
   await db.kvSet(META_KEY, { ...meta, dirty: true });
   if (drive.isSignedIn() && (typeof navigator === "undefined" || navigator.onLine !== false)) schedulePush();

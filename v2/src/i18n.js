@@ -114,6 +114,10 @@ export const DICT = {
       lager: "Lager", settings: "Einstellungen", export: "Rezepte als Markdown exportieren",
       driveConnect: "Mit Google Drive verbinden", driveConnected: "Google Drive verbunden",
       driveSyncActive: "✓ Sync aktiv",
+      guide: "Features & Versionen",
+    },
+    tab: {
+      aria: "Hauptbereiche", cookbook: "Rezepte", lager: "Lager", shopping: "Einkauf", planner: "Plan", assistant: "KI", badgeAria: "{n} offen",
     },
     cookbook: {
       title: "Mein Kochbuch", count_one: "{n} Rezept", count_other: "{n} Rezepte",
@@ -348,6 +352,10 @@ export const DICT = {
       lager: "Stock", settings: "Settings", export: "Export recipes as Markdown",
       driveConnect: "Connect Google Drive", driveConnected: "Google Drive connected",
       driveSyncActive: "✓ Sync active",
+      guide: "Features & versions",
+    },
+    tab: {
+      aria: "Main sections", cookbook: "Recipes", lager: "Stock", shopping: "Shopping", planner: "Plan", assistant: "AI", badgeAria: "{n} open",
     },
     cookbook: {
       title: "My Cookbook", count_one: "{n} recipe", count_other: "{n} recipes",
@@ -582,6 +590,10 @@ export const DICT = {
       lager: "Despensa", settings: "Ajustes", export: "Exportar recetas como Markdown",
       driveConnect: "Conectar Google Drive", driveConnected: "Google Drive conectado",
       driveSyncActive: "✓ Sync activo",
+      guide: "Funciones y versiones",
+    },
+    tab: {
+      aria: "Secciones principales", cookbook: "Recetas", lager: "Despensa", shopping: "Compra", planner: "Plan", assistant: "IA", badgeAria: "{n} pendientes",
     },
     cookbook: {
       title: "Mi recetario", count_one: "{n} receta", count_other: "{n} recetas",
@@ -816,6 +828,10 @@ export const DICT = {
       lager: "Lager", settings: "Indstillinger", export: "Eksportér opskrifter som Markdown",
       driveConnect: "Forbind Google Drive", driveConnected: "Google Drive forbundet",
       driveSyncActive: "✓ Sync aktiv",
+      guide: "Funktioner & versioner",
+    },
+    tab: {
+      aria: "Hovedsektioner", cookbook: "Opskrifter", lager: "Lager", shopping: "Indkøb", planner: "Plan", assistant: "AI", badgeAria: "{n} åbne",
     },
     cookbook: {
       title: "Min kogebog", count_one: "{n} opskrift", count_other: "{n} opskrifter",

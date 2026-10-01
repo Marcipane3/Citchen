@@ -2,7 +2,7 @@
 
 > Master plan for the next 1–2 weeks of v2 work, plus the v3 rebuild horizon.
 > Owner: Marcel · Maintained for Claude Code as the working backlog.
-> Last structured: 2026-10-01 · Current build: v2.11 (`/v2`, flat-v3 schema, 186 tests).
+> Last structured: 2026-10-01 · Current build: v2.12 (`/v2`, flat-v3 schema, 195 tests).
 > **New for review (2026-10-01):** §16 Epic L (calories & nutrition), §17 Epic M (fitness & diet
 > preferences), §18 Epic N („Gesund & Langlebig“ knowledge section).
 
@@ -225,7 +225,7 @@ Spun out of the 🍳-logo ask (A5) because it points at a bigger, evidence-backe
 | # | Item | Detail & acceptance | Pri | Eff |
 |---|------|---------------------|-----|-----|
 | ✅ **J1** | **🍳 logo → home** *(= A5, Marcel — shipped 2026-06-14)* | Done with K1/A5: home affordance now on every view. First step of the nav model below. | P1 | S |
-| J2 | **Bottom tab bar for primary sections** *(Claude addition — research-backed)* | Today navigation is **hamburger-only** (`menu.js`, ☰ on every header). Nielsen Norman Group: hidden menus cut task completion ~21%; teams that moved core destinations to a **visible bottom tab bar** saw feature discovery +30%. Best practice for ≤5 primary sections: a persistent bottom tab bar (Kochbuch · Match · Lager · Einkauf · Planer), thumb-reachable, with the ☰ retained for secondary items (Capture, Assistant, Settings, Export). The 🍳 home affordance (A5) folds into this. **Done:** primary sections reachable in one thumb-tap from anywhere; ☰ holds the long tail; a11y labels + active-state. *Idea only — not committed; Marcel decides.* | P2 | M |
+| ✅ **J2** | **Bottom tab bar for primary sections** *(shipped v2.12, 2026-10-01)* | Fixed bottom bar on every screen: **📖 Rezepte · 📦 Lager · 🛒 Einkauf · 🗓 Plan · ✨ KI** (Marcel's pick: Assistant in, Match moved to ☰). ☰ now holds only the long tail (Match, Capture, Settings, Guide, Export, Drive) — no duplicates. 🛒 shows the open-item count (updates on every save and partner sync). Active tab + `aria-current`, 44 px targets, focus ring, labels in DE/EN/ES/DA. Hidden in cook mode and while typing on touch devices; FAB and AI input sit above it; sheets cover it. Code: `ui/tabs.js` (pure, tested) + `ui/tabbar.js`; 9 tests in `tests/test-tabbar.js`. | P2 | M |
 
 > Why this is in the roadmap and not just done: it changes the app's shell on every screen and
 > touches all 10 views. It deserves a deliberate decision, not a drive-by. The 🍳→home (A5) is the
@@ -248,7 +248,7 @@ converged independently** — trust those most.
 | ✅ **K4** | **Two invariant guard-tests** *(both shipped 2026-06-14)* | architect | ⚠️ **Not hypothetical:** on 2026-06-14 `data/baseLang.js` (imported by `store.js`) was found **missing** from the `sw.js` SHELL list — it would 404 on a fresh offline install. Fixed in the same commit; now `koch-release-captain` guards this class. ✅ (a) **SHELL-coverage test** — `v2/tests/test-sw-shell.js` (globs `v2/src/**/*.js`, fails if any module is absent from the `sw.js` SHELL list). ✅ (b) **Persistence-canonicality test** — `v2/tests/test-canonical.js` (3 cases): proves the localized overlay never mutates the German canonical, that `toFileString` of `recipesDe` is German with **no** translated strings, and a source-level wiring guard that `saveCollection(…)` is only ever called with `recipesDe` (never `state.recipes`). Suite now **158**. | P3 | S |
 | ✅ **K5** | **i18n leak fix** *(shipped 2026-06-14)* | ux-curator | Done. The two hardcoded German strings now route through `t()`: new keys `assistant.schemaFail` (with `{errors}`) and `detail.photoFail` (with `{msg}`), added across DE/EN/ES/DA. Parity test green. | P3 | S |
 
-> Also surfaced and already tracked: **J2** (bottom tab bar) and **Epic I** (shopping-list sharing).
+> Also surfaced and already tracked: **J2** (bottom tab bar — ✅ v2.12) and **Epic I** (shopping-list sharing).
 > **Verified clean — don't re-investigate:** catalog is single-source (D2 done), the canonical-German
 > overlay does not leak (all 3 recipe mutators persist via `recipesDe`), cook-mode ergonomics are the
 > best-tuned surface, recipe-content logic is well covered.

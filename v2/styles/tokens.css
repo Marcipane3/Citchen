@@ -2,6 +2,7 @@
    Theme-Steuerung: html[data-theme="light"|"dark"], Default folgt dem System. */
 
 :root {
+  --tabbar-h: 62px; /* J2: Höhe der Tab-Leiste ohne Safe-Area */
   color-scheme: light; /* native Controls (Inputs, Scrollbars) passend zum Theme */
   /* Farben (hell — v1-Identität) */
   --accent: #c8632e;
