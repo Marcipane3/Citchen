@@ -32,6 +32,11 @@ export function onCount(fn) { countListeners.add(fn); return () => countListener
 function emitCount(items) { const n = countOpen(items); for (const fn of countListeners) fn(n); }
 export async function getOpenCount() { return countOpen(await loadLocalList()); }
 
+// I3: jede gespeicherte/abgeglichene Liste → Freunde-Schaufenster (friendInbox.js hört hier zu).
+const savedListeners = new Set();
+export function onSaved(fn) { savedListeners.add(fn); return () => savedListeners.delete(fn); }
+function emitSaved(items) { for (const fn of savedListeners) { try { fn(items); } catch (e) { /* egal */ } } }
+
 export async function getMeta() { return db.kvGet(META_KEY, {}); }
 
 /** Lokale Liste aus IndexedDB; fehlende Sync-Felder werden einmalig ergänzt. */
@@ -42,6 +47,9 @@ async function loadLocalList() {
   if (items.some((it, i) => it !== raw[i])) await db.put("lists", { id: LIST_DB_ID, items, updated: new Date().toISOString() });
   return items;
 }
+
+/** Aktuelle lokale Liste (inkl. Tombstones) — für das Freunde-Schaufenster. */
+export function getList() { return loadLocalList(); }
 
 let inflight = null;
 let pushTimer = null;
@@ -100,7 +108,7 @@ async function doSync() {
     meta = { ...meta, fileId, dirty: stillDirty, lastSync: now };
     await db.kvSet(META_KEY, meta);
     setStatus("synced");
-    if (localChanged) { for (const fn of changeListeners) fn(final); emitCount(final); }
+    if (localChanged) { for (const fn of changeListeners) fn(final); emitCount(final); emitSaved(final); }
     if (stillDirty) schedulePush();
     return { changed: localChanged, items: final, meta };
   } catch (e) {
@@ -125,9 +133,24 @@ export async function saveList(items) {
   const now = new Date().toISOString();
   await db.put("lists", { id: LIST_DB_ID, items: ensureItemMeta(items, now), updated: now });
   emitCount(items);
+  emitSaved(items);
   const meta = await getMeta();
   await db.kvSet(META_KEY, { ...meta, dirty: true });
   if (drive.isSignedIn() && (typeof navigator === "undefined" || navigator.onLine !== false)) schedulePush();
+}
+
+/**
+ * I3: Änderung von außen (Freundes-Artikel) auf die lokale Liste anwenden. `fn(items)` gibt die
+ * neue Liste zurück (oder null = nichts zu tun). Gespeichert wird wie jede Änderung über saveList
+ * → Drive → Partner; offene Ansichten bekommen onChange.
+ */
+export async function applyExternal(fn) {
+  const items = await loadLocalList();
+  const next = fn(items);
+  if (!next) return items;
+  await saveList(next);
+  for (const l of changeListeners) l(next);
+  return next;
 }
 
 /** Mit der geteilten Liste eines Partners verbinden (fileId kommt aus dem Google Picker). */

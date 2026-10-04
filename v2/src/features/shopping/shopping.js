@@ -5,13 +5,15 @@
 import * as db from "../../data/db.js";
 import * as drive from "../../data/drive.js";
 import * as listSync from "../../data/listSync.js";
+import * as friendInbox from "../../data/friendInbox.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { touch, newItemId, ensureItemMeta } from "./listMerge.js";
 import { CATALOG, SECTION_ORDER, sectionIcon } from "../../data/catalog.js";
 import { itemKey, itemLabel, formatListAsText } from "./logic.js";
+import { friendName } from "./friendMerge.js";
 import { BUILD } from "../../version.js";
-import { t, getLang } from "../../i18n.js";
+import { t, tn, getLang } from "../../i18n.js";
 
 const LIST_ID = "current";
 const SORT_KEY = "shopSort"; // E2: "aisle" | "alpha"
@@ -24,6 +26,8 @@ let openSection = null;
 let sortMode = "aisle";   // E2: Sortierung der Liste
 let undoSnapshot = null;  // E1: ids der zuletzt geleerten Artikel, für „Rückgängig"
 let undoTimer = null;
+let friendNote = "";      // I3: „👋 2 Artikel von Freunden hinzugefügt“ (kurz sichtbar)
+let friendNoteTimer = null;
 
 async function load() {
   const row = await db.get("lists", LIST_ID);
@@ -131,13 +135,22 @@ export function renderShopping(container) {
   const offChange = listSync.onChange((items) => { ITEMS = items; paintList(container); paintCatalog(container); });
   const offStatus = listSync.onStatus(() => paintSync(container));
   const offAuth = drive.onAuthChange((signedIn) => { paintSync(container); if (signedIn) listSync.syncListWithDrive(); });
+  // I3: Freunde-Vorschläge kommen über listSync.onChange in die Liste; hier nur Status + Hinweis.
+  const offFriendStatus = friendInbox.onStatus(() => paintSync(container));
+  const offImported = friendInbox.onImported((n) => {
+    friendNote = tn("shopping.friends.imported", n);
+    if (friendNoteTimer) clearTimeout(friendNoteTimer);
+    friendNoteTimer = setTimeout(() => { friendNote = ""; friendNoteTimer = null; paintSync(container); }, 8000);
+    paintSync(container);
+  });
 
   load().then(() => {
     paintSync(container); paintList(container); paintCatalog(container);
     listSync.syncListWithDrive(); // Ergebnis kommt über onChange/onStatus
+    friendInbox.syncFriends();
   });
 
-  return () => { offChange(); offStatus(); offAuth(); };
+  return () => { offChange(); offStatus(); offAuth(); offFriendStatus(); offImported(); };
 }
 
 /* ---------- Sync- & Partner-Karte ---------- */
@@ -153,6 +166,9 @@ async function paintSync(container) {
   if (!el) return;
   const signedIn = drive.isSignedIn();
   const meta = await listSync.getMeta().catch(() => ({}));
+  const inbox = await friendInbox.getInbox().catch(() => null);
+  const fst = friendInbox.getStatus();
+  const fwarn = fst === "gone" || fst === "error";
   const st = signedIn ? listSync.getStatus() : "local";
   const where = !signedIn ? t("shopping.syncLocalTitle") : meta.linked ? t("shopping.syncSharedTitle") : t("shopping.syncDriveTitle");
   const line = st === "synced" ? t("shopping.syncDone", { time: timeLabel(meta.lastSync) }) : t("shopping.syncState." + st);
@@ -162,14 +178,20 @@ async function paintSync(container) {
       <div class="sl-sync-row">
         <span class="sl-sync-ic" aria-hidden="true">${!signedIn ? "📱" : meta.linked ? "👥" : "☁️"}</span>
         <div class="sl-sync-txt"><strong>${where}</strong><span>${esc(line)}</span></div>
-        ${signedIn ? `<button class="sl-btn sl-refresh" aria-label="${t("shopping.refresh")}" ${st === "syncing" ? "disabled" : ""}>🔄</button>` : ""}
+        ${signedIn || inbox ? `<button class="sl-btn sl-refresh" aria-label="${t("shopping.refresh")}" ${st === "syncing" || fst === "syncing" ? "disabled" : ""}>🔄</button>` : ""}
       </div>
-      ${signedIn
-        ? `<button class="sl-btn sl-wide sl-partner">${t("shopping.partnerBtn")}</button>`
-        : `<button class="sl-btn sl-wide sl-login">${t("shopping.connectGoogle")}</button>`}
+      ${friendNote ? `<div class="sl-friend-note" role="status">${esc(friendNote)}</div>` : ""}
+      ${inbox && fst !== "idle" && fst !== "off" ? `<div class="sl-friend-st ${fwarn ? "warn" : ""}">${esc(t("shopping.friends.state." + fst))}</div>` : ""}
+      <div class="sl-sync-btns">
+        ${signedIn
+          ? `<button class="sl-btn sl-partner">${t("shopping.partnerBtn")}</button>`
+          : `<button class="sl-btn sl-login">${t("shopping.connectGoogle")}</button>`}
+        <button class="sl-btn sl-friends ${inbox ? "on" : ""}">${inbox ? t("shopping.friends.btnOn") : t("shopping.friends.btn")}</button>
+      </div>
     </div>`;
   const r = el.querySelector(".sl-refresh");
-  if (r) r.onclick = () => listSync.syncListWithDrive();
+  if (r) r.onclick = () => { if (signedIn) listSync.syncListWithDrive(); friendInbox.syncFriends(); };
+  el.querySelector(".sl-friends").onclick = () => openFriendsSheet(container);
   const p = el.querySelector(".sl-partner");
   if (p) p.onclick = () => openPartnerSheet(container);
   const l = el.querySelector(".sl-login");
@@ -214,7 +236,77 @@ async function openPartnerSheet(container) {
   };
 }
 
+/* ---------- I3: Freunde-Link ---------- */
+
+async function openFriendsSheet(container) {
+  const inbox = await friendInbox.getInbox().catch(() => null);
+  const link = friendInbox.linkFor(inbox);
+  const { el, close } = openSheet(`
+    <div class="sheet-head"><span class="cat-label">${t("shopping.friends.title")}</span><button class="icon-btn close" aria-label="${t("common.close")}">✕</button></div>
+    <p class="sl-help">${t("shopping.friends.intro")}</p>
+    <label class="sl-field"><span>${t("shopping.friends.nameLabel")}</span>
+      <input class="sl-fr-name" maxlength="40" autocomplete="given-name" placeholder="${esc(t("shopping.friends.namePh"))}" value="${esc(inbox ? inbox.ownerName || "" : "")}" /></label>
+    ${inbox ? `
+      <button class="btn-sec sl-wide sl-fr-savename">${t("shopping.friends.saveName")}</button>
+      <label class="sl-field"><span>${t("shopping.friends.linkLabel")}</span>
+        <input class="sl-fr-link" readonly value="${esc(link)}" /></label>
+      <button class="btn-primary sl-wide sl-fr-share">${t("shopping.friends.share")}</button>
+      <button class="btn-sec sl-wide sl-fr-rotate">${t("shopping.friends.rotate")}</button>
+      <button class="btn-sec sl-wide sl-fr-off">${t("shopping.friends.disable")}</button>`
+    : `<button class="btn-primary sl-wide sl-fr-on">${t("shopping.friends.enable")}</button>`}
+    <p class="sl-help sl-fr-msg" role="status"></p>
+    <p class="sl-help sl-fine">${t("shopping.friends.privacy")}</p>
+  `);
+  const msg = el.querySelector(".sl-fr-msg");
+  const nameIn = el.querySelector(".sl-fr-name");
+  const busy = (b, fn) => async () => {
+    b.disabled = true; msg.textContent = "";
+    try { await fn(); } catch (e) { msg.textContent = t("shopping.friends.failed"); }
+    finally { b.disabled = false; }
+  };
+  const reopen = () => { close(); paintSync(container); openFriendsSheet(container); };
+
+  const on = el.querySelector(".sl-fr-on");
+  if (on) on.onclick = busy(on, async () => { await friendInbox.enable(nameIn.value); reopen(); });
+
+  const saveName = el.querySelector(".sl-fr-savename");
+  if (saveName) saveName.onclick = busy(saveName, async () => {
+    await friendInbox.setOwnerName(nameIn.value);
+    msg.textContent = t("shopping.friends.nameSaved");
+  });
+
+  const share = el.querySelector(".sl-fr-share");
+  if (share) share.onclick = async () => {
+    const text = t("shopping.friends.shareText");
+    if (navigator.share) {
+      try { await navigator.share({ text, url: link }); return; }
+      catch (e) { if (e.name === "AbortError") return; }
+    }
+    try { await navigator.clipboard.writeText(`${text}\n${link}`); msg.textContent = t("shopping.friends.copied"); }
+    catch (_) { el.querySelector(".sl-fr-link").select(); }
+  };
+
+  const rot = el.querySelector(".sl-fr-rotate");
+  if (rot) rot.onclick = busy(rot, async () => {
+    if (!confirm(t("shopping.friends.rotateConfirm"))) return;
+    await friendInbox.rotate(); reopen();
+  });
+
+  const off = el.querySelector(".sl-fr-off");
+  if (off) off.onclick = busy(off, async () => {
+    if (!confirm(t("shopping.friends.disableConfirm"))) return;
+    await friendInbox.disable(); close(); paintSync(container);
+  });
+}
+
 /* ---------- Liste ---------- */
+
+/** I3: kleines „von Anna“ hinter Artikeln, die ein Freund über den Link hinzugefügt hat. */
+function fromTag(it) {
+  const n = friendName(it.author);
+  if (n === null) return "";
+  return ` <span class="sl-from">${esc(n ? t("shopping.friends.fromName", { name: n }) : t("shopping.friends.fromAnon"))}</span>`;
+}
 
 function paintList(container) {
   const el = container.querySelector("#shop-list");
@@ -248,7 +340,7 @@ function paintList(container) {
     const hasAmount = it.amount !== null && it.amount !== undefined;
     return `<div class="sl-item ${it.done ? "done" : ""}">
       <span class="sl-ic">${it.icon || "🛒"}</span>
-      <span class="sl-name" data-i="${i}">${esc(itemLabel(it))}</span>
+      <span class="sl-name" data-i="${i}">${esc(itemLabel(it))}${fromTag(it)}</span>
       <div class="sl-ctrl">
         ${hasAmount ? "" : `<button class="sl-dec" data-i="${i}" aria-label="${t("shopping.less")}">−</button><span class="sl-qty">${it.qty}</span><button class="sl-inc" data-i="${i}" aria-label="${t("shopping.more")}">+</button>`}
         <button class="sl-rm" data-i="${i}" aria-label="${t("common.remove")}">✕</button>

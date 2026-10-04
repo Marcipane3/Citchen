@@ -62,3 +62,47 @@ Projekt: das Projekt mit der OAuth-Client-ID `977952120262-…` (Projektnummer *
 - Regel: **Jede Änderung an einem Artikel ruft `touch()` auf** — sonst übernimmt der Partner sie nicht.
   Löschen = `deleted: true` + `touch()`, niemals `splice`.
 - Scope bleibt `drive.file`: die App sieht nur selbst angelegte Dateien und per Picker gewählte.
+
+---
+
+# Freunde-Link (I3, ab v2.14) — Freunde ohne App und ohne Google-Konto
+
+## Wie es funktioniert
+
+- 🛒 Einkauf → **„🔗 Freunde-Link“** → Namen eintragen → **Link erstellen** → **Link teilen** (WhatsApp, SMS …).
+- Wer den Link öffnet, sieht deine **offenen** Artikel und kann etwas hinzufügen. Kein Konto, keine App.
+  Steht etwas schon drauf, fragt die Seite nach („nochmal tippen, um es trotzdem hinzuzufügen“).
+- Die Vorschläge holt **deine** App ab — beim Öffnen der Einkaufsliste, beim App-Start, mit 🔄 und wenn
+  du wieder online bist. Sie landen mit „von Anna“ auf deiner Liste (gleicher Artikel → Menge +1) und
+  gehen von dort wie jede Änderung nach Drive und zu deinem Partner.
+- **Neuen Link erzeugen** macht den alten sofort ungültig. **Ausschalten** löscht alles auf dem Server.
+- Funktioniert auch ohne Google-Anmeldung (dann nur auf diesem Gerät).
+
+## Was wo liegt
+
+| Wo | Was | Wie lange |
+|----|-----|-----------|
+| Google Drive (`einkaufsliste.json`) | die echte Liste, wie bisher | dauerhaft |
+| Supabase (Projekt `wbvhgeqdixrcfeszsiob`, EU/Irland) | deine **offenen** Artikel (Name, Symbol, Gang, Menge), dein Anzeigename, noch nicht abgeholte Vorschläge (Text + optionaler Name des Freundes) | bis zum nächsten Abholen bzw. bis du ausschaltest |
+| Dein Gerät (IndexedDB `friendInbox`) | Besitzer-Token (der Server kennt nur seinen SHA-256-Hash), Einladungs-Token | bis du ausschaltest |
+
+## Grenzen (bewusst)
+
+- **Wer den Link hat, sieht die offenen Artikel.** Link nicht öffentlich posten; bei Bedarf „Neuen Link erzeugen“.
+- **Ein Gerät holt ab:** das Besitzer-Token liegt nur auf dem Gerät, auf dem du den Link erstellt hast.
+  Dein Partner und deine anderen Geräte bekommen die Artikel trotzdem — über Drive.
+- **Supabase Free Tier pausiert Projekte nach ~7 Tagen ohne Zugriff.** Solange du die App regelmäßig öffnest,
+  passiert das nicht. Falls doch: im Supabase-Dashboard „Restore project“.
+- Spam-Bremse: max. 100 offene Vorschläge pro Liste, max. 20 pro Minute.
+
+## Technik (für Claude Code)
+
+- Schema + Funktionen: `supabase/migrations/20261004182000_i3_friend_inbox.sql`. Tabellen `friend_lists`,
+  `friend_items` mit RLS **ohne** Policies → anon hat keinen Tabellenzugriff. Alles über `SECURITY DEFINER`-RPCs
+  `fl_create / fl_rotate / fl_set_name / fl_publish / fl_pull / fl_ack / fl_delete` (Besitzer-Token) und
+  `fl_view / fl_add` (Einladungs-Token). Der Supabase-Advisor warnt deshalb „SECURITY DEFINER von anon ausführbar“ — gewollt.
+- `src/data/supabase.js` — fetch auf `/rest/v1/rpc/*` mit Publishable Key (darf im Code stehen).
+- `src/data/friendInbox.js` — Abholen: `fl_pull` → `listSync.applyExternal(applyFriendItems)` → `seen` merken → `fl_ack`.
+  Schaufenster: `listSync.onSaved` → gebündelt `fl_publish(snapshotOf(items))`, nur bei Änderung.
+- `src/features/shopping/friendMerge.js` — reine Logik, getestet in `tests/test-friends.js`.
+- `add.html` — die Freundes-Seite, eigenständig; Token steht im `#`-Teil (geht an keinen Webserver).

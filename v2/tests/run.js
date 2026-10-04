@@ -19,6 +19,7 @@ import "./test-list-sync.js";
 import "./test-canonical.js";
 import "./test-tabbar.js";
 import "./test-intake.js";
+import "./test-friends.js";
 import { run } from "./runner.js";
 
 const { fail } = await run();

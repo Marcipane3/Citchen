@@ -5,6 +5,7 @@
 import * as router from "./router.js";
 import * as sync from "./data/sync.js";
 import * as drive from "./data/drive.js";
+import * as friendInbox from "./data/friendInbox.js";
 import { state, onState, setRecipes, setSignedIn, applyLanguageOverlay } from "./store.js";
 import { renderCookbook } from "./features/cookbook/cookbook.js";
 import { renderMatch } from "./features/match/match.js";
@@ -78,6 +79,9 @@ async function boot() {
   router.register("settings", () => mount("settings", renderSettings));
   router.setNotFound(() => router.navigate("cookbook"));
   router.start();
+
+  // I3: Freunde-Vorschläge abholen (läuft auch ohne Google-Anmeldung) + Schaufenster pflegen.
+  friendInbox.init();
 
   // 3. Zustand → Listen-Views aktualisieren (Kochmodus NICHT — Timer überleben)
   onState(() => {
