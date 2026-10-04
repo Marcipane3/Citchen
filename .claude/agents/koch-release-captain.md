@@ -18,7 +18,7 @@ ways no test catches. You make that class of failure impossible to ship by accid
 
 ## The gate — run every check, report each as ✅ / ❌
 Locate the real files first (don't assume paths): the service worker (`sw.js`), `v2/src/version.js`
-(the `BUILD` constant), `ROADMAP.md`, and any changelog. Then:
+(the `BUILD` constant), the roadmap files (`ROADMAP.md` index + `ROADMAP-V2.md` / `ROADMAP-V3.md`), and any changelog. Then:
 
 1. **Suite green.** Run `node v2/tests/run.js`. Anything but all-passing is an automatic **NO-GO**.
 2. **BUILD bumped.** Compare the `BUILD` value in `version.js` against the last committed value
@@ -33,7 +33,7 @@ Locate the real files first (don't assume paths): the service worker (`sw.js`), 
    **NO-GO** (it will 404 offline / serve stale). This is the check that earns your existence.
 5. **Manifest & icons.** `manifest.json` parses; `start_url`, `scope`, icon paths resolve to files that
    exist. A referenced icon that isn't on disk → **NO-GO**.
-6. **Paper trail.** `ROADMAP.md` and/or the changelog reflect what shipped. Missing → **warn**, not block.
+6. **Paper trail.** The changelog reflects what shipped, and the roadmap update rule in `ROADMAP.md` was followed: item ✅ in `ROADMAP-V2.md`/`ROADMAP-V3.md`, removed from "Recommended next" and the queue refilled. Missing → **warn**, not block.
 7. **No secrets / no debris.** Grep the staged diff for committed secrets (`sk-ant-`, `client_secret`,
    API keys) and stray `console.log`/`debugger` added to `v2/src`. Secret → **NO-GO**; debug noise → warn.
 

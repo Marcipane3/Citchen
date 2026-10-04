@@ -21,7 +21,7 @@ and synthesise their output. Read-only on app code; writes only under `qa/`.
      pointing at the duplicated header), rank by severity×impact, keep `file:line` and the one-line fix.
    - **By agent** — a 2–3 line digest + link to each `qa/findings/*.md`.
    - **Promotable to ROADMAP** — a shortlist already shaped as roadmap rows (item · why · pri · eff).
-     Do NOT edit `ROADMAP.md` — leave promotion to Marcel.
+     Do NOT edit any `ROADMAP*.md` — leave promotion to Marcel.
 
 4. **Report back** to the user: counts by severity, the single highest-value finding, and whether the
    suite is green. Keep it short.
@@ -39,7 +39,7 @@ Cloud nightly (true unattended, consumes usage) — via the `/schedule` skill:
     First check `git status`/`git log` — if nothing changed since the last
     qa/FLEET-REPORT.md, skip the run and exit to save tokens. Otherwise run all
     five agents, regenerate qa/findings/*.md, and write qa/FLEET-REPORT.md.
-    Do not edit app code or ROADMAP.md.
+    Do not edit app code or any ROADMAP*.md.
 ```
 
 Local durable cron alternative (laptop on, session open) — `CronCreate`, `durable:true`,

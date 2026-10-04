@@ -3,9 +3,9 @@
 A small fleet of **reusable, read-only Claude Code sub-agents** that continuously audit the Koch v2
 PWA from five different angles and write their findings into this folder. They **propose**; they never
 edit app code or the roadmap. Marcel reads the reports and promotes what's worth doing into
-`ROADMAP.md` by hand.
+`ROADMAP-V2.md` (or `ROADMAP-V3.md`) by hand.
 
-> Design principle (inherited from ROADMAP §9): **read-only proposers, human-in-the-loop.**
+> Design principle (inherited from roadmap Epic H): **read-only proposers, human-in-the-loop.**
 > An agent that silently rewrites the app is a liability, not a feature.
 
 ---
@@ -74,7 +74,7 @@ to refill itself while you sleep.
 - `qa/findings/<agent>.md` — each agent's latest report, regenerated per run, timestamped.
 - `qa/FLEET-REPORT.md` — a synthesis: the cross-agent top issues, deduped, ranked, ready to skim.
 - Findings use a shared shape (severity/impact · `file:line` · why · suggested fix · effort) so they
-  drop cleanly into `ROADMAP.md` as new rows.
+  drop cleanly into `ROADMAP-V2.md` / `ROADMAP-V3.md` as new rows.
 
 ## Toward full orchestration — the next agents
 
@@ -94,7 +94,7 @@ per run and produces **better, less noisy** output, the next additions split int
 2. **`koch-curator`** *(highest leverage for output quality)* — runs **last**, model `sonnet`. Reads all
    fresh `qa/findings/*.md`, **dedups** items the same issue raised from three angles (the header dup hit
    3 agents — you want *one* roadmap row, not three), ranks by severity×effort, **suppresses anything
-   already marked "verified clean" or already in `ROADMAP.md`**, and emits a single deduped, roadmap-ready
+   already marked "verified clean" or already in `ROADMAP-V2.md` / `ROADMAP-V3.md`**, and emits a single deduped, roadmap-ready
    `FLEET-REPORT.md`. Turns five raw reports into one decision list — less to read, nothing double-counted.
 
 > Together these are the orchestration: **conductor** decides *what runs* (saves tokens up front),

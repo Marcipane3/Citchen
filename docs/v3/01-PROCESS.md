@@ -10,6 +10,22 @@ The standard answer is a **stage-gate** process, the same idea as product develo
 capital projects: short phases, each ending in a gate with explicit exit criteria. You only pay for
 the next phase once the previous one has produced its evidence.
 
+## Where we are (2026-10-02)
+
+- **Phase 0 (Intent): done.** Purpose, audience, success criteria, time budget (2–3 h/week),
+  no-go list and dates are confirmed in `00-INTENT-AND-USER-STORIES.md`. Gate G0 passed: the
+  store build and custom domain are structural changes v2.x cannot deliver.
+- **Phase 1 (Discovery): mostly done.** Usage review answered; nothing in v2 is slow; finding
+  recipes is the main pain (question G7). Still open: the partner's view.
+- **Phase 2 (Decisions): 7 of 8 made** (`04-OPTIONS.md`). D8 (main language) is new and open.
+  ADRs follow once L1, A10 and C7 are answered.
+- Marcel's adjustment to the process: V3 is the infrastructure track and runs **alongside** v2.x
+  feature releases, with a **scope freeze (31 Dec 2026) and a hard cutoff (31 May 2027)**; launch
+  target 30 Apr 2027.
+- A **learning track** runs through every phase (`06-LEARNING-TRACK.md`).
+- Long-lead items (domain, Play developer account, naming 12 Android testers) start before the
+  build phase, because they cost calendar time, not effort.
+
 ## The phases
 
 | # | Phase | Purpose | Main deliverables | Typical length (part-time) |

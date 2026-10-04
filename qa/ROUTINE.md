@@ -38,7 +38,7 @@ You are orchestrating the Koch QA "nightly guard pass" in the Koch_Project repo
    of qa/FLEET-REPORT.md under a "## ⚠ Guard pass <date>" heading, linking the two
    findings files. If everything is clean, just refresh the two findings files.
 
-5. Do NOT edit ROADMAP.md or any app code. Do NOT commit. End with a 3-line summary:
+5. Do NOT edit any ROADMAP*.md or any app code. Do NOT commit. End with a 3-line summary:
    suite result, new-findings count by severity, and whether anything needs my eyes.
 ```
 
