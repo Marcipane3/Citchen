@@ -243,6 +243,18 @@ label.check input { width: auto; }
 .sl-pick-msg { margin-top: 8px; min-height: 1em; }
 .sl-linked { background: var(--line-soft); border: 1.5px solid var(--accent); border-radius: 12px; padding: 10px 12px; font-size: 14px; font-weight: 600; margin-top: 8px; }
 .sheet .btn-primary.sl-wide, .sheet .btn-sec.sl-wide { margin-top: 4px; }
+/* I3: Freunde-Link */
+.sl-sync-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.sl-sync-btns .sl-btn { flex: 1 1 140px; }
+.sl-btn.sl-friends.on { border-color: var(--accent); }
+.sl-friend-note { background: var(--line-soft); border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 600; }
+.sl-friend-st { font-size: 12.5px; color: var(--muted-strong); }
+.sl-friend-st.warn { color: var(--danger); }
+.sl-from { font-size: 12px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+.sl-item.done .sl-from { color: var(--muted-strong); }
+.sheet .sl-field { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 8px; }
+.sheet .sl-field input { width: 100%; min-height: 44px; border: 1.5px solid var(--line); border-radius: 12px; padding: 0 12px; font-size: 15px; background: var(--paper); color: var(--ink); }
+.sl-fine { font-size: 12.5px; margin-top: 12px; }
 .sl-undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; margin: 6px 0; border: 1.5px solid var(--accent); border-radius: 12px; background: var(--line-soft); font-weight: 600; }
 .sl-undo-btn { background: var(--accent); color: #fff; border: none; border-radius: 9px; padding: 7px 14px; font-weight: 700; }
 .sl-sort { display: flex; gap: 6px; margin: 8px 0 4px; }

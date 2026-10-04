@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#c8632e" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="referrer" content="no-referrer" />
+  <link rel="icon" href="icon-192.png" />
+  <title>Einkaufsliste</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Karla:wght@400;600;700&display=swap" />
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <style>
+    /* add.html — I3 Freundes-Seite: ohne App, ohne Konto. Nur offene Artikel sehen + etwas hinzufügen. */
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.45; }
+    main { max-width: 520px; margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 16px 40px; }
+    h1 { font-family: var(--font-display); font-size: 26px; line-height: 1.2; margin: 6px 0 6px; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-strong); margin: 26px 0 8px; }
+    p { margin: 0 0 12px; }
+    .intro { color: var(--muted-strong); }
+    .card { background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius-m); padding: 14px; }
+    form { display: flex; flex-direction: column; gap: 10px; }
+    .row { display: flex; gap: 8px; }
+    input { min-height: 48px; width: 100%; border: 1.5px solid var(--line); border-radius: 12px; padding: 0 14px; font: inherit; background: var(--paper); color: var(--ink); }
+    input:focus-visible, button:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; }
+    button { min-height: 48px; border: 0; border-radius: 12px; padding: 0 18px; font: inherit; font-weight: 700; cursor: pointer; }
+    .primary { background: var(--accent); color: #fff; white-space: nowrap; }
+    .primary:disabled { opacity: .6; }
+    .ghost { background: transparent; color: var(--accent); border: 1.5px solid var(--line); min-height: 44px; }
+    label.small { font-size: 13px; font-weight: 600; color: var(--muted-strong); display: flex; flex-direction: column; gap: 4px; }
+    .msg { min-height: 1.4em; font-weight: 600; margin: 4px 0 0; }
+    .msg.ok { color: var(--ok); }
+    .msg.err { color: var(--danger); }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-bottom: 1px solid var(--line-soft); }
+    li:last-child { border-bottom: 0; }
+    .ic { width: 26px; text-align: center; font-size: 19px; flex-shrink: 0; }
+    .q { margin-left: auto; color: var(--muted-strong); font-weight: 600; font-size: 14px; }
+    .by { margin-left: auto; color: var(--accent); font-size: 13px; font-weight: 600; }
+    .muted { color: var(--muted-strong); font-size: 14px; }
+    .foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
+    .err-box { border-color: var(--danger); }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="title">🛒</h1>
+    <div id="app"><p class="muted" id="loading">…</p></div>
+  </main>
+  <script type="module">
+    import { rpc } from "./src/data/supabase.js";
+    import { isListed, inviteFromHash } from "./src/features/shopping/friendMerge.js";
+
+    const DICT = {
+      de: { title: "Einkaufsliste", titleOf: "Einkaufsliste von {owner}", intro: "Füg hinzu, was noch fehlt — es landet direkt auf der Liste. Kein Konto nötig.",
+        itemPh: "z. B. Hafermilch", add: "Hinzufügen", yourName: "Dein Name (optional)", namePh: "damit man weiß, von wem’s kommt",
+        onList: "Steht schon drauf", empty: "Die Liste ist gerade leer.", pending: "Gerade vorgeschlagen",
+        pendingNote: "Kommt auf die Liste, sobald die App das nächste Mal geöffnet wird.", by: "von {name}",
+        added: "✓ „{name}“ hinzugefügt", already: "„{name}“ steht schon drauf — nochmal tippen, um es trotzdem hinzuzufügen.",
+        badLink: "Dieser Link ist ungültig oder wurde zurückgesetzt. Frag nach einem neuen.", offline: "Keine Verbindung — versuch es gleich nochmal.",
+        busy: "Gerade zu viele Vorschläge — versuch es später nochmal.", failed: "Das hat nicht geklappt — versuch es nochmal.",
+        updated: "Stand: {time}", refresh: "🔄 Aktualisieren" },
+      en: { title: "Shopping list", titleOf: "{owner}’s shopping list", intro: "Add what’s missing — it goes straight onto the list. No account needed.",
+        itemPh: "e.g. oat milk", add: "Add", yourName: "Your name (optional)", namePh: "so they know who it’s from",
+        onList: "Already on the list", empty: "The list is empty right now.", pending: "Just suggested",
+        pendingNote: "Lands on the list the next time the app is opened.", by: "from {name}",
+        added: "✓ Added “{name}”", already: "“{name}” is already on the list — tap again to add it anyway.",
+        badLink: "This link is invalid or has been reset. Ask for a new one.", offline: "No connection — try again in a moment.",
+        busy: "Too many suggestions right now — try again later.", failed: "That didn’t work — please try again.",
+        updated: "As of {time}", refresh: "🔄 Refresh" },
+      es: { title: "Lista de la compra", titleOf: "Lista de la compra de {owner}", intro: "Añade lo que falta — va directo a la lista. Sin cuenta.",
+        itemPh: "p. ej. leche de avena", add: "Añadir", yourName: "Tu nombre (opcional)", namePh: "para saber de quién viene",
+        onList: "Ya en la lista", empty: "La lista está vacía ahora mismo.", pending: "Recién sugerido",
+        pendingNote: "Entra en la lista la próxima vez que se abra la app.", by: "de {name}",
+        added: "✓ «{name}» añadido", already: "«{name}» ya está en la lista — toca otra vez para añadirlo igualmente.",
+        badLink: "Este enlace no es válido o se ha restablecido. Pide uno nuevo.", offline: "Sin conexión — inténtalo de nuevo en un momento.",
+        busy: "Demasiadas sugerencias ahora — inténtalo más tarde.", failed: "No ha funcionado — inténtalo de nuevo.",
+        updated: "Actualizado: {time}", refresh: "🔄 Actualizar" },
+      da: { title: "Indkøbsliste", titleOf: "{owner}s indkøbsliste", intro: "Tilføj det, der mangler — det lander direkte på listen. Ingen konto nødvendig.",
+        itemPh: "f.eks. havremælk", add: "Tilføj", yourName: "Dit navn (valgfrit)", namePh: "så man ved, hvem det er fra",
+        onList: "Står allerede på listen", empty: "Listen er tom lige nu.", pending: "Lige foreslået",
+        pendingNote: "Kommer på listen, næste gang appen åbnes.", by: "fra {name}",
+        added: "✓ „{name}“ tilføjet", already: "„{name}“ står allerede på listen — tryk igen for at tilføje den alligevel.",
+        badLink: "Linket er ugyldigt eller er blevet nulstillet. Bed om et nyt.", offline: "Ingen forbindelse — prøv igen om lidt.",
+        busy: "For mange forslag lige nu — prøv igen senere.", failed: "Det lykkedes ikke — prøv igen.",
+        updated: "Opdateret: {time}", refresh: "🔄 Opdater" },
+    };
+    const LOCALES = { de: "de-DE", en: "en-GB", es: "es-ES", da: "da-DK" };
+    const lang = (navigator.languages || [navigator.language || "en"]).map((l) => String(l).slice(0, 2).toLowerCase()).find((l) => DICT[l]) || "en";
+    const t = (k, p = {}) => Object.entries(p).reduce((s, [a, b]) => s.replaceAll(`{${a}}`, b), DICT[lang][k]);
+    document.documentElement.lang = lang;
+
+    const NAME_KEY = "kochFriendName";
+    const store = {
+      get() { try { return localStorage.getItem(NAME_KEY) || ""; } catch (e) { return ""; } },
+      set(v) { try { localStorage.setItem(NAME_KEY, v); } catch (e) { /* privat-Modus: egal */ } },
+    };
+
+    const invite = inviteFromHash(location.hash);
+    const app = document.getElementById("app");
+    const titleEl = document.getElementById("title");
+    const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
+    let view = null;
+    let warnedFor = "";
+
+    function errorBox(text) {
+      app.replaceChildren();
+      const box = el("div", "card err-box"); box.append(el("p", "", text));
+      app.append(box);
+    }
+
+    async function load() {
+      if (!invite) { titleEl.textContent = "🛒 " + t("title"); errorBox(t("badLink")); return; }
+      try { view = await rpc("fl_view", { p_invite: invite }); }
+      catch (e) { if (!view) errorBox(e.code === "offline" ? t("offline") : t("failed")); return; }
+      if (!view) { titleEl.textContent = "🛒 " + t("title"); errorBox(t("badLink")); return; }
+      render();
+    }
+
+    function render() {
+      const title = view.owner ? t("titleOf", { owner: view.owner }) : t("title");
+      titleEl.textContent = "🛒 " + title;
+      document.title = title;
+      const items = Array.isArray(view.items) ? view.items : [];
+      const pending = Array.isArray(view.pending) ? view.pending : [];
+      const keep = app.querySelector("#item") ? { item: app.querySelector("#item").value, focus: document.activeElement && document.activeElement.id } : null;
+
+      app.replaceChildren();
+      app.append(el("p", "intro", t("intro")));
+
+      const form = el("form", "card");
+      const row = el("div", "row");
+      const item = el("input"); item.id = "item"; item.placeholder = t("itemPh"); item.maxLength = 80; item.autocomplete = "off"; item.enterKeyHint = "send";
+      item.setAttribute("aria-label", t("itemPh"));
+      const add = el("button", "primary", t("add")); add.type = "submit";
+      row.append(item, add);
+      const nameLbl = el("label", "small"); nameLbl.append(el("span", "", t("yourName")));
+      const name = el("input"); name.id = "who"; name.maxLength = 40; name.placeholder = t("namePh"); name.autocomplete = "given-name"; name.value = store.get();
+      nameLbl.append(name);
+      const msg = el("p", "msg"); msg.setAttribute("role", "status");
+      form.append(row, nameLbl, msg);
+      app.append(form);
+      if (keep) { item.value = keep.item; if (keep.focus === "item") item.focus(); }
+
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const v = item.value.replace(/\s+/g, " ").trim();
+        if (!v) { item.focus(); return; }
+        if (isListed(v, items, pending) && warnedFor !== v.toLowerCase()) {
+          warnedFor = v.toLowerCase();
+          msg.className = "msg"; msg.textContent = t("already", { name: v });
+          return;
+        }
+        warnedFor = "";
+        store.set(name.value.trim());
+        add.disabled = true;
+        try {
+          await rpc("fl_add", { p_invite: invite, p_name: v, p_author: name.value.trim() || null });
+          item.value = "";
+          await load();
+          const m = app.querySelector(".msg");
+          if (m) { m.className = "msg ok"; m.textContent = t("added", { name: v }); }
+          const i2 = app.querySelector("#item"); if (i2) i2.focus();
+        } catch (err) {
+          msg.className = "msg err";
+          msg.textContent = err.code === "not_found" ? t("badLink") : err.code === "offline" ? t("offline")
+            : (err.code === "full" || err.code === "rate") ? t("busy") : t("failed");
+        } finally { add.disabled = false; }
+      };
+
+      if (pending.length) {
+        app.append(el("h2", "", t("pending")));
+        const card = el("div", "card"); const ul = el("ul");
+        for (const p of pending) {
+          const li = el("li"); li.append(el("span", "ic", "📝"), el("span", "", p.name));
+          if (p.author) li.append(el("span", "by", t("by", { name: p.author })));
+          ul.append(li);
+        }
+        card.append(ul, el("p", "muted", t("pendingNote")));
+        app.append(card);
+      }
+
+      app.append(el("h2", "", `${t("onList")} (${items.length})`));
+      const card = el("div", "card");
+      if (!items.length) card.append(el("p", "muted", t("empty")));
+      else {
+        const ul = el("ul");
+        for (const x of items) {
+          const li = el("li"); li.append(el("span", "ic", x.i || "🛒"), el("span", "", x.n));
+          if (x.q > 1) li.append(el("span", "q", "×" + x.q));
+          ul.append(li);
+        }
+        card.append(ul);
+      }
+      app.append(card);
+
+      const foot = el("div", "foot");
+      let when = "";
+      if (view.updated) { try { when = t("updated", { time: new Date(view.updated).toLocaleString(LOCALES[lang], { weekday: "short", hour: "2-digit", minute: "2-digit" }) }); } catch (e) { /* egal */ } }
+      foot.append(el("span", "muted", when));
+      const refresh = el("button", "ghost", t("refresh")); refresh.type = "button"; refresh.onclick = load;
+      foot.append(refresh);
+      app.append(foot);
+    }
+
+    window.addEventListener("hashchange", () => location.reload());
+    load();
+  </script>
+</body>
+</html>
