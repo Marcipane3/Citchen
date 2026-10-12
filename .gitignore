@@ -16,3 +16,8 @@ Thumbs.db
 # Claude Code: keep local settings private, but DO track the reusable QA agent definitions
 .claude/*
 !.claude/agents/
+
+# E2E-Tests (v2/e2e): Abhängigkeiten + Ergebnisse lokal
+v2/e2e/node_modules/
+v2/e2e/test-results/
+v2/e2e/playwright-report/
