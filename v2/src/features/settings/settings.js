@@ -157,17 +157,21 @@ export function renderSettings(container) {
   paintDrive();
   container.querySelector("#drive-connect").onclick = () => drive.login().catch((e) => alert(e.message));
   container.querySelector("#drive-sync").onclick = async (e) => {
-    e.currentTarget.disabled = true;
+    const btn = e.currentTarget; // nach dem await ist e.currentTarget null
+    btn.disabled = true;
     const res = await sync.syncWithDrive();
     if (res.changed) setRecipes(res.recipes, res.meta);
-    e.currentTarget.disabled = false; paintDrive();
+    btn.disabled = false; paintDrive();
   };
   container.querySelector("#drive-disconnect").onclick = () => {
     if (!confirm(t("settings.driveConfirmDisconnect"))) return;
     drive.logout(); paintDrive();
   };
-  drive.onAuthChange(paintDrive);
-  sync.onStatus(paintDrive);
+  // Abmelden beim Verlassen der Route (Router ruft die Rückgabe auf). Vorher blieben die Listener
+  // hängen: paintDrive() lief nach dem Verlassen auf fremdem DOM, warf — und brach jedes spätere
+  // Speichern ab („Speichern fehlgeschlagen“, Drive-Push nie ausgeführt). Gefunden von der E2E-Suite.
+  const offAuth = drive.onAuthChange(paintDrive);
+  const offStatus = sync.onStatus(paintDrive);
 
   /* ---------- Sprache ---------- */
   container.querySelectorAll("[data-setlang]").forEach((b) => {
@@ -180,4 +184,6 @@ export function renderSettings(container) {
     if (r) r.checked = true;
   });
   container.querySelectorAll('input[name="set-theme"]').forEach((r) => { r.onchange = () => setTheme(r.value); });
+
+  return () => { offAuth(); offStatus(); };
 }

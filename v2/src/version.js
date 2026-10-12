@@ -1,9 +1,10 @@
 // version.js — sichtbarer Build-Stempel (Deploy-Kontrolle) + App-Version & Changelog.
-export const BUILD = "2026-10-04-v2.14";
-export const APP_VERSION = "2.14";
+export const BUILD = "2026-10-12-v2.14.1";
+export const APP_VERSION = "2.14.1";
 
 // Changelog (neueste zuerst) — im Guide angezeigt.
 export const CHANGELOG = [
+  { v: "v2.14.1", txt: "Fehlerbehebung: Wer einmal die Einstellungen geöffnet hatte, bekam danach beim Speichern eines Rezepts (auch bei ♥, Sternen oder „Heute gekocht“) die Meldung „Speichern fehlgeschlagen“ — die Änderung lag zwar auf dem Gerät, kam aber erst beim nächsten App-Start in Google Drive an. Behoben, ebenso „Jetzt synchronisieren“, das nach dem ersten Tippen grau blieb. Gefunden hat das die neue automatische Klick-Test-Suite, die die App jetzt vor jedem Update einmal komplett durchspielt." },
   { v: "v2.14", txt: "Freunde schreiben mit: Unter 🛒 Einkauf → „🔗 Freunde-Link“ erstellst du einen Link, den du per WhatsApp & Co. teilst. Wer ihn öffnet, sieht deine offenen Artikel und kann etwas hinzufügen — ohne App und ohne Google-Konto. Die Vorschläge landen automatisch auf deiner Liste (und bei deinem Partner), sobald du die App öffnest, mit einem kleinen „von Anna“ dahinter. Neuer Link oder ausschalten jederzeit möglich; ausschalten löscht alles auf dem Server." },
   { v: "v2.13", txt: "Zutaten mit Symbolen: In der Rezeptansicht, im Kochmodus und bei den Vorrats-Chips im Lager steht jetzt vor jeder Zutat ihr Symbol — alles aus einem gemeinsamen Katalog, der auch die Einkaufsliste sortiert. Einzahl wird jetzt erkannt („1 Zwiebel“ landet im Gemüse-Gang statt unter „Aus Rezepten“). Rezept erfassen: Fortschritt und Meldungen erscheinen direkt bei der Karte, die du angetippt hast; URL geht auch mit Enter. „KI-Ideen“ richten sich nach deinem Koch-Profil (Ernährung, Portionen, Ausstattung), und erfasste Rezepte bekommen 🛒-Marker für fehlende Zutaten. Fehler behoben: „Bearbeiten“ in der Sammel-Erfassung speicherte das Rezept doppelt." },
   { v: "v2.12", txt: "Neue Leiste unten: Rezepte, Lager, Einkauf, Plan und KI-Assistent sind jetzt mit einem Daumen-Tipp erreichbar — von überall. Der Einkauf-Tab zeigt, wie viele Artikel noch offen sind (auch wenn dein Partner etwas hinzufügt). Nochmal auf den aktiven Tab tippen scrollt nach oben. Swipe-Match, Rezept erfassen, Einstellungen, Features & Versionen und Export findest du weiter im ☰-Menü. Im Kochmodus und beim Tippen verschwindet die Leiste." },
