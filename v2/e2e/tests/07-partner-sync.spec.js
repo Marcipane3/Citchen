@@ -143,3 +143,69 @@ test("Verbinden während eines laufenden Abgleichs verliert die Verbindung nicht
   expect((await idb(B, "kv", "listMeta")).value).toMatchObject({ fileId: file.id, linked: true });
   await expect(B.locator("#shop-sync")).toContainText("Geteilte Liste");
 });
+
+/* ---------- v2.15.2: Liste sicher machen (T4, T10) ---------- */
+
+/** So hat v2.10 Rezept-Zutaten nach Drive geschrieben: ohne id, ohne updated (FR-01 „Ingwer“). */
+const LEGACY_INGWER = { name: "Ingwer", nameDe: "Ingwer", amount: 1, unit: "Stück", cat: "Obst & Gemüse", icon: "🫚", qty: 1, done: false, sources: ["r1749400081000"] };
+const ingwerRows = async (page) => (await shoppingNames(page)).filter((n) => n.includes("Ingwer")).length;
+
+test("T4 / FR-01: Ingwer ohne id in der Drive-Datei → wiederholte Abgleiche bleiben bei EINER Zeile, Löschen bleibt", async ({ device, drive }) => {
+  const A = (await device({ user: "marcel" })).page;
+  await openApp(A, "shopping");
+  await connectList(A);
+  await addItem(A, "Hafermilch");
+  await expect.poll(() => drive.find(LIST, "marcel").length).toBe(1);
+  const file = drive.find(LIST, "marcel")[0];
+  await expect.poll(() => liveNames(drive.read(file.id))).toEqual(["Hafermilch"]);
+  drive.write(file.id, (j) => ({ ...j, items: [...j.items, { ...LEGACY_INGWER }] }));
+
+  for (let i = 1; i <= 5; i++) {
+    await refreshList(A);
+    expect(await ingwerRows(A), `Zeilen nach Abgleich ${i}`).toBe(1);
+    expect(liveNames(drive.read(file.id))).toEqual(["Hafermilch", "Ingwer"]);
+  }
+  expect(drive.read(file.id).items.every((x) => typeof x.id === "string" && x.id)).toBe(true);
+
+  // Löschen bleibt — auch über Abgleiche und einen Neustart hinweg.
+  await A.locator("#shop-list .sl-item", { hasText: "Ingwer" }).locator(".sl-rm").click();
+  await expect.poll(() => liveNames(drive.read(file.id))).toEqual(["Hafermilch"]);
+  for (let i = 0; i < 3; i++) await refreshList(A);
+  await A.reload();
+  await refreshList(A);
+  expect(await ingwerRows(A)).toBe(0);
+  expect(liveNames(drive.read(file.id))).toEqual(["Hafermilch"]);
+});
+
+test("T10 / AR-11: HTML in der Partner-Datei wird als Text angezeigt, nie ausgeführt", async ({ device, drive }) => {
+  const { A, file } = await linkPartners({ device, drive });
+  const now = new Date().toISOString();
+  drive.write(file.id, (j) => ({ ...j, items: [...j.items,
+    { id: "evil1", name: '<img src=x onerror="window.__xss=1">Milch', icon: "<b id=pwn>x</b>", cat: "<i id=pwn2>Kat</i>", qty: 2, done: false, updated: now, author: "partner", deleted: false },
+    { id: "evil2", name: "Eier", icon: '<img src=x onerror="window.__xss=2">', qty: "<b id=pwn3>9</b>", done: false, updated: now, author: "partner", deleted: false },
+  ] }));
+  await refreshList(A);
+  await expect(A.locator("#shop-list .sl-item", { hasText: "Eier" })).toHaveCount(1);
+  await expect(A.locator("#shop-list .sl-name", { hasText: '<img src=x onerror="window.__xss=1">Milch' })).toHaveCount(1);
+  for (const sel of ["#pwn", "#pwn2", "#pwn3", "#shop-list img"]) await expect(A.locator(sel)).toHaveCount(0);
+  expect(await A.evaluate(() => window.__xss)).toBeUndefined();
+  // Alphabetisch sortieren geht auch mit solchen Namen (früher: Absturz bei Nicht-Text).
+  await A.locator(".sl-sortbtn[data-sort=alpha]").click();
+  await expect(A.locator("#shop-list .sl-item", { hasText: "Eier" })).toHaveCount(1);
+});
+
+test("T10 / DG-14: Partner-Datei in unbekanntem Format → Warnung, lokale Liste bleibt, Datei wird nicht überschrieben", async ({ device, drive }) => {
+  const { B, file } = await linkPartners({ device, drive });
+  await expect.poll(() => shoppingNames(B)).toEqual(expect.arrayContaining(["Hafermilch", "Brot"]));
+  drive.write(file.id, () => ({ version: 2, entries: [{ name: "Milch" }] })); // z. B. ein künftiges Format
+  const writes = drive.writes.length;
+
+  await refreshList(B);
+  await expect(B.locator("#shop-sync")).toContainText("unbekanntes Format");
+  expect((await shoppingNames(B)).sort()).toEqual(["Brot", "Hafermilch"]);
+  await addItem(B, "Äpfel");                           // Speichern stößt einen Abgleich an …
+  await B.waitForTimeout(1500);                         // … nach der Push-Bündelung (1,2 s)
+  await expect(B.locator("#shop-sync")).toContainText("unbekanntes Format");
+  expect(drive.writes.length).toBe(writes);             // … und überschreibt die Datei trotzdem nicht
+  expect(drive.read(file.id)).toEqual({ version: 2, entries: [{ name: "Milch" }] });
+});

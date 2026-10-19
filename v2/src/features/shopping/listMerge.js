@@ -34,10 +34,86 @@ export function ensureItemMeta(items = [], now = new Date().toISOString()) {
     : { author: "local", ...it, id: it.id || newItemId(), updated: it.updated || now, deleted: !!it.deleted });
 }
 
+/* ============================================================
+   T4 (DG-04, FR-01): Altbestand ohne id
+   Builds vor v2.11 schrieben Artikel ohne `id` nach Drive. Früher bekam die lokale Kopie bei
+   JEDEM Laden eine neue Zufalls-id, das Original blieb auf Drive → eine Zeile mehr pro Sync.
+   Jetzt: deterministische id (gleicher Artikel → überall dieselbe id) und älteste Marke.
+   ============================================================ */
+
+/** „Älteste mögliche“ Marke für Altbestand: jede echte Änderung (auch eine Löschung) gewinnt. */
+export const LEGACY_STAMP = "2000-01-01T00:00:00.000Z";
+
+const norm = (v) => String(v ?? "").trim().toLowerCase();
+
+/** FNV-1a (32 Bit) → base36. Kurz, stabil, ohne Abhängigkeiten. */
+function hash(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(36);
+}
+
+/** Deterministische id für einen Artikel ohne id: Hash aus Name + Einheit. */
+export function stableItemId(it) {
+  return "li-x-" + hash(norm(it.nameDe || it.name) + "|" + norm(it.unit));
+}
+
+/** Artikel ohne id → stabile id + älteste Marke. Artikel mit id bleiben dasselbe Objekt. */
+export function adoptLegacy(items = []) {
+  return items.map((it) => (it && !it.id
+    ? { author: "local", ...it, id: stableItemId(it), updated: it.updated || LEGACY_STAMP, deleted: !!it.deleted }
+    : it));
+}
+
+/** Was eine Kopie des Altbestands-Artikels ausmacht (id/Marken/Häkchen/Menge zählen nicht). */
+const copySig = (it) => JSON.stringify([norm(it.nameDe || it.name), norm(it.unit), it.amount ?? null, it.cat ?? "", it.sources ?? null]);
+
+/**
+ * Einmalige Aufräumung der Kopien, die der alte Fehler erzeugt hat: zu jedem Altbestands-Artikel
+ * (`legacy`, schon mit stabiler id) werden alle inhaltsgleichen Zeilen mit anderer id zu EINER
+ * Zeile mit der stabilen id. Ihr Zustand (offen/abgehakt/gelöscht, Menge) kommt von der zuletzt
+ * geänderten Zeile der Gruppe; die übrigen werden Tombstones (erreichen so auch den Partner).
+ */
+export function collapseLegacyCopies(items = [], legacy = [], now = new Date().toISOString()) {
+  let out = items;
+  for (const leg of legacy) {
+    const sig = copySig(leg);
+    const group = out.filter((it) => it.id === leg.id || copySig(it) === sig);
+    const copies = group.filter((it) => it.id !== leg.id);
+    if (!copies.length) continue;
+    const latest = group.reduce((a, b) => ((b.updated || "") > (a.updated || "") ? b : a));
+    const own = group.find((it) => it.id === leg.id) || leg;
+    const merged = { ...own, done: !!latest.done, qty: latest.qty ?? own.qty, deleted: !!latest.deleted, updated: now };
+    const copyIds = new Set(copies.map((c) => c.id));
+    out = out.filter((it) => it.id !== leg.id).map((it) => (copyIds.has(it.id) && !it.deleted ? { ...it, deleted: true, updated: now } : it));
+    out.push(merged);
+  }
+  return out;
+}
+
+/* ============================================================
+   Tombstones aufräumen (T7: AR-09, DG-13, BH-11)
+   ============================================================ */
+
+/** Grenze, ab der Tombstones entfernt werden (älter als `days` Tage). */
+export function pruneCutoff(now = new Date().toISOString(), days = 30) {
+  return new Date(Date.parse(now) - days * 86400000).toISOString();
+}
+
 /** Tombstones älter als `days` entfernen, damit die Datei nicht endlos wächst. */
 export function pruneTombstones(items = [], now = new Date().toISOString(), days = 30) {
-  const cutoff = new Date(Date.parse(now) - days * 86400000).toISOString();
+  const cutoff = pruneCutoff(now, days);
   return items.filter((it) => !it.deleted || (it.updated || "") > cutoff);
+}
+
+/**
+ * T7: „Fehlt auf Drive“ heißt nach dem Aufräumen nicht mehr „neu“. Ein Artikel, den die Datei nicht
+ * (mehr) hat und der zuletzt VOR dem Aufräum-Horizont geändert wurde, war dort und ist längst
+ * gelöscht + aufgeräumt — er wird verworfen statt wiederbelebt (Gerät war > 30 Tage offline).
+ */
+export function dropBeyondHorizon(items = [], keepIds = new Set(), horizon = "") {
+  if (!horizon) return items;
+  return items.filter((it) => keepIds.has(it.id) || (it.updated || "") > horizon);
 }
 
 /** Gleicher Inhalt im Sinne des Merges? (gleiche ids mit gleichen `updated`-Marken) */
@@ -48,13 +124,22 @@ export function sameItems(a = [], b = []) {
 }
 
 /**
- * Ein Sync-Schritt als reine Funktion (von listSync.js genutzt, unit-getestet):
+ * Ein Sync-Schritt als reine Funktion (von syncRules.itemMerge genutzt, unit-getestet):
  * mischt lokal + Drive, entfernt alte Tombstones und sagt, wohin geschrieben werden muss.
  * Kein Schreiben, wenn sich nichts geändert hat → zwei Syncs hintereinander sind stabil (CR-02).
+ * opts.legacy  — Altbestands-Artikel der Datei (T4): deren Kopien werden zusammengefasst.
+ * opts.horizon — `prunedBefore` der Datei (T7): lokale Artikel jenseits davon gelten als gelöscht.
+ * → prunedBefore: neuer Horizont für die Datei (rückt vor, sobald hier etwas aufgeräumt wurde).
  */
-export function syncStep(local = [], remote = [], now = new Date().toISOString()) {
-  const merged = pruneTombstones(mergeList(local, remote), now);
-  return { merged, writeRemote: !sameItems(remote, merged), writeLocal: !sameItems(local, merged) };
+export function syncStep(local = [], remote = [], now = new Date().toISOString(), { legacy = [], horizon = "" } = {}) {
+  const remoteIds = new Set(remote.map((it) => it.id));
+  let merged = mergeList(dropBeyondHorizon(local, remoteIds, horizon), remote);
+  if (legacy.length) merged = collapseLegacyCopies(merged, legacy, now);
+  const kept = pruneTombstones(merged, now);
+  const cutoff = pruneCutoff(now);
+  const prunedBefore = kept.length < merged.length && cutoff > (horizon || "") ? cutoff : (horizon || "");
+  merged = kept;
+  return { merged, prunedBefore, writeRemote: !sameItems(remote, merged), writeLocal: !sameItems(local, merged) };
 }
 
 /** J2-Badge: offene Artikel = nicht gelöscht und nicht abgehakt. */
