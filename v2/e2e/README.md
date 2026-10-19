@@ -70,14 +70,16 @@ back to system fonts.
 
 ## When to run / extend
 
-- Before every release (the release-captain agent should see it green) and **before and after
-  the P1 sync-core refactor** — specs 07 and 08 pin today's sync behaviour, including the known
-  limits (file-level last-write-wins for recipes, conflict keeps the local change).
+- Before every release (the release-captain agent should see it green). Specs 07 and 08 pin the
+  sync behaviour, including the known limits (file-level last-write-wins for recipes, conflict
+  keeps the local change); the Node suite `v2/tests/test-sync-core.js` covers the same sync core
+  with two simulated devices and controllable network timing.
 - New feature → add or extend a spec; keep selectors in `support/app.js`.
 - **Known bugs are pinned, not skipped:** a test that shows a real, not-yet-fixed bug is marked
   `test.fail(true, "<why>")`. The suite stays green while the bug exists and reports
   "unexpectedly passed" the moment it is fixed → then delete the `test.fail` line.
-  Currently one: linking the partner list while a push is in flight loses the link
-  (`07-partner-sync`, fix belongs to P1).
+  Currently none. (The first one — linking the partner list while a push was in flight lost the
+  link — was fixed by the P1 sync core in v2.15 and is now a normal regression test in
+  `07-partner-sync`.)
 - Not covered yet: the friends link (I3, Supabase), the AI assistant chat, Lager photo scan,
   swipe match. Add them the same way (fake the endpoint, drive the UI).

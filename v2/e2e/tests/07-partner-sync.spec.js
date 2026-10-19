@@ -22,9 +22,7 @@ async function linkPartners({ device, drive }) {
   await openApp(B, "shopping");
   await connectList(B);
   await addItem(B, "Brot"); // stand schon vor dem Verbinden auf B's eigener Liste
-  // Gebündelten Push (1,2 s) abwarten — sonst greift der bekannte Link-Race (Test unten).
   await expect.poll(() => liveNames(drive.read(drive.find(LIST, "partner")[0].id))).toEqual(["Brot"]);
-  await drive.idle();
   await B.locator("#shop-sync .sl-partner").click();
   const s = await sheet(B);
   await s.locator(".sl-pick").click();
@@ -114,14 +112,11 @@ test("Trennen: Partner ist zurück auf der eigenen Liste und behält die Artikel
   expect(liveNames(drive.read(file.id))).not.toContain("Nur für mich");
 });
 
-// BEKANNTER FEHLER (gefunden von P2, für P1 „ein Sync-Kern“): Läuft beim Verbinden gerade ein
-// Abgleich (z. B. der gebündelte Push nach einer Eingabe), gibt syncListWithDrive() diesen alten
-// Lauf zurück. Der hat die Meta VOR dem Verbinden gelesen und schreibt sie am Ende zurück →
-// `linked` ist wieder false, die Verbindung still verloren, obwohl das Sheet „Erfolg“ zeigt.
-// test.fail(): Die Suite bleibt grün, solange der Fehler besteht; sobald P1 ihn behebt, meldet
-// Playwright „unexpectedly passed“ → dann test.fail() entfernen.
+// Regression (gefunden von P2, behoben mit P1 „ein Sync-Kern“): Lief beim Verbinden gerade ein
+// Abgleich (z. B. der gebündelte Push nach einer Eingabe), schrieb dieser am Ende die alte Meta
+// zurück → `linked` wieder false, Verbindung still verloren. Seit v2.15 stellt der Sync-Kern das
+// Verbinden in seine Warteschlange HINTER den laufenden Abgleich und ändert Meta nur per Patch.
 test("Verbinden während eines laufenden Abgleichs verliert die Verbindung nicht", async ({ device, drive }) => {
-  test.fail(true, "Bekannter Race in listSync.linkToFile — Fix mit P1 (ein Sync-Kern)");
   const A = (await device({ user: "marcel" })).page;
   const B = (await device({ user: "partner" })).page;
   await openApp(A, "shopping");

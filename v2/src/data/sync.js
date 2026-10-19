@@ -1,5 +1,6 @@
-// sync.js — Lokal-first Abgleich IndexedDB <-> Drive.
-// Ablauf (01_ARCHITECTURE §5):
+// sync.js — Lokal-first Abgleich IndexedDB <-> Drive für die Rezepte.
+// Seit v2.15 (P1) nur noch Konfiguration: der Ablauf steckt im Sync-Kern (syncCore.js), die
+// Last-Write-Wins-Regel in syncRules.js. Ablauf (01_ARCHITECTURE §5):
 //  1. Start: Rezepte SOFORT aus IndexedDB (offline, instant).
 //     Leere DB → gebündelter Snapshot (data/rezepte.snapshot.json) als Erstbefüllung.
 //  2. Online + angemeldet: Drive im Hintergrund lesen, Last-Write-Wins über `updated`.
@@ -8,8 +9,9 @@
 
 import * as db from "./db.js";
 import * as drive from "./drive.js";
-import { loadCollection, toFileString } from "./migrate.js";
-import { decideSync } from "./decideSync.js";
+import { loadCollection } from "./migrate.js";
+import { createSyncEngine } from "./syncCore.js";
+import { lastWriteWins, pushCollection, RECIPE_STATUS } from "./syncRules.js";
 
 const META_KEY = "collection";       // { version, updated, fileId, dirty, lastSync, source }
 const SNAPSHOT_URL = new URL("../../data/rezepte.snapshot.json", import.meta.url);
@@ -37,12 +39,19 @@ export async function fetchLangRecipes(lang) {
   }
 }
 
-let statusListeners = new Set();
-let status = "";
+const engine = createSyncEngine({
+  name: "rezepte",
+  metaKey: META_KEY,
+  fileName: "rezepte.json",
+  drive,
+  kv: { get: db.kvGet, update: db.kvUpdate },
+  // Bekannte Datei-ID zuerst, dann Namenssuche (drive.findFile). Nie ein Duplikat anlegen.
+  locate: async () => { const id = await drive.findFile(); return id ? { fileId: id } : null; },
+  rule: lastWriteWins({ store: { readAll: () => db.getAll("recipes"), replaceAll: (r) => db.replaceAll("recipes", r) } }),
+});
 
-export function onStatus(fn) { statusListeners.add(fn); return () => statusListeners.delete(fn); }
-function setStatus(msg) { status = msg; for (const fn of statusListeners) fn(msg); }
-export function getStatus() { return status; }
+export const onStatus = engine.onStatus;
+export const getStatus = engine.getStatus;
 
 /** Rezepte + Meta aus IndexedDB laden; leere DB wird aus dem Snapshot befüllt. */
 export async function loadLocal() {
@@ -68,107 +77,25 @@ export async function loadLocal() {
 }
 
 /**
- * Hintergrund-Sync mit Drive. Gibt {changed, recipes, meta} zurück.
- * Last-Write-Wins: neuere `updated`-Marke gewinnt. Lokale dirty-Änderungen
- * werden gepusht, wenn lokal neuer (oder Remote unverändert seit lastSync).
+ * Hintergrund-Sync mit Drive. Gibt {changed, recipes?, meta, conflict?, error?} zurück.
+ * Last-Write-Wins über `updated` (decideSync, K2): Regel in syncRules.js, Ablauf im Sync-Kern.
  */
-export async function syncWithDrive() {
-  if (!drive.isSignedIn()) return { changed: false };
-  setStatus("Verbinde mit Drive…");
-
-  let meta = await db.kvGet(META_KEY, {});
-  let fileId = meta.fileId;
-  try {
-    if (!fileId) fileId = await drive.findFile();
-
-    if (!fileId) {
-      // Echter Erstlauf dieses Kontos: lokale Daten (Snapshot) hochladen.
-      const recipes = await db.getAll("recipes");
-      const content = toFileString({ updated: meta.updated, recipes }, { setUpdated: true });
-      fileId = await drive.createFile(content);
-      meta = { ...meta, fileId, dirty: false, lastSync: new Date().toISOString(), source: "drive" };
-      await db.kvSet(META_KEY, meta);
-      setStatus("Synchronisiert ✓");
-      return { changed: false, meta };
-    }
-
-    const remote = await drive.readFile(fileId);
-    const { collection, report } = loadCollection(remote);
-    if (report.errors.length) console.warn("Drive-Validierung:", report.errors);
-
-    const remoteUpdated = collection.updated || "";
-    const localUpdated = meta.updated || "";
-    const action = decideSync({ hasRemote: true, localUpdated, remoteUpdated, dirty: meta.dirty, source: meta.source });
-
-    if (action === "push") {
-      // Lokal neuer → pushen (in place)
-      const recipes = await db.getAll("recipes");
-      const content = toFileString({ updated: localUpdated, recipes });
-      await drive.updateFile(fileId, content);
-      meta = { ...meta, fileId, dirty: false, lastSync: new Date().toISOString(), source: "drive" };
-      await db.kvSet(META_KEY, meta);
-      setStatus("Synchronisiert ✓");
-      return { changed: false, meta };
-    }
-
-    if (action === "conflict") {
-      // Lokale ungepushte Änderung UND Drive ist gleich/neuer (K2). Früher wurde die lokale
-      // Änderung hier stillschweigend überschrieben. Jetzt: lokale Daten + dirty bleiben
-      // erhalten, kein Overwrite. Echte Auflösung folgt mit Epic I2 (geteilte Liste).
-      meta = { ...meta, fileId, lastSync: new Date().toISOString() };
-      await db.kvSet(META_KEY, meta);
-      setStatus("Konflikt — lokale Änderung behalten, Sync ausstehend");
-      return { changed: false, conflict: true, meta };
-    }
-
-    if (action === "pull") {
-      // Remote gewinnt (neuer oder erstes echtes Drive-Laden)
-      await db.replaceAll("recipes", collection.recipes);
-      meta = { version: collection.version, updated: collection.updated, fileId, dirty: false, lastSync: new Date().toISOString(), source: "drive" };
-      await db.kvSet(META_KEY, meta);
-      setStatus("Synchronisiert ✓");
-      return { changed: true, recipes: collection.recipes, meta };
-    }
-
-    // action === "noop"
-    meta = { ...meta, fileId, lastSync: new Date().toISOString() };
-    await db.kvSet(META_KEY, meta);
-    setStatus("Synchronisiert ✓");
-    return { changed: false, meta };
-  } catch (e) {
-    console.warn("Sync fehlgeschlagen:", e);
-    setStatus(e.status === 401 ? "Anmeldung abgelaufen" : "Offline — lokale Daten");
-    return { changed: false, error: e };
-  }
+export function syncWithDrive() {
+  return engine.sync();
 }
 
 /**
- * Sammlung speichern: IndexedDB sofort, Drive-Push im Hintergrund (wenn möglich).
- * recipes = vollständiges Array (Quelle der Wahrheit im Speicher).
+ * Sammlung speichern: IndexedDB sofort, Drive-Push danach — in der Warteschlange des Sync-Kerns,
+ * also nie mitten in einen laufenden Abgleich hinein. recipes = vollständiges Array.
  */
 export async function saveCollection(recipes) {
   const updated = new Date().toISOString();
   await db.replaceAll("recipes", recipes);
-  let meta = await db.kvGet(META_KEY, {});
-  meta = { ...meta, updated, dirty: true };
-  await db.kvSet(META_KEY, meta);
+  const meta = await engine.patchMeta({ updated, dirty: true });
 
-  if (drive.isSignedIn() && navigator.onLine !== false) {
-    setStatus("Speichere…");
-    try {
-      let fileId = meta.fileId || await drive.findFile();
-      const content = toFileString({ updated, recipes });
-      if (fileId) await drive.updateFile(fileId, content);
-      else fileId = await drive.createFile(content);
-      meta = { ...meta, fileId, dirty: false, lastSync: new Date().toISOString(), source: "drive" };
-      await db.kvSet(META_KEY, meta);
-      setStatus("Synchronisiert ✓");
-    } catch (e) {
-      console.warn("Drive-Push fehlgeschlagen (bleibt dirty):", e);
-      setStatus("Lokal gespeichert — Sync ausstehend");
-    }
-  } else {
-    setStatus("Lokal gespeichert");
+  if (!(drive.isSignedIn() && engine.isOnline())) {
+    engine.setStatus(RECIPE_STATUS.savedLocal);
+    return meta;
   }
-  return meta;
+  return engine.run(pushCollection({ updated, recipes }));
 }

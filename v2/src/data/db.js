@@ -96,6 +96,28 @@ export async function kvSet(key, value) {
   return put("kv", { key, value });
 }
 
+/**
+ * Atomar ändern: liest und schreibt in EINER readwrite-Transaktion, damit sich zwei gleichzeitige
+ * Änderungen (z. B. Sync-Ende und „Partner verbinden“) nicht gegenseitig überschreiben.
+ * fn(alterWert) → neuer Wert. Gibt den neuen Wert zurück.
+ */
+export async function kvUpdate(key, fn, fallback = undefined) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = db.transaction("kv", "readwrite");
+    const s = t.objectStore("kv");
+    let next;
+    const req = s.get(key);
+    req.onsuccess = () => {
+      next = fn(req.result === undefined ? fallback : req.result.value);
+      s.put({ key, value: next });
+    };
+    t.oncomplete = () => resolve(next);
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error);
+  });
+}
+
 export async function kvDel(key) {
   return del("kv", key);
 }
