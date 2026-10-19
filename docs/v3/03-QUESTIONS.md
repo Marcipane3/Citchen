@@ -136,9 +136,11 @@ No answers needed from Marcel here. Changes since 2026-10-01 are marked.
 
 ### Quality and safety
 
-- [ ] **C-13.** E2E suite covers: first run, language switch, add/edit recipe, capture review,
+- [x] **C-13.** E2E suite covers: first run, language switch, add/edit recipe, capture review,
       cooking mode, shopping list, partner sync, offline start, update from v2. Planner → shopping
-      stays in, at lower priority.
+      stays in, at lower priority. — ✅ 2026-10-12 (V2 P2): `v2/e2e/`, Playwright, all ten flows
+      plus recipe sync across two devices; one command `npm --prefix v2/e2e test`. "Update from
+      v2" is tested as update from the previous v2 release; the v2 → V3 domain move is P5.
 - [ ] **C-14.** Security pass: no new third-party scripts; CSP possible on the host?
 - [ ] **C-15.** Accessibility spot check.
 - [ ] **C-16.** QA fleet (architect, bug-hunter, data-guardian, release-captain) at G5.

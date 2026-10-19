@@ -21,6 +21,9 @@ Locate the real files first (don't assume paths): the service worker (`sw.js`), 
 (the `BUILD` constant), the roadmap files (`ROADMAP.md` index + `ROADMAP-V2.md` / `ROADMAP-V3.md`), and any changelog. Then:
 
 1. **Suite green.** Run `node v2/tests/run.js`. Anything but all-passing is an automatic **NO-GO**.
+   Then the end-to-end suite: `npm --prefix v2/e2e test` (Playwright, see `v2/e2e/README.md`).
+   Red → **NO-GO**. If its dependencies aren't installed (`v2/e2e/node_modules` missing) → **warn**
+   "e2e not run", don't block.
 2. **BUILD bumped.** Compare the `BUILD` value in `version.js` against the last committed value
    (`git show HEAD:v2/src/version.js` or the last tag). If app code under `v2/src` changed since the
    last release but `BUILD` did **not** change → **NO-GO** (users won't see the update reflected).

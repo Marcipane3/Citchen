@@ -5,8 +5,8 @@
 > **Not here:** domain, Play Store, onboarding tour, default photos, clean-up, anything after
 > v3.0 → see **[ROADMAP-V3.md](ROADMAP-V3.md)**. What to do next → **[ROADMAP.md](ROADMAP.md)**.
 >
-> Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-10-04** · Current build: **v2.14**
-> (`/v2`, 215 tests; live since PR #8 was merged on 2026-10-04).
+> Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-10-12** · Current build: **v2.14.1**
+> (`/v2`, 215 unit tests + 27 end-to-end tests in `v2/e2e/`; v2.14 live since PR #8 was merged on 2026-10-04).
 
 ---
 
@@ -36,8 +36,9 @@ V3 slices in Q1 2027 if time is short (risk R19).
 | Version | Theme | Items | Target | Status | Blocked by |
 |---------|-------|-------|--------|--------|------------|
 | **v2.14** | Friends link | I3 | 4 Oct 2026 | ✅ live (PR #8 merged 4 Oct) · live test open (P4) | — |
-| — (no release) | ★ Safety net | P2 end-to-end tests | mid Oct | next | — |
-| **v2.15** | ★ One sync core | P1 | late Oct | planned | P2 (guards the refactor) |
+| — (no release) | ★ Safety net | P2 end-to-end tests | mid Oct | ✅ 12 Oct | — |
+| **v2.14.1** | Hotfix (found by P2) | Settings listeners broke every later save | 12 Oct | ✅ built · deploy = merge | — |
+| **v2.15** | ★ One sync core | P1 | late Oct | planned | — (P2 ✅ guards the refactor) |
 | — (Marcel) | ★ Sharing proof | P3 two-account test, P4 live friend test | Oct | open since v2.11 | Picker key + partner as test user |
 | **v2.16** | AI housekeeping | Q1 Sonnet 5.5 capture + model config · Q2 prompt caching · Q3 token measurement | early Nov | planned | — |
 | **v2.17** | Find recipes faster | F4 | mid Nov | planned | Marcel answers **G7** |
@@ -64,8 +65,8 @@ core, end-to-end tests."
 
 | # | Item | Detail & acceptance | Pri | Eff | Target |
 |---|------|---------------------|-----|-----|--------|
-| **P1** | **One sync core** (check C-7, US-22) | One engine behind recipes (file-level last-write-wins + `decideSync`) and the shopping list (item merge + tombstones). The friend inbox (I3) stays its own channel. **Done:** both instances pass the full existing suite plus new two-instance tests; no behaviour change visible to the user. | P1 | L | v2.15 |
-| **P2** | **End-to-end browser tests** (check C-13) | Playwright, dev-only (nothing ships to users). Flows: first run, language switch, add/edit recipe, capture review, cooking mode, shopping list, partner sync, offline start, update from previous build; planner → shopping at lower priority. **Done:** suite runs locally with one command and is green on the current build. | P1 | L | mid Oct |
+| **P1** | **One sync core** (check C-7, US-22) | One engine behind recipes (file-level last-write-wins + `decideSync`) and the shopping list (item merge + tombstones). The friend inbox (I3) stays its own channel. **Done:** both instances pass the full existing suite plus new two-instance tests; no behaviour change visible to the user; e2e specs 07 + 08 green. Also fix the race P2 found: linking the partner list while a push is in flight silently loses the link (known-bug test `07-partner-sync` → remove its `test.fail` when fixed). | P1 | L | v2.15 |
+| **P2** | ✅ **End-to-end browser tests** (check C-13) — *2026-10-12* | Playwright, dev-only (nothing ships to users). Flows: first run, language switch, add/edit recipe, capture review, cooking mode, shopping list, partner sync, offline start, update from previous build; planner → shopping at lower priority. **Done:** suite runs locally with one command and is green on the current build. → `v2/e2e/` (`npm --prefix v2/e2e test`), 11 specs / 27 tests (one pins a known bug for P1), fake Google + Drive + Picker + Anthropic, no network. Found and fixed the v2.14.1 bug on its first run. | P1 | L | ✅ |
 | **P3** | **Two-account sharing proof** (US-06) — *Marcel* | The I2 test with your partner, steps in `v2/docs/SHARING.md`. Needs first: Google Picker API key in `drive.js` + partner added as OAuth test user. **Done:** two real accounts, Android + iPhone, both edit offline, no item lost. | P1 | S | Oct |
 | **P4** | **Friends link live test** (I3) — *Marcel* | ✅ PR #8 merged 2026-10-04. Open the live app, create a link, a real friend adds an item from their phone. **Done:** item arrives with "von …" after reopening. Watch: Supabase free projects pause after ~7 days without traffic. | P1 | S | Oct |
 | **P5** | **"Move to the new app" helper** (US-04, risk R13) | Exports browser-only data (stock, fridge, profile, settings, **friends-link owner token**) before the domain switch; warns about unsynced edits; tells the user the AI key must be re-entered. **Done:** export on old address → import on new address restores everything except the key. | P1 | M | v2.21 |
@@ -151,7 +152,8 @@ Guardrail: no medical claims, no weight-loss plans. *M4 (planner), M5 (protein-b
   no table access, no recipe data).
 - No third-party scripts (the BYOK key lives in `localStorage`).
 - Every release bumps `BUILD` + SW `CACHE`, lists new modules in the SW `SHELL`, keeps i18n in
-  DE/EN/ES/DA with curly inner quotes, and runs `node v2/tests/run.js` green.
+  DE/EN/ES/DA with curly inner quotes, and runs `node v2/tests/run.js` **and**
+  `npm --prefix v2/e2e test` green.
 
 ---
 
@@ -177,6 +179,8 @@ Full detail lives in the git history, the in-app changelog (`v2/src/version.js`)
 | v2.12 | J2 bottom tab bar |
 | v2.13 | C2 capture polish · C3 profile-aware capture · D2 shared ingredient catalog |
 | v2.14 (2026-10-04) | I3 friends link via Supabase inbox (`v2/docs/SHARING.md`) · PR #8 |
+| 2026-10-12 | P2 end-to-end suite (`v2/e2e/`, Playwright): ten core flows + recipe sync across devices, all offline with fakes |
+| v2.14.1 (2026-10-12) | Hotfix found by P2: after visiting Settings, every later recipe save failed with „Speichern fehlgeschlagen“ and never reached Drive (leaked listeners); „Jetzt synchronisieren“ stayed disabled |
 
 **Architecture decisions worth remembering** (details in the linked files):
 - Sharing models (Epic I): couples = shared Drive file + Google Picker, no backend; friends without

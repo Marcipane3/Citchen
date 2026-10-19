@@ -45,6 +45,8 @@ python -m http.server 8010
 # → http://localhost:8010/v2/
 ```
 Tests (no deps, offline): `node v2/tests/run.js`
+End-to-end browser tests (dev-only, Playwright): `npm --prefix v2/e2e test` — setup and coverage
+in [`e2e/README.md`](e2e/README.md).
 
 ## Deploy
 Push to `main`; GitHub Pages serves `/v2` automatically. Bump `CACHE` in `sw.js` and `BUILD`
