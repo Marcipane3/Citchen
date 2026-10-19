@@ -5,7 +5,7 @@ Agents read this file but never edit it; the orchestrator updates the status aft
 
 | ID | Reported | Area | Observation | Status |
 |----|----------|------|-------------|--------|
-| FR-01 | 2026-10-12 | Shopping list | "Ingwer" gets added to the shopping list **randomly and multiple times, without me selecting it**. | 🎯 root-caused 2026-10-12 — DG-04 (id-less Drive item multiplies per sync) + BH-04/05/06/07, DG-08/09. Needs device confirm + fix. See FLEET-REPORT.md. **Planned:** v2.15.2 (ROADMAP-V2 T4–T8, T10) — v2.15 (one sync core) did not change this code path |
+| FR-01 | 2026-10-12 | Shopping list | "Ingwer" gets added to the shopping list **randomly and multiple times, without me selecting it**. | ◐ main cause fixed in **v2.15.2** (2026-10-19, ROADMAP-V2 T4): id-less Drive item gets a stable id, the extra copies collapse into one row, deletes stick. Remaining duplicate paths (BH-04/05/06/07, DG-08/09: same-name rows, Lager vs 🛒) → v2.15.3 (T5, T6, awaiting Marcel's yes/no). Device check after the update: 🔄 three times → one Ingwer row |
 
 ---
 

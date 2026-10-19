@@ -6,6 +6,7 @@
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import { createSyncEngine } from "../src/data/syncCore.js";
 import { recipeSync, itemMerge, RECIPE_STATUS } from "../src/data/syncRules.js";
+import { ensureItemMeta, adoptLegacy, stableItemId } from "../src/features/shopping/listMerge.js";
 
 /* ---------- Fakes ---------- */
 
@@ -114,7 +115,8 @@ function listDevice(drive, user = "a") {
     name: "einkaufsliste", metaKey: "listMeta", fileName: "einkaufsliste-" + user + ".json", drive: dv, kv,
     locate: async () => { const id = await dv.findByName("einkaufsliste-" + user + ".json"); return id ? { fileId: id, meta: { ownFileId: id, linked: false } } : null; },
     rule: itemMerge({
-      store: { readAll: async () => structuredClone(local.items), write: async (items) => { local.items = structuredClone(items); } },
+      // readAll wie listSync.loadLocalList: fehlende Felder ergänzen (T4: Altbestand → stabile id).
+      store: { readAll: async () => { local.items = ensureItemMeta(adoptLegacy(local.items)); return structuredClone(local.items); }, write: async (items) => { local.items = structuredClone(items); } },
       onDirty: () => { dirtyCalls++; },
     }),
     online: () => true,
@@ -560,6 +562,135 @@ test("Liste: Altbestand (≤ v2.10) ohne ownFileId wird beim Abgleich ergänzt",
   A.kv.m.set("listMeta", { fileId, dirty: false });   // alte Meta-Form
   await A.engine.sync();
   assertEqual((await A.meta()).ownFileId, fileId);
+});
+
+/* ============================================================
+   v2.15.2 — Liste sicher machen: T4 (Altbestand ohne id), T7 (Aufräumen), T10 (Datei prüfen)
+   ============================================================ */
+
+const LEGACY_INGWER = { name: "Ingwer", nameDe: "Ingwer", amount: 1, unit: "Stück", cat: "Obst & Gemüse", icon: "🫚", qty: 1, done: false, sources: ["r1749400081000"] };
+const listFile = (drive, id) => drive.json(id);
+const setListFile = (drive, id, json) => { drive.files.get(id).content = typeof json === "string" ? json : JSON.stringify(json); };
+const DAY = 86400000;
+const daysAgo = (d) => new Date(Date.now() - d * DAY).toISOString();
+
+test("Liste / T4 / FR-01: Ingwer ohne id in der Drive-Datei → 5 Abgleiche, immer EINE Zeile; Löschen bleibt", async () => {
+  const drive = fakeDrive();
+  const A = listDevice(drive, "a");
+  await A.engine.sync();
+  const id = (await A.meta()).fileId;
+  setListFile(drive, id, { version: 1, items: [{ ...LEGACY_INGWER }] });   // so hat v2.10 geschrieben
+  const origWarn = console.warn; console.warn = () => {};             // „Listen-Datei repariert“ ist hier erwartet
+  for (let i = 1; i <= 5; i++) {
+    await A.engine.sync();
+    assertDeepEqual(A.visible(), ["Ingwer"], `lokal nach Abgleich ${i}`);
+    assertDeepEqual(liveNames(drive, id), ["Ingwer"], `Drive nach Abgleich ${i}`);
+  }
+  assert(listFile(drive, id).items.every((x) => x.id), "Datei repariert: jeder Artikel hat eine id");
+  console.warn = origWarn;
+  assertEqual((await A.meta()).dirty, false);
+  A.remove("Ingwer");
+  for (let i = 0; i < 3; i++) await A.engine.sync();
+  assertDeepEqual(A.visible(), []);
+  assertDeepEqual(liveNames(drive, id), []);
+});
+
+test("Liste / T4: beide Partner, Altbestand + Kopien → eine Zeile auf beiden Geräten, stabil", async () => {
+  const drive = fakeDrive();
+  const { A, B, fileA } = await linked(drive);
+  const copies = [1, 2, 3].map((n) => ({ author: "local", ...LEGACY_INGWER, id: "li-copy" + n, updated: new Date(Date.now() - DAY + n * 1000).toISOString(), deleted: false }));
+  setListFile(drive, fileA, { version: 1, items: [...listFile(drive, fileA).items, { ...LEGACY_INGWER }, ...copies] });
+  A.local.items.push(...structuredClone(copies));
+  const origWarn = console.warn; console.warn = () => {};
+  await A.engine.sync();
+  console.warn = origWarn;
+  await B.engine.sync();
+  await A.engine.sync();
+  assertDeepEqual(A.visible(), ["Brot", "Hafermilch", "Ingwer"]);
+  assertDeepEqual(B.visible(), ["Brot", "Hafermilch", "Ingwer"]);
+  assertEqual(A.local.items.find((x) => !x.deleted && x.name === "Ingwer").id, stableItemId(LEGACY_INGWER));
+  const before = drive.writes.length;
+  await A.engine.sync(); await B.engine.sync();
+  assertEqual(drive.writes.length, before, "danach kein Schreiben mehr (CR-02)");
+});
+
+test("Liste / T7 / AR-09: alter Tombstone → EIN Abgleich räumt auf, danach nicht mehr „dirty“ (kein Push alle 1,2 s)", async () => {
+  const drive = fakeDrive();
+  const A = listDevice(drive, "a");
+  A.add("Milch");
+  await A.engine.sync();
+  const id = (await A.meta()).fileId;
+  A.local.items.push({ id: "old", name: "Feta", qty: 1, done: false, updated: daysAgo(40), author: "a", deleted: true });
+  await A.engine.sync();
+  assertEqual((await A.meta()).dirty, false, "früher: immer dirty");
+  assertEqual(A.dirtyCalls(), 0, "kein Nachschieben angestoßen");
+  assert(!A.local.items.some((x) => x.id === "old"), "lokal aufgeräumt");
+  const before = drive.writes.filter((w) => w.id === id).length;
+  await A.engine.sync(); await A.engine.sync();
+  assertEqual(drive.writes.filter((w) => w.id === id).length, before);
+});
+
+test("Liste / T7 / BH-11: Partner war > 30 Tage weg → aufgeräumter gelöschter Artikel kommt nicht zurück", async () => {
+  const drive = fakeDrive();
+  const { A, B, fileA } = await linked(drive);
+  const X = { id: "x", name: "Ingwer", qty: 1, done: false, updated: daysAgo(50), author: "a", deleted: false };
+  A.local.items.push({ ...X });
+  await A.engine.sync();
+  await B.engine.sync();
+  assert(B.visible().includes("Ingwer"), "B hat ihn (alter Stand)");
+  // A löscht; die Löschung ist inzwischen selbst > 30 Tage alt → A räumt sie auf.
+  A.local.items = A.local.items.map((x) => (x.id === "x" ? { ...x, deleted: true, updated: daysAgo(35) } : x));
+  await A.engine.sync();
+  assert(!listFile(drive, fileA).items.some((x) => x.id === "x"), "Tombstone aufgeräumt");
+  assert(listFile(drive, fileA).prunedBefore, "Horizont in der Datei");
+  B.add("Bananen");                                     // B kommt mit einer neuen Sache zurück
+  await B.engine.sync();
+  assertDeepEqual(B.visible(), ["Bananen", "Brot", "Hafermilch"]);
+  assertDeepEqual(liveNames(drive, fileA), ["Bananen", "Brot", "Hafermilch"]);
+});
+
+for (const [label, content] of [
+  ["{}", {}], ["items: null", { version: 1, items: null }], ["Version 2", { version: 2, entries: [{ name: "Milch" }] }], ["kein JSON", "{kaputt"],
+]) {
+  test(`Liste / T10 / DG-14: Drive-Datei „${label}“ → abgelehnt, lokal bleibt, Datei wird NICHT überschrieben`, async () => {
+    const drive = fakeDrive();
+    const A = listDevice(drive, "a");
+    A.add("Milch");
+    await A.engine.sync();
+    const id = (await A.meta()).fileId;
+    setListFile(drive, id, content);
+    const raw = drive.files.get(id).content;
+    const writes = drive.writes.length;
+    const origWarn = console.warn; console.warn = () => {};
+    const res = await A.engine.sync();
+    console.warn = origWarn;
+    assert(res.error, "Fehler gemeldet");
+    assertEqual(A.engine.getStatus(), "rejected");
+    assertDeepEqual(A.visible(), ["Milch"]);
+    assertEqual(drive.writes.length, writes, "nichts geschrieben");
+    assertEqual(drive.files.get(id).content, raw);
+  });
+}
+
+test("Liste / T10 / AR-11: Partner-Datei mit kaputten Artikeln → repariert, einmal zurückgeschrieben, dann stabil", async () => {
+  const drive = fakeDrive();
+  const { A, fileA } = await linked(drive);
+  const file = listFile(drive, fileA);
+  setListFile(drive, fileA, { ...file, items: [...file.items,
+    { id: "evil", name: "Milch", qty: "9", icon: '<img src=x onerror="alert(1)">', updated: daysAgo(1), deleted: false },
+    { id: "noname", name: null, updated: daysAgo(1), deleted: false },
+  ] });
+  const origWarn = console.warn; console.warn = () => {};
+  await A.engine.sync();
+  console.warn = origWarn;
+  const evil = A.local.items.find((x) => x.id === "evil");
+  assertEqual(evil.qty, 1);
+  assert(!("icon" in evil), "HTML-Symbol entfernt");
+  assert(!A.local.items.some((x) => x.id === "noname"), "Artikel ohne Namen verworfen");
+  assert(!listFile(drive, fileA).items.some((x) => x.id === "noname"), "… auch in der Datei");
+  const before = drive.writes.length;
+  await A.engine.sync();
+  assertEqual(drive.writes.length, before, "zweiter Abgleich schreibt nicht");
 });
 
 test("Zwei Kerne nebeneinander (Rezepte + Liste) stören sich nicht", async () => {

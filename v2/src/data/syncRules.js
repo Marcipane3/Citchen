@@ -3,12 +3,14 @@
 // Schreiben/Status/Warteschlange macht der Kern. Lokaler Speicher wird hineingereicht (testbar).
 //
 //  recipeSync → rezepte.json   (v2.15.1: prüfen + Drei-Wege-Merge pro Rezept, recipeMerge.js)
-//  itemMerge  → einkaufsliste.json (pro Artikel; Tombstones; schreibt nur bei Änderung, CR-02)
+//  itemMerge  → einkaufsliste.json (pro Artikel; Tombstones; schreibt nur bei Änderung, CR-02;
+//                v2.15.2: Datei prüfen (T10), Altbestand ohne id (T4), Aufräum-Horizont (T7))
 
 import { toFileString } from "./migrate.js";
 import { decideSync } from "./decideSync.js";
 import { inspectRemote, mergeRecipes, sameCollection, suspiciousDrop, RemoteRejected } from "./recipeMerge.js";
-import { mergeList, sameItems, syncStep } from "../features/shopping/listMerge.js";
+import { inspectList } from "./listFile.js";
+import { mergeList, sameItems, syncStep, pruneTombstones, dropBeyondHorizon } from "../features/shopping/listMerge.js";
 
 /* ============================================================
    Rezepte: Drei-Wege-Merge gegen die Basis (T1) + Eingangsprüfung (T2)
@@ -118,6 +120,9 @@ export function recipeSync({ store, approveDrop = async () => false, onRetry = (
  * store = { readAll() → items[] (inkl. Tombstones), write(items, now) }
  * onMerged(items, { stillDirty }) — nach einem Abgleich, der lokal etwas geändert hat
  * onDirty() — Abgleich hat nicht alles untergebracht (lokal währenddessen getippt) → später nochmal.
+ *
+ * Status-Codes: synced · syncing · local · offline · auth · notFound · error ·
+ *   rejected (v2.15.2, T10: Datei hat eine unbekannte Form → lokal behalten, nichts überschrieben)
  */
 export function itemMerge({ store, onMerged = () => {}, onDirty = () => {} }) {
   return {
@@ -128,7 +133,8 @@ export function itemMerge({ store, onMerged = () => {}, onDirty = () => {} }) {
     errorStatus: (e, { online }) =>
       e && e.status === 401 ? "auth"
         : e && (e.status === 404 || e.status === 403) ? "notFound"
-          : online === false ? "offline" : "error",
+          : e && (e.rejected || e.name === "SyntaxError") ? "rejected"
+            : online === false ? "offline" : "error",
 
     // Altbestand (≤ v2.10): eigene Datei-ID noch nicht separat gemerkt.
     migrateMeta: (meta) => (meta.fileId && !meta.linked && !meta.ownFileId ? { ownFileId: meta.fileId } : null),
@@ -136,27 +142,38 @@ export function itemMerge({ store, onMerged = () => {}, onDirty = () => {} }) {
     create: ({ local, now }) => ({
       content: JSON.stringify({ version: 1, updated: now, items: local }),
       apply: async (fileId) => ({
-        meta: { ownFileId: fileId, linked: false, dirty: false, lastSync: now },
+        meta: { ownFileId: fileId, linked: false, dirty: false, lastSync: now, syncedFile: fileId },
         status: "synced",
         result: { items: local },
       }),
     }),
 
-    merge: async ({ local, remote, now }) => {
-      const remoteItems = remote && Array.isArray(remote.items) ? remote.items : [];
-      const { merged, writeRemote } = syncStep(local, remoteItems, now);
+    merge: async ({ local, remote, meta, now }) => {
+      // T10: Form prüfen (wirft ListRejected → lokal bleibt, Datei bleibt), Artikel reparieren;
+      // T4: Artikel ohne id haben ab hier eine stabile id.
+      const file = inspectList(remote);
+      if (file.notes.length) console.warn("Listen-Datei repariert:", file.notes);
+      // T7: Den Aufräum-Horizont der Datei nur anwenden, wenn dieses Gerät mit GENAU dieser Datei
+      // schon abgeglichen hat — beim ersten Verbinden (Partner-Liste) gilt alles Lokale als neu.
+      const horizon = meta.syncedFile && meta.syncedFile === meta.fileId ? file.prunedBefore : "";
+      const step = syncStep(local, file.items, now, { legacy: file.legacy, horizon });
+      const { merged } = step;
+      const prunedBefore = step.prunedBefore > file.prunedBefore ? step.prunedBefore : file.prunedBefore;
+      const write = step.writeRemote || file.notes.length > 0 || prunedBefore !== file.prunedBefore;
       return {
         // Ein Zeitstempel für Datei UND Meta (CR-02); geschrieben wird nur bei Änderung.
-        write: writeRemote ? JSON.stringify({ version: 1, updated: now, items: merged }) : null,
-        apply: async () => {
-          // Während des Roundtrips lokal getippt? → nochmal einmischen.
+        write: write ? JSON.stringify({ version: 1, updated: now, ...(prunedBefore ? { prunedBefore } : {}), items: merged }) : null,
+        apply: async (fileId) => {
+          // Während des Roundtrips lokal getippt? → nochmal einmischen. Dieselben Regeln wie oben
+          // (Horizont, Aufräumen), sonst bliebe die Liste ewig „dirty“ (T7 / AR-09: Push alle 1,2 s).
           const latest = await store.readAll();
-          const final = mergeList(merged, latest);
+          const mergedIds = new Set(merged.map((it) => it.id));
+          const final = pruneTombstones(mergeList(merged, dropBeyondHorizon(latest, mergedIds, horizon)), now);
           const localChanged = !sameItems(local, final) || !sameItems(latest, final);
           if (localChanged) await store.write(final, now);
           const stillDirty = !sameItems(final, merged);
           return {
-            meta: { dirty: stillDirty, lastSync: now },
+            meta: { dirty: stillDirty, lastSync: now, syncedFile: fileId },
             status: "synced",
             result: { changed: localChanged, items: final },
             after: () => { if (localChanged) onMerged(final); if (stillDirty) onDirty(); },

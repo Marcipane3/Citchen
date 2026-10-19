@@ -22,6 +22,7 @@ import "./test-intake.js";
 import "./test-friends.js";
 import "./test-sync-core.js";
 import "./test-recipe-merge.js";
+import "./test-list-file.js";
 import { run } from "./runner.js";
 
 const { fail } = await run();
