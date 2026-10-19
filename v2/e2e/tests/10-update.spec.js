@@ -46,9 +46,12 @@ test("Update vom vorigen Build: neuer Build kommt an, alter Cache wird gelöscht
     expect(opens, "neuer Build braucht zu viele Neustarts").toBeLessThanOrEqual(2);
     testInfo.annotations.push({ type: "opens until new build", description: String(opens) });
 
-    // Alter Cache ist weg, neuer vollständig da.
+    // Alter Cache ist weg, neuer vollständig da. Achtung: der neue Build kann schon sichtbar sein,
+    // BEVOR der neue Service Worker aktiv ist — der alte SW lädt im Hintergrund nach (stale-while-
+    // revalidate) und legt die neuen Dateien in SEINEN Cache. Gelöscht wird erst bei der Aktivierung
+    // des neuen SW (nach dessen addAll); darauf mit großzügigem Zeitlimit warten.
     await waitForServiceWorker(page, CACHE);
-    await expect.poll(() => page.evaluate(() => caches.keys())).toEqual([CACHE]);
+    await expect.poll(() => page.evaluate(() => caches.keys()), { timeout: 30_000 }).toEqual([CACHE]);
 
     // Daten aus dem alten Build sind unverändert da.
     await expect(card(page, "E2E vor dem Update")).toBeVisible();

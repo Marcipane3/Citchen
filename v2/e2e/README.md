@@ -38,7 +38,7 @@ Handy extras: `npm --prefix v2/e2e run test:headed` (watch the browser),
 | 5 | `05-cooking` | Cooking mode: scale portions, tick steps (persisted), step-by-step, timer (fake clock) |
 | 6 | `06-shopping` | Custom + catalog items, quantities, done, clear + undo, badge, restart; recipe → list |
 | 7 | `07-partner-sync` | Two Google accounts share one list (I2): merge, adds, deletes, both offline, unlink |
-| 8 | `08-recipe-sync` | `rezepte.json` across two devices: first upload, push, pull, conflict, last-write-wins |
+| 8 | `08-recipe-sync` | `rezepte.json` across two devices + external writer: first upload, pull, both devices edit → both survive, Claude adds on Drive + ♥ → both survive, resume re-sync, broken file refused, mass-delete question (v2.15.1) |
 | 9 | `09-offline` | Offline start from the service-worker cache: every view, data, language switch |
 | 10 | `10-update` | Update from the **previous release** (from git history): new build arrives, old cache gone, data kept |
 | 11 | `11-planner` | Weekly plan → lock / pick a day → restart → shopping list (lower priority) |

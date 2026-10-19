@@ -157,8 +157,10 @@ export const DICT = {
       allInStock: "Alles schon im Vorrat — nichts zu kaufen.",
       tippTopping: "🧀 Topping", tippVariation: "🔄 Variation", tippUpgrade: "✨ Alltags-Upgrade", tippTechnik: "🧑‍🍳 Technik",
     },
+    sync: { confirmDrop: "Auf Google Drive fehlen {n} von {total} Rezepten. Ist die Datei beschädigt? OK = Löschen übernehmen · Abbrechen = lokale Rezepte behalten." },
     form: {
       apply: "Übernehmen",
+      editsOriginal: "Du bearbeitest das deutsche Original — die Rezeptdatei ist deutsch, Übersetzungen werden nur angezeigt.",
       newRecipe: "Neues Rezept", editRecipe: "Rezept bearbeiten", reviewDraft: "Rezept-Entwurf prüfen",
       name: "Name", namePlaceholder: "z.B. Linsensuppe", category: "Kategorie",
       time: "Zeit", servings: "Portionen", effort: "Aufwand", difficulty: "Schwierigkeit",
@@ -402,8 +404,10 @@ export const DICT = {
       allInStock: "All in stock already — nothing to buy.",
       tippTopping: "🧀 Topping", tippVariation: "🔄 Variation", tippUpgrade: "✨ Everyday upgrade", tippTechnik: "🧑‍🍳 Technique",
     },
+    sync: { confirmDrop: "{n} of {total} recipes are missing on Google Drive. Is the file damaged? OK = apply the deletions · Cancel = keep your local recipes." },
     form: {
       apply: "Apply",
+      editsOriginal: "You are editing the German original — the recipe file is German; translations are only shown.",
       newRecipe: "New recipe", editRecipe: "Edit recipe", reviewDraft: "Review recipe draft",
       name: "Name", namePlaceholder: "e.g. Lentil soup", category: "Category",
       time: "Time", servings: "Servings", effort: "Effort", difficulty: "Difficulty",
@@ -647,8 +651,10 @@ export const DICT = {
       allInStock: "Todo ya en despensa — nada que comprar.",
       tippTopping: "🧀 Topping", tippVariation: "🔄 Variación", tippUpgrade: "✨ Mejora diaria", tippTechnik: "🧑‍🍳 Técnica",
     },
+    sync: { confirmDrop: "Faltan {n} de {total} recetas en Google Drive. ¿Está dañado el archivo? Aceptar = aplicar las eliminaciones · Cancelar = conservar tus recetas locales." },
     form: {
       apply: "Aplicar",
+      editsOriginal: "Estás editando el original en alemán — el archivo de recetas es alemán; las traducciones solo se muestran.",
       newRecipe: "Nueva receta", editRecipe: "Editar receta", reviewDraft: "Revisar borrador",
       name: "Nombre", namePlaceholder: "p. ej. Sopa de lentejas", category: "Categoría",
       time: "Tiempo", servings: "Raciones", effort: "Esfuerzo", difficulty: "Dificultad",
@@ -892,8 +898,10 @@ export const DICT = {
       allInStock: "Alt er allerede på lager — intet at købe.",
       tippTopping: "🧀 Topping", tippVariation: "🔄 Variation", tippUpgrade: "✨ Hverdags-upgrade", tippTechnik: "🧑‍🍳 Teknik",
     },
+    sync: { confirmDrop: "{n} af {total} opskrifter mangler på Google Drive. Er filen beskadiget? OK = anvend sletningerne · Annuller = behold dine lokale opskrifter." },
     form: {
       apply: "Anvend",
+      editsOriginal: "Du redigerer den tyske original — opskriftsfilen er på tysk; oversættelser vises kun.",
       newRecipe: "Ny opskrift", editRecipe: "Rediger opskrift", reviewDraft: "Tjek opskriftsudkast",
       name: "Navn", namePlaceholder: "f.eks. Linsesuppe", category: "Kategori",
       time: "Tid", servings: "Portioner", effort: "Indsats", difficulty: "Sværhedsgrad",

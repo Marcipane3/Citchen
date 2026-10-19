@@ -11,6 +11,7 @@
 import * as sync from "./data/sync.js";
 import { makeIdFactory, withDefaults, validateRecipe } from "./data/schema.js";
 import { buildLangMap, localizeRecipes } from "./data/baseLang.js";
+import { sameCollection } from "./data/recipeMerge.js";
 
 export const state = {
   recipes: [],      // Anzeige-Sicht (lokalisiert) — Views lesen NUR das
@@ -48,6 +49,20 @@ export async function applyLanguageOverlay(lang) {
 
 export function setSignedIn(v) { state.signedIn = v; emit(); }
 
+/**
+ * Ergebnis eines Hintergrund-Abgleichs übernehmen (Start, Anmelden, zurück in die App, Einstellungen).
+ * Steht noch eine eigene Speicherung aus, bringt DIESE den maßgeblichen Stand — dann nichts tun,
+ * sonst flackert eine gerade gemachte Änderung kurz weg.
+ */
+export function applySynced(res) {
+  if (!res) return;
+  if (res.meta) state.meta = res.meta;
+  if (res.changed && res.recipes && pendingSaves === 0) setRecipes(res.recipes, res.meta);
+}
+
+/** Wird dieses Rezept gerade übersetzt angezeigt? (Basis-Rezept + Nicht-Deutsch-UI) — T3 */
+export function isTranslated(id) { return langMap.has(id); }
+
 /** Anzeige-Rezept (lokalisiert) per id. */
 export function getRecipe(id) { return state.recipes.find((r) => r.id === id); }
 
@@ -58,17 +73,30 @@ export function getRecipe(id) { return state.recipes.find((r) => r.id === id); }
  */
 export function getRecipeDe(id) { return recipesDe.find((r) => r.id === id); }
 
-/** Persistiert die KANONISCH DEUTSCHE Sammlung (IndexedDB sofort, Drive danach). */
-async function persist() {
-  const meta = await sync.saveCollection(recipesDe);
-  state.meta = { ...(state.meta || {}), ...meta };
+/**
+ * Persistiert eine ÄNDERUNG an der kanonisch deutschen Sammlung (v2.15.1): change(rezepte) wird in
+ * der Sync-Warteschlange auf den aktuellen lokalen Stand angewendet, dann mit Drive abgeglichen.
+ * Der Speicher wurde vorher schon optimistisch geändert; sobald keine Speicherung mehr aussteht,
+ * übernimmt er den maßgeblichen Stand (inkl. dessen, was Drive mitbrachte, z. B. Claudes Rezept).
+ */
+let pendingSaves = 0;
+async function persist(change) {
+  pendingSaves++;
+  let res;
+  try { res = await sync.saveChange(change); }
+  finally { pendingSaves--; }
+  state.meta = { ...(state.meta || {}), ...res.meta };
+  if (pendingSaves === 0 && res.recipes && !sameCollection(res.recipes, recipesDe)) {
+    recipesDe = res.recipes;
+    recomputeView();
+    emit();
+  }
 }
 
 /**
  * Einzelnes Rezept ändern: fn(recipe) mutiert eine Kopie des DEUTSCHEN Objekts;
- * danach speichern. Hinweis: Bei Basis-Rezepten in nicht-deutscher UI werden
- * Inhaltsänderungen auf das deutsche Original geschrieben (selten; sprachneutrale
- * Felder wie favorite/rating sind davon unberührt und korrekt).
+ * danach speichern. Inhalte kommen nur aus dem deutschen Original: das Bearbeiten-Formular
+ * öffnet seit v2.15.1 getRecipeDe(id), nie die Übersetzung (T3, DG-02).
  */
 export async function updateRecipe(id, fn) {
   const idx = recipesDe.findIndex((r) => r.id === id);
@@ -80,7 +108,7 @@ export async function updateRecipe(id, fn) {
   recipesDe = recipesDe.map((r, i) => (i === idx ? copy : r));
   recomputeView();
   emit();
-  await persist();
+  await persist((list) => list.map((r) => { if (r.id !== id) return r; const c = { ...r }; fn(c); return c; }));
   return getRecipe(id) || copy;
 }
 
@@ -93,7 +121,7 @@ export async function addRecipe(fields) {
   recipesDe = [recipe, ...recipesDe];
   recomputeView();
   emit();
-  await persist();
+  await persist((list) => [recipe, ...list.filter((r) => r.id !== recipe.id)]);
   return recipe;
 }
 
@@ -101,5 +129,5 @@ export async function deleteRecipe(id) {
   recipesDe = recipesDe.filter((r) => r.id !== id);
   recomputeView();
   emit();
-  await persist();
+  await persist((list) => list.filter((r) => r.id !== id));
 }

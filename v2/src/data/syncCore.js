@@ -1,6 +1,6 @@
 // syncCore.js — P1: EIN Sync-Kern für alle Drive-Dateien (Rezepte, Einkaufsliste, später z. B.
 // ein geteilter Wochenplan). Was sich unterscheidet, ist nur die Merge-Regel (syncRules.js):
-//   Rezepte → Datei-weites Last-Write-Wins (decideSync) · Liste → Merge pro Artikel + Tombstones.
+//   Rezepte → Drei-Wege-Merge pro Rezept (v2.15.1) · Liste → Merge pro Artikel + Tombstones.
 // Der Kern selbst importiert nichts: Drive und der Meta-Speicher werden hineingereicht, damit
 // Node-Tests zwei Instanzen („zwei Geräte“) gegen eine Fake-Drive laufen lassen können.
 //
@@ -11,6 +11,7 @@
 //  - Single-Flight: ein Abgleich, der schon läuft oder wartet, wird geteilt statt verdoppelt.
 //  - Meta wird nur PATCH-weise geändert (atomar im Speicher), nie als veraltete Kopie überschrieben.
 //  - Datei finden oder anlegen, lesen → Regel → schreiben, Fehler → Status — für jede Datei gleich.
+//    Seit v2.15.1 schreibt nichts mehr blind: auch Speichern ist ein Abgleich (erst lesen).
 
 /**
  * cfg:
@@ -66,11 +67,11 @@ export function createSyncEngine(cfg) {
     return p;
   }
 
-  /** Abgleich anstoßen. Läuft oder wartet schon einer, wird er geteilt. */
-  function sync() {
+  /** Abgleich anstoßen. Läuft oder wartet schon einer, wird er geteilt. label = Statustext währenddessen. */
+  function sync({ label } = {}) {
     if (!drive.isSignedIn()) { setStatus(rule.signedOut); return Promise.resolve({ changed: false }); }
     if (pendingSync) return pendingSync;
-    pendingSync = run(() => doSync()).finally(() => { pendingSync = null; });
+    pendingSync = run(() => doSync({ label })).finally(() => { pendingSync = null; });
     return pendingSync;
   }
 
@@ -82,9 +83,9 @@ export function createSyncEngine(cfg) {
   }
 
   /* ---------- Der eine Ablauf ---------- */
-  async function doSync() {
+  async function doSync({ label } = {}) {
     if (!drive.isSignedIn()) { setStatus(rule.signedOut); return { changed: false }; }
-    setStatus(rule.syncing);
+    setStatus(label ?? rule.syncing);
     let meta = await getMeta();
     const fix = rule.migrateMeta ? rule.migrateMeta(meta) : null;
     if (fix) meta = await patchMeta(fix);
@@ -125,17 +126,7 @@ export function createSyncEngine(cfg) {
     }
   }
 
-  /** Blind hochladen (Speichern bei Datei-LWW): vorhandene Datei finden, sonst anlegen. → fileId */
-  async function upload(content) {
-    const meta = await getMeta();
-    let fileId = meta.fileId;
-    if (!fileId) { const found = await locate(meta); fileId = found && found.fileId; }
-    if (fileId) await drive.updateFile(fileId, content);
-    else fileId = await drive.createFile(content, fileName);
-    return fileId;
-  }
-
-  const ctx = { sync: doSync, upload, getMeta, patchMeta, setStatus, isOnline };
+  const ctx = { sync: doSync, getMeta, patchMeta, setStatus, isOnline };
 
   /**
    * Auf eine andere Datei umschalten (z. B. Partner-Liste verbinden/trennen): Meta-Patch + Abgleich

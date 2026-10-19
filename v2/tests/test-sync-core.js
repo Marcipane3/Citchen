@@ -5,7 +5,7 @@
 // deterministisch nachgestellt werden.
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import { createSyncEngine } from "../src/data/syncCore.js";
-import { lastWriteWins, itemMerge, pushCollection, RECIPE_STATUS } from "../src/data/syncRules.js";
+import { recipeSync, itemMerge, RECIPE_STATUS } from "../src/data/syncRules.js";
 
 /* ---------- Fakes ---------- */
 
@@ -50,31 +50,58 @@ const recipe = (id, name, extra = {}) => ({
   ingredients: ["1 Zutat"], steps: ["Kochen."], tips: "", ...extra,
 });
 
-/** Rezept-Gerät: Engine + lokaler Speicher (wie sync.js, aber mit Fakes). */
-function recipeDevice(drive, { recipes = [], meta = { updated: T(0), source: "snapshot", dirty: false } } = {}) {
+/**
+ * Rezept-Gerät: Engine + lokaler Speicher (wie sync.js, aber mit Fakes). Startet wie ein frisch
+ * installiertes Gerät: lokal = Snapshot, Basis = Snapshot (sync.loadLocal macht das genauso).
+ */
+function recipeDevice(drive, { recipes = [], meta = { updated: T(0), source: "snapshot", dirty: false }, base = "snapshot", approve = false } = {}) {
   const kv = fakeKv();
   kv.m.set("collection", meta);
-  const local = { recipes: structuredClone(recipes) };
+  const local = { recipes: structuredClone(recipes), base: base === "snapshot" ? structuredClone(recipes) : base, backup: null };
   const dv = drive.device();
+  const asked = [];
+  let retries = 0;
   const engine = createSyncEngine({
     name: "rezepte", metaKey: "collection", fileName: "rezepte.json", drive: dv, kv,
     locate: async () => { const id = await dv.findByName("rezepte.json"); return id ? { fileId: id } : null; },
-    rule: lastWriteWins({ store: { readAll: async () => structuredClone(local.recipes), replaceAll: async (r) => { local.recipes = structuredClone(r); } } }),
+    rule: recipeSync({
+      store: {
+        readAll: async () => structuredClone(local.recipes),
+        replaceAll: async (r) => { local.recipes = structuredClone(r); },
+        getBase: async () => structuredClone(local.base),
+        setBase: async (r) => { local.base = structuredClone(r); },
+        backup: async (r) => { local.backup = structuredClone(r); },
+      },
+      approveDrop: async (q) => { asked.push(q); return approve; },
+      onRetry: () => { retries++; },
+    }),
     online: () => true,
   });
   return {
-    engine, kv, local, dv,
+    engine, kv, local, dv, asked,
+    retries: () => retries,
     meta: () => kv.get("collection", {}),
     names: () => local.recipes.map((r) => r.name).sort(),
-    /** wie sync.saveCollection: lokal sofort, dann Push in der Warteschlange */
-    async save(recipes, { online = true } = {}) {
-      const updated = new Date().toISOString();
-      local.recipes = structuredClone(recipes);
-      await engine.patchMeta({ updated, dirty: true });
-      if (!online) return null;
-      return engine.run(pushCollection({ updated, recipes }));
+    get: (id) => local.recipes.find((r) => r.id === id),
+    /** wie sync.saveChange: Änderung in der Warteschlange auf den AKTUELLEN Stand, dann Abgleich */
+    save(change, { online = true } = {}) {
+      return engine.run(async ({ sync, patchMeta }) => {
+        local.recipes = change(structuredClone(local.recipes));
+        await patchMeta({ updated: new Date().toISOString(), dirty: true });
+        if (!online) return {};
+        return sync({ label: RECIPE_STATUS.saving });
+      });
     },
   };
+}
+const edit = (id, patch) => (list) => list.map((r) => (r.id === id ? { ...r, ...patch } : r));
+const driveRecipes = (drive) => drive.json(drive.byName("rezepte.json")[0].id).recipes;
+const driveNames = (drive) => driveRecipes(drive).map((r) => r.name).sort();
+/** Fremder Schreiber (Projekt-Claude, v1) ändert die Drive-Datei direkt. */
+function externalWrite(drive, fn) {
+  const f = drive.byName("rezepte.json")[0];
+  const json = JSON.parse(f.content);
+  f.content = JSON.stringify(fn(json));
 }
 
 /** Listen-Gerät: Engine + lokale Liste (wie listSync.js, aber mit Fakes). */
@@ -172,40 +199,94 @@ test("Kern: ohne Anmeldung kein Netzzugriff; Listen-Status = local", async () =>
 });
 
 /* ============================================================
-   Regel 1 — Rezepte: Datei-weites Last-Write-Wins (zwei Geräte, ein Konto)
+   Regel 1 — Rezepte: Eingangsprüfung + Drei-Wege-Merge (v2.15.1, T1/T2)
    ============================================================ */
 
-test("LWW: Erstlauf legt GENAU eine Datei an; zweites Gerät zieht sie statt ein Duplikat anzulegen", async () => {
+const BASE3 = [recipe("r1", "Curry"), recipe("r2", "Dal"), recipe("r3", "Pasta")];
+
+test("Rezepte: Erstlauf legt GENAU eine Datei an; zweites Gerät übernimmt sie statt ein Duplikat anzulegen", async () => {
   const drive = fakeDrive();
-  const A = recipeDevice(drive, { recipes: [recipe("r1", "Curry")] });
-  const B = recipeDevice(drive, { recipes: [recipe("r1", "Curry")] });
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  const B = recipeDevice(drive, { recipes: BASE3 });
   await A.engine.sync();
   assertEqual(drive.byName("rezepte.json").length, 1);
   assertDeepEqual(await A.meta().then((m) => [m.dirty, m.source]), [false, "drive"]);
-  await A.save([recipe("r1", "Curry"), recipe("r2", "Dal")]);
+  await A.save((l) => [recipe("r9", "Neu von A"), ...l]);
   const res = await B.engine.sync();
-  assertEqual(res.changed, true, "B zieht (Snapshot → Drive)");
-  assertDeepEqual(B.names(), ["Curry", "Dal"]);
+  assertEqual(res.changed, true);
+  assertDeepEqual(B.names(), ["Curry", "Dal", "Neu von A", "Pasta"]);
   assertEqual(drive.byName("rezepte.json").length, 1);
 });
 
-test("LWW: Speichern schreibt in place; zweites Gerät übernimmt beim nächsten Abgleich", async () => {
+test("T1 / DG-01: Claude fügt auf Drive ein Rezept hinzu, die App tippt ♥ → BEIDES bleibt (lokal und auf Drive)", async () => {
   const drive = fakeDrive();
-  const A = recipeDevice(drive, { recipes: [recipe("r1", "Curry")] });
-  const B = recipeDevice(drive, { recipes: [recipe("r1", "Curry")] });
-  await A.engine.sync(); await B.engine.sync();
-  const meta = await B.save([recipe("r1", "Curry scharf")]);
-  assertEqual(meta.dirty, false);
-  assertEqual(B.engine.getStatus(), RECIPE_STATUS.synced);
-  const id = drive.byName("rezepte.json")[0].id;
-  assertEqual(drive.json(id).updated, meta.updated, "Datei und Meta tragen dieselbe Marke");
+  const A = recipeDevice(drive, { recipes: BASE3 });
   await A.engine.sync();
-  assertDeepEqual(A.names(), ["Curry scharf"]);
+  externalWrite(drive, (j) => ({ ...j, updated: T(30), recipes: [recipe("rC", "Claudes Linsensuppe"), ...j.recipes] }));
+  const res = await A.save(edit("r1", { favorite: true }));    // App hat Drive seit dem Start nicht gelesen
+  assertDeepEqual(driveNames(drive), ["Claudes Linsensuppe", "Curry", "Dal", "Pasta"], "Claudes Rezept überlebt den Speichern-Push");
+  assertEqual(driveRecipes(drive).find((r) => r.id === "r1").favorite, true, "♥ ist auf Drive");
+  assertEqual(res.changed, true, "Speichern meldet das neue Rezept zurück");
+  assert(A.get("rC"), "Claudes Rezept ist jetzt auch lokal");
+  assertEqual((await A.meta()).dirty, false);
 });
 
-test("LWW: unverändert → noop, kein Schreibzugriff", async () => {
+test("T1: Claude ändert die Schritte, die App ändert die Bewertung desselben Rezepts → beide Felder bleiben", async () => {
   const drive = fakeDrive();
-  const A = recipeDevice(drive, { recipes: [recipe("r1", "Curry")] });
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync();
+  externalWrite(drive, (j) => ({ ...j, recipes: j.recipes.map((r) => (r.id === "r2" ? { ...r, steps: ["Claude: neu"] } : r)) }));
+  await A.save(edit("r2", { rating: 5 }));
+  const r2 = driveRecipes(drive).find((r) => r.id === "r2");
+  assertDeepEqual([r2.rating, r2.steps], [5, ["Claude: neu"]]);
+  assertDeepEqual([A.get("r2").rating, A.get("r2").steps], [5, ["Claude: neu"]]);
+});
+
+test("T1: Offline auf beiden Geräten verschiedene Rezepte geändert → beide Änderungen überleben (kein Konflikt mehr)", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  const B = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync(); await B.engine.sync();
+  await A.save(edit("r1", { name: "Curry (A)" }), { online: false });
+  await B.save(edit("r2", { name: "Dal (B)" }));
+  const res = await A.engine.sync();
+  assert(!res.error && !res.conflict);
+  assertEqual(A.engine.getStatus(), RECIPE_STATUS.synced);
+  assertDeepEqual(driveNames(drive), ["Curry (A)", "Dal (B)", "Pasta"]);
+  assertDeepEqual(A.names(), ["Curry (A)", "Dal (B)", "Pasta"]);
+  await B.engine.sync();
+  assertDeepEqual(B.names(), ["Curry (A)", "Dal (B)", "Pasta"]);
+});
+
+test("T1: dasselbe Feld auf beiden Seiten geändert → die lokale Änderung gewinnt, der Rest bleibt", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  const B = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync(); await B.engine.sync();
+  await B.save(edit("r1", { name: "Curry (B)", time: "20 Min" }));
+  await A.save(edit("r1", { name: "Curry (A)" }));
+  const r1 = driveRecipes(drive).find((r) => r.id === "r1");
+  assertDeepEqual([r1.name, r1.time], ["Curry (A)", "20 Min"]);
+});
+
+test("T1: Löschen kommt an; Bearbeiten schlägt Löschen", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  const B = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync(); await B.engine.sync();
+  await B.save((l) => l.filter((r) => r.id !== "r3"));          // B löscht Pasta
+  await A.engine.sync();
+  assertDeepEqual(A.names(), ["Curry", "Dal"], "Löschung kommt bei A an");
+  // A bearbeitet Dal offline, während B Dal löscht → Dal bleibt (mit A's Änderung).
+  await A.save(edit("r2", { name: "Dal (A)" }), { online: false });
+  await B.save((l) => l.filter((r) => r.id !== "r2"));
+  await A.engine.sync();
+  assertDeepEqual(driveNames(drive), ["Curry", "Dal (A)"]);
+});
+
+test("T1: unverändert → kein Schreibzugriff", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
   await A.engine.sync(); await A.engine.sync();
   const writes = drive.writes.length;
   const res = await A.engine.sync();
@@ -213,71 +294,157 @@ test("LWW: unverändert → noop, kein Schreibzugriff", async () => {
   assertEqual(drive.writes.length, writes);
 });
 
-test("LWW / K2: offline geändert, Drive inzwischen neuer → Konflikt, nichts wird überschrieben", async () => {
+test("T1 / Kern: Speichern während eines laufenden Abgleichs wartet und geht nicht verloren", async () => {
   const drive = fakeDrive();
-  const A = recipeDevice(drive, { recipes: [recipe("r1", "Curry"), recipe("r2", "Dal")] });
-  const B = recipeDevice(drive, { recipes: [recipe("r1", "Curry"), recipe("r2", "Dal")] });
-  await A.engine.sync(); await B.engine.sync();
-  await A.save([recipe("r1", "Curry (A offline)"), recipe("r2", "Dal")], { online: false });
-  await new Promise((r) => setTimeout(r, 2));
-  await B.save([recipe("r1", "Curry"), recipe("r2", "Dal (B)")]);
-  const res = await A.engine.sync();
-  assertEqual(res.conflict, true);
-  assertEqual(A.engine.getStatus(), RECIPE_STATUS.conflict);
-  assertDeepEqual(A.names(), ["Curry (A offline)", "Dal"], "lokale Änderung bleibt");
-  assertEqual((await A.meta()).dirty, true);
-  const id = drive.byName("rezepte.json")[0].id;
-  assertDeepEqual(drive.json(id).recipes.map((r) => r.name).sort(), ["Curry", "Dal (B)"], "Drive bleibt B's Stand");
-});
-
-test("LWW: offline geändert und jünger als Drive → Push beim nächsten Abgleich", async () => {
-  const drive = fakeDrive();
-  const A = recipeDevice(drive, { recipes: [recipe("r1", "Curry")] });
-  const B = recipeDevice(drive, { recipes: [recipe("r1", "Curry")] });
-  await A.engine.sync(); await B.engine.sync();
-  await B.save([recipe("r1", "Curry (B)")]);
-  await new Promise((r) => setTimeout(r, 2));
-  await A.save([recipe("r1", "Curry (A, später)")], { online: false });
+  const A = recipeDevice(drive, { recipes: BASE3 });
   await A.engine.sync();
-  const id = drive.byName("rezepte.json")[0].id;
-  assertDeepEqual(drive.json(id).recipes.map((r) => r.name), ["Curry (A, später)"]);
-  assertEqual((await A.meta()).dirty, false);
-});
-
-test("LWW / Kern: während eines Abgleichs gespeichert → Pull überschreibt die neue lokale Änderung NICHT", async () => {
-  const drive = fakeDrive();
-  const A = recipeDevice(drive, { recipes: [recipe("r1", "Curry")] });
-  const B = recipeDevice(drive, { recipes: [recipe("r1", "Curry")] });
-  await A.engine.sync(); await B.engine.sync();
-  await B.save([recipe("r1", "Curry (B)")]);         // Drive ist jetzt neuer als A
+  externalWrite(drive, (j) => ({ ...j, recipes: [recipe("rC", "Claude"), ...j.recipes] }));
   drive.hold();
-  const syncing = A.engine.sync();                    // A will ziehen …
+  const syncing = A.engine.sync();                    // Hintergrund-Abgleich hängt im Netz …
   await tick();
-  const saving = A.save([recipe("r1", "Curry (A, gerade getippt)")]); // … während A speichert
+  const saving = A.save(edit("r1", { name: "Curry (gerade getippt)" })); // … währenddessen gespeichert
   await tick();
   drive.release();
   await syncing; await saving;
-  assertDeepEqual(A.names(), ["Curry (A, gerade getippt)"], "lokale Eingabe überlebt");
-  const id = drive.byName("rezepte.json")[0].id;
-  assertDeepEqual(drive.json(id).recipes.map((r) => r.name), ["Curry (A, gerade getippt)"], "Push folgt nach dem Abgleich");
+  assertDeepEqual(A.names(), ["Claude", "Curry (gerade getippt)", "Dal", "Pasta"]);
+  assertDeepEqual(driveNames(drive), ["Claude", "Curry (gerade getippt)", "Dal", "Pasta"]);
   assertEqual((await A.meta()).dirty, false);
 });
 
-test("LWW / Kern: zwei schnelle Speichervorgänge → Drive endet beim letzten, Meta sauber", async () => {
+test("T1: zwei schnelle Speichervorgänge → beide auf Drive, Meta sauber", async () => {
   const drive = fakeDrive();
-  const A = recipeDevice(drive, { recipes: [recipe("r1", "Curry")] });
+  const A = recipeDevice(drive, { recipes: BASE3 });
   await A.engine.sync();
   drive.hold();
-  const s1 = A.save([recipe("r1", "eins")]);
-  await new Promise((r) => setTimeout(r, 2));
-  const s2 = A.save([recipe("r1", "zwei")]);
+  const s1 = A.save(edit("r1", { name: "eins" }));
+  const s2 = A.save(edit("r2", { name: "zwei" }));
   drive.release();
   await s1; await s2;
-  const id = drive.byName("rezepte.json")[0].id;
-  assertDeepEqual(drive.json(id).recipes.map((r) => r.name), ["zwei"]);
-  const m = await A.meta();
-  assertEqual(m.dirty, false);
-  assertEqual(drive.json(id).updated, m.updated);
+  assertDeepEqual(driveNames(drive), ["Pasta", "eins", "zwei"]);
+  assertEqual((await A.meta()).dirty, false);
+});
+
+test("T1 / Umstieg von v2.15: ohne gespeicherte Basis, sauber → lokaler Stand gilt als Basis, Claudes Rezept kommt dazu", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync();
+  const B = recipeDevice(drive, { recipes: BASE3, base: null, meta: { ...(await A.meta()), source: "drive", dirty: false } });
+  externalWrite(drive, (j) => ({ ...j, recipes: [recipe("rC", "Claude"), ...j.recipes.filter((r) => r.id !== "r3")] }));
+  await B.engine.sync();
+  assertDeepEqual(B.names(), ["Claude", "Curry", "Dal"], "neu übernommen, gelöschtes Pasta gelöscht");
+});
+
+test("T1 / Umstieg: ohne Basis UND ungespeicherte lokale Änderung → nichts geht verloren (Vereinigung)", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync();
+  const B = recipeDevice(drive, { recipes: [recipe("rB", "Nur auf B"), ...BASE3], base: null, meta: { updated: T(1), source: "drive", dirty: true } });
+  externalWrite(drive, (j) => ({ ...j, updated: T(5), recipes: [recipe("rC", "Claude"), ...j.recipes] }));
+  await B.engine.sync();
+  assertDeepEqual(B.names(), ["Claude", "Curry", "Dal", "Nur auf B", "Pasta"]);
+  assertDeepEqual(driveNames(drive), ["Claude", "Curry", "Dal", "Nur auf B", "Pasta"]);
+});
+
+/* ---------- T2: kaputte Drive-Dateien ---------- */
+
+for (const [label, content] of [
+  ["{}", {}], ["null", null], ["recipes: null", { version: 3, recipes: null }],
+  ["falscher Schlüssel", { version: 3, Rezepte: BASE3 }], ["neueres Format", { version: 4, recipes: [] }],
+]) {
+  test(`T2 / DG-05: Drive-Datei „${label}“ → abgelehnt, lokal unverändert, nichts geschrieben, Fehler sichtbar`, async () => {
+    const drive = fakeDrive();
+    const A = recipeDevice(drive, { recipes: BASE3 });
+    await A.engine.sync();
+    externalWrite(drive, () => content);
+    const writes = drive.writes.length;
+    const origWarn = console.warn; console.warn = () => {};
+    try {
+      const res = await A.engine.sync();
+      assert(res.error && res.error.rejected, "abgelehnt");
+      assertEqual(A.engine.getStatus(), RECIPE_STATUS.rejected);
+      assertDeepEqual(A.names(), ["Curry", "Dal", "Pasta"]);
+      assertEqual(drive.writes.length, writes, "keine Rückschreibung");
+      // Auch ein Speichern überschreibt die kaputte Datei nicht blind.
+      await A.save(edit("r1", { favorite: true }));
+      assertEqual(drive.writes.length, writes);
+      assertEqual(A.get("r1").favorite, true, "lokal gespeichert");
+    } finally { console.warn = origWarn; }
+  });
+}
+
+test("T2 / DG-03: Rezept ohne id von außen → gerettet (neue id), nichts gekürzt, reparierte Datei zurückgeschrieben", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync();
+  externalWrite(drive, (j) => ({ ...j, recipes: [{ name: "Ohne id", category: "Vegetarische Hauptgerichte", ingredients: [], steps: [] }, null, ...j.recipes] }));
+  const origWarn = console.warn; console.warn = () => {};
+  try { await A.engine.sync(); } finally { console.warn = origWarn; }
+  assertDeepEqual(A.names(), ["Curry", "Dal", "Ohne id", "Pasta"]);
+  assert(A.get("r1") && typeof A.local.recipes.find((r) => r.name === "Ohne id").id === "string");
+  assertEqual(driveRecipes(drive).length, 4, "Drive repariert: null weg, id vergeben");
+  assert(driveRecipes(drive).every((r) => r && typeof r.id === "string"));
+});
+
+test("T2 / DG-06: doppelte id von außen → beide Rezepte bleiben (eins bekommt eine neue id)", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync();
+  externalWrite(drive, (j) => ({ ...j, recipes: [recipe("r1", "Claudes Kopie mit r01-Beispiel-id"), ...j.recipes] }));
+  const origWarn = console.warn; console.warn = () => {};
+  try { await A.engine.sync(); } finally { console.warn = origWarn; }
+  assertEqual(A.local.recipes.length, 4);
+  assertEqual(new Set(A.local.recipes.map((r) => r.id)).size, 4, "ids eindeutig");
+  assert(A.names().includes("Claudes Kopie mit r01-Beispiel-id") && A.names().includes("Curry"));
+});
+
+test("T2: Drive-Datei würde viele Rezepte löschen → Rückfrage; Nein = lokal bleibt alles", async () => {
+  const drive = fakeDrive();
+  const many = Array.from({ length: 20 }, (_, i) => recipe("r" + i, "Rezept " + i));
+  const A = recipeDevice(drive, { recipes: many, approve: false });
+  await A.engine.sync();
+  externalWrite(drive, (j) => ({ ...j, recipes: j.recipes.slice(0, 8) }));   // 12 von 20 „verschwunden“
+  const writes = drive.writes.length;
+  const origWarn = console.warn; console.warn = () => {};
+  try {
+    const res = await A.engine.sync();
+    assert(res.error && res.error.code === "bigDrop");
+  } finally { console.warn = origWarn; }
+  assertDeepEqual(A.asked, [{ count: 12, total: 20 }]);
+  assertEqual(A.local.recipes.length, 20);
+  assertEqual(drive.writes.length, writes);
+});
+
+test("T2: … Ja = Löschung übernommen, vorher eine lokale Sicherung", async () => {
+  const drive = fakeDrive();
+  const many = Array.from({ length: 20 }, (_, i) => recipe("r" + i, "Rezept " + i));
+  const A = recipeDevice(drive, { recipes: many, approve: true });
+  await A.engine.sync();
+  externalWrite(drive, (j) => ({ ...j, recipes: j.recipes.slice(0, 8) }));
+  await A.engine.sync();
+  assertEqual(A.local.recipes.length, 8);
+  assertEqual(A.local.backup.length, 20, "Sicherung des vorherigen Stands");
+});
+
+test("T2: ein einzelnes gelöschtes Rezept braucht keine Rückfrage", async () => {
+  const drive = fakeDrive();
+  const many = Array.from({ length: 20 }, (_, i) => recipe("r" + i, "Rezept " + i));
+  const A = recipeDevice(drive, { recipes: many });
+  await A.engine.sync();
+  externalWrite(drive, (j) => ({ ...j, recipes: j.recipes.slice(1) }));
+  await A.engine.sync();
+  assertEqual(A.asked.length, 0);
+  assertEqual(A.local.recipes.length, 19);
+});
+
+test("T2: kaputtes JSON (Text) → abgelehnt wie eine kaputte Datei, lokal bleibt", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync();
+  drive.byName("rezepte.json")[0].content = '{"version":3,"recipes":[';
+  const origWarn = console.warn; console.warn = () => {};
+  try { await A.engine.sync(); } finally { console.warn = origWarn; }
+  assertEqual(A.engine.getStatus(), RECIPE_STATUS.rejected);
+  assertEqual(A.local.recipes.length, 3);
 });
 
 /* ============================================================

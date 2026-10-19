@@ -71,14 +71,27 @@ export async function clear(store) {
   return tx(db, store, "readwrite", (s) => s.clear());
 }
 
-/** Alle Werte in einer Transaktion ersetzen (clear + put) — für Rezept-Sync. */
+/**
+ * Alle Werte in einer Transaktion ersetzen (clear + put) — für Rezept-Sync.
+ * Alles oder nichts (DG-03): ein Wert ohne gültigen Schlüssel ließ früher `put` werfen, OHNE die
+ * Transaktion abzubrechen — das clear() und die Werte davor wurden trotzdem gespeichert (Kochbuch
+ * halbiert). Jetzt wird vorher geprüft und bei jedem Fehler die ganze Transaktion verworfen.
+ */
 export async function replaceAll(store, values) {
+  const bad = values.findIndex((v) => !v || typeof v !== "object" || typeof v.id !== "string" || !v.id);
+  if (bad >= 0) throw new Error(`replaceAll(${store}): Eintrag ${bad} ohne gültige id — nichts ersetzt`);
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const t = db.transaction(store, "readwrite");
     const s = t.objectStore(store);
-    s.clear();
-    for (const v of values) s.put(v);
+    try {
+      s.clear();
+      for (const v of values) s.put(v);
+    } catch (e) {
+      t.abort();
+      reject(e);
+      return;
+    }
     t.oncomplete = () => resolve();
     t.onerror = () => reject(t.error);
     t.onabort = () => reject(t.error);

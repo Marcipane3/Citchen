@@ -29,7 +29,7 @@
 | Feld | Typ | Beschreibung |
 |------|-----|--------------|
 | `version` | number | Schema-Version. Aktuell `3`. |
-| `updated` | string (ISO 8601) | Zeitpunkt der letzten Änderung. Bei jedem Schreiben aktualisieren. |
+| `updated` | string | Zeitpunkt der letzten Änderung, **ISO-8601-UTC mit Millisekunden**: `2026-06-13T12:30:00.000Z` (kein `+02:00`, kein reines Datum). Bei jedem Schreiben aktualisieren. |
 | `recipes` | array | Liste der Rezept-Objekte. |
 
 > **v1 → v2:** Alle neuen Felder (`rating`, `favorite`, `cookedCount`, `image`, `photos`, `feedback`)
@@ -47,7 +47,7 @@
 
 ```json
 {
-  "id": "r01",
+  "id": "r1000000000000",
   "name": "Süßkartoffel-Curry mit Kichererbsen",
   "category": "Vegetarische Hauptgerichte",
   "time": "35 Min",
@@ -66,7 +66,7 @@
 
 | Feld | Typ | Pflicht | Hinweis |
 |------|-----|---------|---------|
-| `id` | string | ja | Eindeutig. Schema: `"r" + Timestamp` (z.B. `r1717152000000`). Seed nutzt `r01`. |
+| `id` | string | ja | Eindeutig. Schema: `"r" + Timestamp in ms` (z.B. `r1717152000000`). ⚠️ Die Beispiel-ids in dieser Datei (`r1000000000000`) sind **Platzhalter** — nie übernehmen; `r01` ist eine **echte** id (Süßkartoffel-Curry). |
 | `name` | string | ja | Rezeptname. |
 | `category` | string | ja | MUSS einer der 16 Werte unten sein. |
 | `time` | string | nein | Frei, z.B. `"25 Min"`. |
@@ -172,34 +172,48 @@ ungefragt Rezepte umschreiben. Niemals `feedback` ohne Einarbeiten löschen.
     `favorite`, `cookedCount` gehören der App. Beim Editieren **unverändert übernehmen**,
     nicht zurücksetzen.
 
-## Re-Sync & Konfliktmodell (Last-Write-Wins) — entscheidend für G1
+## Re-Sync & Zusammenführen (seit v2.15.1) — entscheidend für G1
 
-Die App hält eine **eigene lokale Kopie** (IndexedDB) und gleicht mit Drive über die
-**`updated`-Marke der ganzen Datei** ab (Last-Write-Wins, kein Feld-Merge):
+Die App hält eine **eigene lokale Kopie** (IndexedDB) und merkt sich zusätzlich die **Basis** =
+den Stand, auf den sie sich zuletzt mit Drive geeinigt hat. Abgeglichen wird **pro Rezept**
+(Drei-Wege-Merge), nicht mehr „ganze Datei gewinnt“:
 
-1. Beim Öffnen lädt die App sofort lokal und liest dann Drive im Hintergrund.
-2. **Neuere `updated`-Marke gewinnt.** Ist Drive neuer als die lokale Kopie, **ersetzt die App
-   ihre lokale Sammlung komplett** durch die Drive-Version — Claudes Edits erscheinen.
-3. `updated` ist **ISO-8601-UTC mit Millisekunden** (`2026-06-13T12:30:00.000Z`); die App
-   vergleicht die Strings direkt. Schreib das Format **exakt so**.
+1. **Wann:** beim Öffnen, beim Anmelden, wenn die App aus dem Hintergrund zurückkommt oder wieder
+   online ist — und **bei jedem Speichern** (♥, Bewertung, Bearbeiten, Neu, Löschen). Die App
+   schreibt nie mehr, ohne Drive vorher zu lesen.
+2. **Pro Rezept-`id`:** nur Drive geändert (Claude, v1, anderes Gerät) → Drive-Stand · nur in der
+   App geändert → App-Stand · **beide** geändert → **pro Feld** zusammengeführt (hat dasselbe Feld
+   auf beiden Seiten einen anderen Wert, gewinnt die App).
+3. **Neue Rezepte** beider Seiten bleiben. **Gelöscht** wird nur, was die andere Seite unverändert
+   gelassen hat (Bearbeiten schlägt Löschen). Fehlen auf Drive auf einmal viele Rezepte (mehr als 3
+   **und** mehr als 20 %), **fragt** die App, bevor sie lokal etwas löscht.
+4. `updated` entscheidet **nicht** mehr, wer gewinnt — trotzdem bei jedem Schreiben im obigen
+   Format setzen (ältere App-Stände und v1 lesen es noch).
 
-**Damit Claudes Edit ankommt:**
-- Beim Schreiben `updated` **auf jetzt** setzen (= später als jede bisherige Änderung) → Drive
-  gewinnt, die App zieht beim nächsten Öffnen nach.
-- **Reihenfolge gegen Race-Verlust** (Single-User, ein aktiver Editor zur Zeit):
-  1. App **einmal online öffnen**, bis „Synchronisiert ✓“ — so sind alle App-Änderungen
-     (Favorit/Bewertung/neue Rezepte) nach Drive gepusht.
-  2. **Dann** bittet der Nutzer Claude zu editieren (Claude liest die frische Datei, schreibt
-     in place, bumpt `updated`).
-  3. App **neu öffnen** → sie erkennt die neuere `updated`-Marke und übernimmt.
-- ⚠️ Hat der Nutzer in der App noch **nicht gepushte** Änderungen mit *neuerer* `updated`-Marke,
-  überschreibt der nächste App-Push Claudes Drive-Edit. Deshalb Schritt 1 nicht überspringen.
+**Was die App ablehnt** (Datei wird nicht übernommen, lokale Daten bleiben, Statuszeile zeigt
+„Drive-Datei fehlerhaft — lokale Daten behalten“, und die App **schreibt die Datei nicht zurück**,
+bis sie wieder gültig ist):
+- kein JSON-Objekt (`null`, Array, Text) oder kaputtes JSON,
+- kein `recipes`-Array (z. B. `{}` oder ein falscher Schlüssel wie `"Rezepte"`),
+- `version` größer als 3 (neueres Format, das diese App nicht kennt).
+
+**Was die App repariert** (und die reparierte Datei zurückschreibt): `null`-Einträge in `recipes`
+werden entfernt; ein Rezept **ohne `id`** oder mit einer **schon vergebenen `id`** bekommt eine neue
+`id` — das Rezept selbst bleibt erhalten.
+
+**Was erhalten bleibt:** unbekannte Felder **innerhalb** eines Rezepts. Unbekannte Felder **auf
+oberster Ebene** (neben `version`/`updated`/`recipes`) werden beim nächsten App-Schreiben **nicht**
+mitgeschrieben — dort nichts ablegen.
+
+**Damit Claudes Edit ankommt:** einfach die Datei in place bearbeiten und `updated` stempeln. Die
+App muss dafür nicht geschlossen sein; ein ♥ in einer noch offenen App überschreibt Claudes Edit
+nicht mehr (früher: Last-Write-Wins, siehe Git-Historie dieser Datei).
 
 ### Worked Example — bestehendes Rezept anpassen (Feedback einarbeiten)
 
 ```jsonc
 // Vorher (Auszug aus rezepte.json, von der App geschrieben):
-{ "id": "r01", "name": "Süßkartoffel-Curry", "category": "Vegetarische Hauptgerichte",
+{ "id": "r1000000000000", "name": "Süßkartoffel-Curry", "category": "Vegetarische Hauptgerichte",
   "ingredients": ["2 Süßkartoffeln", "1 Dose Kichererbsen"],
   "steps": ["Reis aufsetzen.", "Curry köcheln."], "tips": "Joghurt drüber.",
   "rating": 4, "favorite": true, "cookedCount": 3,
@@ -207,7 +221,7 @@ Die App hält eine **eigene lokale Kopie** (IndexedDB) und gleicht mit Drive üb
   "feedback": "Mehr Schärfe und brauchte 10 Min länger." }
 
 // Nachher (Claude arbeitet das feedback ein):
-{ "id": "r01", "name": "Süßkartoffel-Curry", "category": "Vegetarische Hauptgerichte",
+{ "id": "r1000000000000", "name": "Süßkartoffel-Curry", "category": "Vegetarische Hauptgerichte",
   "ingredients": ["2 Süßkartoffeln", "1 Dose Kichererbsen", "1 rote Chili, fein 🛒"],
   "steps": ["Reis aufsetzen.", "Curry 25 Min köcheln (statt 15)."],
   "tips": "Joghurt drüber. Swap: Chili durch Sambal Oelek.",
