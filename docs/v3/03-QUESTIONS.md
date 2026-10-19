@@ -1,6 +1,6 @@
 # 03 · Questions and checks
 
-> Updated **2026-10-02** after Marcel's **second** round of answers. Answered questions are in the
+> Updated **2026-10-04** after Marcel's **third** round (see Part 3, Round 3). Earlier: 2026-10-02 second round. Answered questions are in the
 > log in Part 3. Part 1 holds only what is still open, plus Marcel's task list.
 
 Three parts. **Part 1** is for Marcel: open questions. **Part 2** is for Claude Code: facts to
@@ -9,9 +9,12 @@ has been answered. Tick as you go; write the answer next to the question.
 
 ## Part 1 · Open questions for Marcel
 
+> **2026-10-04:** L1, A10, C7 (name), D9, A11, E6, G7 are answered, see Part 3 · Round 3. Their old text
+> is kept below for the record. **Still open: D10** (backend scope), C7 domain availability, nutrition model (V2 L1).
+
 ### Blocking — needed before the V3 plan can be written
 
-- [ ] **L1. English as the main language (decision D8).** You suggested switching the main
+- [x] **L1. English as the main language (decision D8).** You suggested switching the main
       language from German to English. "Main language" can mean three things; which do you want?
       *(a)* **Interface and store default:** a new user sees English first; German, Danish,
       Spanish stay selectable. Small. ·
@@ -21,12 +24,12 @@ has been answered. Tick as you go; write the answer next to the question.
       *(c)* **Code and docs:** already English, nothing to do.
       Recommendation: (a) + (b) in V3, done early, because it is far cheaper before strangers have
       data than after. Your own recipes stay in the language you wrote them in.
-- [ ] **A10. Shared weekly plan.** You said include it, and you also confirmed the no-go "no new
+- [x] **A10. Shared weekly plan.** You said include it, and you also confirmed the no-go "no new
       work on the weekly plan", and you rarely use the plan. It is medium to large work. Confirm
       one: *(a)* in v3.0 as an exception · *(b)* v3.x together with the shared cookbook
       (recommended). If (a): which is cut first at the cutoff, the shared plan or the
       "Gesund & Langlebig" hub?
-- [ ] **C7. Name and domain.** Proposal: call the app **Citchen** everywhere (store, website,
+- [x] **C7 (name).** Name and domain.** Proposal: call the app **Citchen** everywhere (store, website,
       app), replacing "Koch". It matches the repository, it is your own joke, and "Koch" is a
       common word and surname that is hard to find in a store. Domain candidates, in order:
       `citchen.app` · `citchen.dk` · `citchen.de` · `citchen.kitchen` · `getcitchen.com`.
@@ -34,7 +37,7 @@ has been answered. Tick as you go; write the answer next to the question.
       Typical yearly prices: `.de` about €5–12, `.com` €10–15, `.dk` €10–15, `.app` €12–20,
       `.kitchen` €35–50. Recommendation: `citchen.app` (says "app", HTTPS is built in).
 
-- [ ] **D9. Supabase from the friends link (new 2026-10-04).** v2.14 (I3) put a small Supabase
+- [x] **D9. Supabase from the friends link (new 2026-10-04).** v2.14 (I3) put a small Supabase
       backend into production: an inbox for friends' suggestions plus a view of your open items.
       No accounts, no recipe data. D4 and the no-go list say "no backend in v3.0". Confirm one:
       *(a)* carry it into v3.0 as a documented exception (recommended; the privacy policy and the
@@ -43,14 +46,14 @@ has been answered. Tick as you go; write the answer next to the question.
 
 ### Important — shape the scope
 
-- [ ] **A11. "The prompt should be changed or adjusted."** Which prompt do you mean? *(a)* the
+- [x] **A11. "The prompt should be changed or adjusted."** Which prompt do you mean? *(a)* the
       assistant's built-in instructions should be reworked by us · *(b)* users should be able to
       edit the assistant's instructions themselves · *(c)* the tour should teach how to phrase
       requests to the AI.
-- [ ] **E6. Assistant edits recipes.** The assistant inside the app should create and update
+- [x] **E6. Assistant edits recipes.** The assistant inside the app should create and update
       recipes. Should it also delete? And should every change be shown for confirmation before it
       is saved (recommended)?
-- [ ] **G7. Finding recipes.** You named this the hardest part. Pick the two that would help most:
+- [x] **G7. Finding recipes.** You named this the hardest part. Pick the two that would help most:
       *(a)* photo grid instead of a text list · *(b)* sort by "recently cooked" / "most cooked" /
       "newest" · *(c)* favourites first · *(d)* filter chips (category, time, vegetarian) ·
       *(e)* search always visible at the top · *(f)* "to try" list. These go into v2.x.
@@ -90,7 +93,7 @@ No answers needed from Marcel here. Changes since 2026-10-01 are marked.
 - [ ] **C-3.** Lighthouse ≥ 80 on the start page; offline start returns HTTP 200.
 - [ ] **C-4.** iOS: PWA path still works on a current iOS (home-screen install, IndexedDB
       persistence, storage eviction). Matters more now: the partner is on iPhone.
-- [ ] **C-20.** *(new)* Custom domain on this repository redirects **all** of
+- [x] **C-20 (decided: same repository, move helper first).** *(new)* Custom domain on this repository redirects **all** of
       `marcipane3.github.io/Citchen/` (v1 and v2 included) to the new origin. Decide: same
       repository with the move helper shipped in v2 first, or a separate repository for V3 so v2
       keeps its address during the parallel run.
@@ -159,7 +162,29 @@ No answers needed from Marcel here. Changes since 2026-10-01 are marked.
 - [ ] **C-18.** Image licences for default photos; attribution for nutrition data (Frida/USDA).
 - [ ] **C-19.** *(not applicable for v3.0: no monetisation)* DSA trader declaration.
 
-## Part 3 · Answered (2026-10-02)
+## Part 3 · Answered
+
+### Round 3b (2026-10-05) — recipe architecture
+
+| ID | Question | Marcel's answer |
+|----|----------|-----------------|
+| Arch | Ingredient master + copy-on-edit recipes, shared via a backend? | Accepted for planning: recipes built from a master ingredient list (units, nutrition per unit), editing a shared recipe creates your own copy. **Many users** should be able to share, so accounts/backend is the direction (D10 b). **Ingredient model goes into v2.x** (Epic R in `ROADMAP-V2.md`; D10/D11 in `ROADMAP-V3.md`). Open: timing of accounts (v3.0 vs v3.x), public vs send-only sharing (D11) |
+
+### Round 3 (2026-10-04)
+
+| ID | Question | Marcel's answer |
+|----|----------|-----------------|
+| L1 / D8 | Main language | **English**, interface *and* stored recipe data (a + b). Own recipes stay as written. → V2 P6, P8; slice 2 |
+| A10 | Shared weekly plan | **v3.x**, not v3.0 (with the shared cookbook) |
+| C7 | Name and domain | **Citchen** everywhere ("Citchen everywhere": agreed). Domain `citchen.app` or `citchen.de` (".de is the German way, also fine"); Marcel checks availability and confirms |
+| D9 | Supabase | Not an exception: a **proper backend** (Supabase) belongs in **v3.0**; asked what the right way is, incl. a friend's tip on Vercel. → ROADMAP-V3 §6 (hosting: Vercel Hobby = non-commercial only, little benefit for a static PWA; Supabase free pauses after 1 week) and **new D10** (backend scope) |
+| A11 | Which prompt | **(b)** users edit the assistant's instructions, with variables flowing in. → V2 Q4 |
+| E6 | Assistant edits | Create + edit; **delete only recipes the user created, never defaults**; confirm every change. → V2 G3 |
+| G7 | Finding recipes | **All** proposals wanted: photo grid, recently/most cooked, favourites first (filter or sort), filter chips (vegetarian, time …), search always visible **incl. ingredients**. → V2 F4 |
+| C-20 | Repo layout | **Same repository**, following the recommendation (move helper first) |
+| A6, F8, G6 | Assumed items | Confirmed |
+
+### Rounds 1–2 (2026-10-02)
 
 ### Round 2
 

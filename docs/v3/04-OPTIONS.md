@@ -12,12 +12,12 @@
 | D1 | Audience | **Decided** | Friends and family, with a public Play listing. Not a business. |
 | D2 | Distribution | **Decided** | PWA on a custom domain + Android Play build (TWA). iPhone stays PWA. |
 | D3 | Stack and code base | **Decided** | Plain modules + small build script + clean-up. No rebuild. |
-| D4 | Data and sync | **Decided for v3.0** | Each user's own Google Drive. Backend is a v3.x option. |
+| D4 | Data and sync | **Decided for v3.0** (amended 2026-10-04) | Recipes in each user's own Google Drive. A production Supabase backend is **in v3.0** for sharing (D9); how much more it holds is D10. |
 | D5 | AI and money | **Decided** | BYOK with guided key setup. No subscription. Spend display is v3.x; payment is v3.5/v4 at the earliest. |
 | D6 | Content | **Decided** | Photos: ~30 own + ~75 AI. Calories in v2.x. Longevity hub page in V3. |
 | D7 | Domain and old versions | **Decided** | Custom domain, landing page, retire v1. Name open (C7); repository layout open (check C-20). |
 | D8 | Main language | **Open (L1)** | Marcel proposes English instead of German. Recommended: yes, staged, early in V3. |
-| D9 | Friends-link backend (new 2026-10-04) | **Open** | v2.14 runs a small Supabase inbox (no accounts, no recipe data). Recommended: keep it in v3.0 as an exception ADR. See `ROADMAP-V3.md` §6. |
+| D9 | Backend in v3.0 | **Decided 2026-10-04** | Supabase is a proper v3.0 backend, not an exception. Hosting/ops recommendation and D10 (scope) in `ROADMAP-V3.md` §6. |
 
 ---
 

@@ -35,6 +35,13 @@ lives in each agent's `model:` frontmatter — change it there.
 The definitions are plain markdown in **`.claude/agents/koch-*.md`** — version-controlled, editable,
 and reusable from any session.
 
+**Shared rules (since 2026-10-12):** every agent first reads **`qa/AGENT-CONVENTIONS.md`** — hard
+write/git boundaries, "discover the current state, don't trust the definition's snapshot", evidence
+levels (E1 executed probe · E2 traced path · E3 inferred), stable finding IDs (`BH-01`, `DG-03` …),
+a status for every previous finding (✅ fixed / ⏳ open / 🗑 obsolete), and a `Definition drift` line
+so stale agent definitions get noticed. **Marcel's real-device observations** go into
+**`qa/FIELD-REPORTS.md`** (`FR-NN`) and are the top priority of every run.
+
 ---
 
 ## Running the fleet

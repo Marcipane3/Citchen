@@ -10,7 +10,7 @@ The scope of a V3 depends on decision **D1 (audience)**. Below, every workstream
 what it contains and how it scales between the two paths:
 
 - **Path A — "V3 Personal Pro"** ✔ chosen: Marcel, partner, friends and family (up to
-  ~100 people), plus whoever finds the public listing. No backend, no payments.
+  ~100 people), plus whoever finds the public listing. A small production backend for sharing (D9, 2026-10-04), no payments.
 - **Path B — "V3 Product"** (parked): accounts, possibly payments. Roughly 3–5× the work
   of Path A and an ongoing operating burden.
 
@@ -127,7 +127,7 @@ Marcel testing and deciding).
 - Rebuild as a native Android or iPhone app (Kotlin/Swift). *("Native" means the programming
   language, not German/English.)*
 - iPhone App Store build.
-- Accounts or a backend database (v3.x).
+- Accounts or user data in the backend beyond sharing (D10; v3.x unless decided otherwise).
 - Payments, subscription, sponsored AI, AI proxy (v3.5/v4).
 - Public recipe links, social feed, comments, ratings.
 - Real-time collaborative editing of recipes.

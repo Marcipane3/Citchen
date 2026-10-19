@@ -14,7 +14,7 @@ through v2.x releases and carry over.
 | | |
 |---|---|
 | **What V3 is** | Koch in the Play Store + on a custom domain, for Marcel, his partner, friends and family, and whoever finds it. Cleaner architecture. Household sharing that really works. AI as the centre of the app. |
-| **What V3 is not** | A rewrite in a new language, a business, a subscription, an iPhone App Store app, or a backend with accounts. |
+| **What V3 is not** | A rewrite in a new language, a business, a subscription, an iPhone App Store app, or (in v3.0) a backend that holds your recipes. A small production backend for sharing is in (D9). |
 | **Why do it** | (1) The challenge and the learning: domain, hosting, store release, sign-in verification. (2) Something to show: a real Play Store app for the CV. (3) Friends and family get an app that is ad-free, cheap, made by someone they know, and whose roadmap they can influence. |
 | **Honest positioning** | Other apps can do the same things. Koch does not need a unique feature. Its value is trust, no ads, no price, custom features on request. |
 | **Who pays** | Nobody pays Marcel. Each user brings their own AI key (BYOK). Fixed cost: domain ~€10–15/year + Play fee $25 once. |

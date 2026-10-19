@@ -1,110 +1,115 @@
-# Test-Warden — findings (2026-06-14T12:08:28Z) · suite: 145/145
+# Test-Warden — findings (2026-10-12T16:30:00Z)
+_Build 2026-10-04-v2.14 · CACHE koch-v2.14-1 · tests 215/215 · HEAD 70e8b9d · mode FULL_
 
-Build `2026-06-13-v2.5`. `node v2/tests/run.js` is **green: 145 passed, 0 failed, 145 total.**
-Pure-logic, offline, no DOM/network, wired through 11 `tests/test-*.js` files.
+Suite is green (215 passed, 0 failed). `v2/` has no uncommitted changes (the dirty tree is agents/roadmap/docs plus an untracked root `rezepte.json`). The suite is strong on the pure shopping/sync primitives, but it **tests each primitive in isolation and never the cross-path invariant that FR-01 violates: "one real-world ingredient = one open list row"**. Every FR-01 probe below was executed (E1) against the current modules and the real root `rezepte.json`.
 
-**Headline:** the suite is genuinely strong on every module that touches the recipe
-*content* path (schema, migrate, derive, shopping, planner, filter, capture, lager, i18n,
-baseLang, ai). The one structurally important hole is **`data/sync.js`** — the entire
-LWW / dirty / source / offline-queue decision tree has **zero tests**, and roadmap Epic I2
-will refactor exactly this code to support a second synced object. That refactor must be
-test-driven; the cases below are written so the refactor lands against them.
+## Field reports
 
----
+### FR-01 — "Ingwer" appears randomly and multiple times (probe: `%TEMP%/tw/probe.mjs`, E1)
+The suite cannot catch this today: no test feeds real `rezepte.json` lines through `aggregateIngredients → mergeItems → shopAdd/applyFriendItems → mergeList` and asserts a single row.
 
-## Coverage map (pure modules → test file)
+Root-cause hypotheses, ranked (all pure-logic, all reproduced):
 
-| Module | Test | State |
-|---|---|---|
-| `data/schema.js` | test-schema.js (10) | covered |
-| `data/migrate.js` | test-migrate.js (incl. round-trip, G1 external edit) | covered, strong |
-| `data/derive.js` | test-derive.js | covered, strong |
-| `data/baseLang.js` | test-baselang.js (4) | covered |
-| `features/cookbook/filter.js` (+export.js) | test-filter.js (22) | covered, strong |
-| `features/planner/logic.js` | test-planner.js (16) | covered, strong |
-| `features/shopping/logic.js` (+catalog.js) | test-shopping.js | covered, strong |
-| `ai/gate.js` + `ai/parse.js` + `ai/prompts.js` | test-ai.js | covered, strong |
-| `features/capture/parse.js` | test-capture.js (5) | covered |
-| `features/lager/logic.js` | test-lager.js (12) | covered |
-| `i18n.js` | test-i18n.js (9) | covered |
-| **`data/sync.js`** | — | **NONE — high-risk gap** |
-| `data/drive.js` | — | network/Google-bound, no pure logic to extract (acceptable) |
-| `data/db.js`, `data/settings.js`, `data/lager.js`, `features/match/match.js` | — | IndexedDB/DOM wrappers, intentionally untested (acceptable) |
-| `features/onboarding/language.js`, all `*/...view` files | — | pure DOM, intentionally untested (correct) |
+1. **H1 · Key fragmentation (E1, confidence high).** `aggregateIngredients` over the 7 recipes that mention Ingwer returns three differently keyed rows:
+   `Ingwer, gerieben|Stück` (1), `Ingwer|Stück` (amount **5**), and a bogus row `gemahlene Nelken , 1 TL Ingwerpulver|TL` (recipe line `"½ TL gemahlene Nelken 🛒, 1 TL Ingwerpulver 🛒"` is two ingredients in one string). Also `2 cm Ingwer`→`cm ingwer|` (unit not recognised, `cm` leaks into the name), `1 Daumen Ingwer`→`daumen ingwer|`, `Ingwer 🛒`→`ingwer|`, `1 TL Ingwer, frisch gerieben`→`ingwer, frisch gerieben|tl`, `1 Stück Ingwer (ca. 3 cm)`→`ingwer (ca. 3 cm)|stück`. Catalog tile / friend suggestion key is `ingwer|` (unit null) so they never merge with the recipe rows (`mergeItems` of a catalog row then a recipe row → two rows; `applyFriendItems` with an existing `Ingwer|Stück` row → second row `fr-f1`). Since every Ingwer recipe line carries 🛒, any plan→list or recipe→list pulls it in — this is the "randomly, without selecting it" feel (implicit via plan) and "multiple times" (several rows plus 5 Stück).
+2. **H2 · `mergeItems` revives the wrong row (E1, high).** `existing=[tombstone a, live b]` (same key) + incoming → `out.find` returns the tombstone first, revives it, leaves `b` live → **2 live duplicate rows** (probe P3). `shopAdd` deliberately prefers the live row (`shopping.js:76`); `mergeItems` (`logic.js:123`) does not. Reachable after any two-device delete+re-add merge (tombstone and a live row with the same key coexist because ids differ).
+3. **H3 · `applyFriendItems` duplicate id (E1, high, needs `seen` loss/trim).** Replaying friend id `f9` after its item `fr-f9` was deleted pushes a second element with the same id `fr-f9` (probe P8/P9: `[[fr-f9,true],[fr-f9,false]]`) — `same` skips tombstones (`friendMerge.js:281`) and the new id is not checked against existing ids. Also: `trimSeen` at 300 then a re-delivered old id → `added 1` (probe P7). Server re-delivery after 300 later suggestions is unlikely, but the missing id-guard makes any `seen` loss (inbox re-enable, `fl_ack` failure after a cleared IndexedDB kv) re-add the item.
+4. **H4 · Tombstone prune resurrects a deleted item (E1, medium).** `syncStep([live x, updated 2026-08-01], [] , now)` → `merged=[x live]`, `writeRemote:true` (probe P5b). If Drive's tombstone was already pruned (>30 d, `listMerge.js:214`) by device A, a stale device B pushes the old live "Ingwer" back. Needs a device unused for >30 days.
+5. **H5 · UI tap-target drift (E3, low, not unit-testable).** `paintList` grows above the catalog grid on every tap, shifting tiles under the finger. Confirm on device with the steps in FR-01; not a pure-logic test.
 
----
+How to confirm on device: open the list, read each "Ingwer" row's label (`1 Stück Ingwer, gerieben` vs `5 Stück Ingwer` vs `Ingwer`) — different labels ⇒ H1; identical labels ⇒ H2/H3; appearance weeks after deleting with a long-idle second device ⇒ H4.
 
-## Coverage gaps (ranked by risk)
+### Regression tests that pin FR-01 (propose; none exist)
+Put them in a new `tests/test-shopping-identity.js`, with a tiny fixture of the real Ingwer lines (copy the 7 lines above verbatim, do not read `rezepte.json` from the suite).
 
-### v2/src/data/sync.js  ·  risk: HIGH
-The persistence/sync brain — `syncWithDrive()` and `saveCollection()` — decides who wins
-between local and Drive, when to push, and what happens offline. No test file exists. Drive
-and db are async I/O, but the *decision* is pure and the spec calls these branches out
-explicitly (LWW / dirty / offline). The realistic way to test without a browser is to inject
-fakes for the `db` and `drive` modules (the module already imports them as namespaces, so the
-I2 refactor should pass them in or expose a pure `decideSync(meta, remoteMeta)` helper —
-propose that as part of I2).
+- `FR01.oneRowPerIngredient`: aggregate recipes [`1 Stück Ingwer, gerieben 🛒`, `1 Stück Ingwer 🛒` ×5] → expect exactly **1** Ingwer row, `amount 6`, `unit Stück`. (Today 2 rows; needs a canonical name = strip after `,`/`(` qualifier, a `canonicalItem()` helper used by `itemKey`.)
+- `FR01.catalogTileMergesWithRecipeRow`: list holds `{name "Ingwer", unit "Stück", amount 1}`; `shopAdd("Ingwer")`-equivalent merge → expect 1 row, qty/amount incremented. Extract `shopAdd`'s match+bump into a pure `addByName(items, name, …)` in `shopping/logic.js` first (it is DOM-adjacent module state now), then test it.
+- `FR01.recipeThenCatalogThenFriend`: recipe row, catalog tap, friend "Ingwer" → expect 1 open row (sum/qty 3), 0 new `fr-` rows.
+- `FR01.unitVariants`: `2 cm Ingwer 🛒`, `1 Daumen Ingwer 🛒`, `Ingwer 🛒`, `1 TL Ingwer, frisch gerieben 🛒`, `1 Stück Ingwer (ca. 3 cm) 🛒` → each yields `item === "Ingwer"` (no `cm`/`Daumen` in the name) and all five aggregate into ≤ 2 rows (count vs. TL unit).
+- `FR01.twoIngredientsInOneLine`: `½ TL gemahlene Nelken 🛒, 1 TL Ingwerpulver 🛒` → expect two parsed items (`Nelken`, `Ingwerpulver`), never one item containing `, 1 TL`. (Alternatively a data-guardian rule; either way a guard test belongs here.)
+- `FR01.mergeItems.tombstoneBeforeLive`: existing `[{id a, deleted:true, key K}, {id b, live, key K}]` + incoming K → expect exactly one live row, id `b`, `a` stays deleted.
+- `FR01.mergeItems.idempotentRepeat`: apply the same recipe aggregate twice → live row count unchanged (amount doubles, rows not).
+- `FR01.friend.replayAfterDelete`: `applyFriendItems(deletedFrItems, [{id same}], {seen: []})` → expect no duplicate id in output (revive the tombstone instead, or skip), `new Set(ids).size === ids.length`.
+- `FR01.friend.seenTrimBoundary`: 301 ids → `trimSeen` → 300 kept (oldest dropped); then replay of the dropped id on a list with its tombstone → expect no second row. Pins the boundary documented in `trimSeen`.
+- `FR01.invariant.noDuplicateIds`: property-style — run a fixed sequence (aggregate, mergeItems, applyFriendItems, mergeList with a second device, syncStep) and assert `ids unique` and `no two live rows share (canonical name, unit)` after each step. This is the one test that would have caught the whole FR-01 class.
+- `FR01.sync.staleDeviceResurrection`: local live `x` (updated 40 d ago), remote `[]` (tombstone already pruned) → today live comes back; expect a decision recorded. Options: keep tombstones ≥ 90 d, or a `lastSync` guard (items older than the device's last sync that are absent remotely are treated as deleted). Test the chosen rule.
+- `FR01.sync.sameKeyDifferentIdMerge`: two devices add "Ingwer" independently (`li-A`, `li-B`, different ids) → after `syncStep` expect 1 live row (merge by canonical key) — today 2 (probe P4); this encodes the missing key-level dedupe in `mergeList`.
 
-- **Covered today:** none.
-- **Gap — the LWW / dirty / source branches in `syncWithDrive()`:**
-  - `sync.firstUpload`: signed-in, `findFile()` → null, local recipes present → expect `createFile` called once, `meta.source="drive"`, `dirty=false`, `changed=false`.
-  - `sync.remoteNewerWins`: `remote.updated="…T12:00Z"` > `local.updated="…T09:00Z"`, `meta.dirty=false` → expect `replaceAll` called with remote recipes, `changed=true`, returned meta carries remote `updated`/`version`.
-  - `sync.localDirtyNewerPushes`: `meta.dirty=true` and `localUpdated > remoteUpdated` → expect `updateFile` (PATCH, never createFile), `dirty=false` after, `changed=false`.
-  - `sync.localDirtyButRemoteNewer`: `meta.dirty=true` BUT `remoteUpdated > localUpdated` → **currently remote wins and the dirty local edit is silently overwritten** (the `dirty && local>remote` guard is false, so the `remoteUpdated !== localUpdated` branch replaces all). Pin this as the *documented* behaviour or flag it as a real conflict-loss bug — either way it needs a test so I2 doesn't change it by accident.
-  - `sync.firstDriveLoadEvenIfEqual`: `remoteUpdated === localUpdated` but `meta.source !== "drive"` (e.g. `"snapshot"`) → expect `changed=true`, recipes replaced from Drive, `source="drive"`.
-  - `sync.noChangeNoOp`: `remoteUpdated === localUpdated` and `source==="drive"` → expect only `lastSync` bumped, `changed=false`, no `replaceAll`/`updateFile`.
-  - `sync.signedOutShortCircuits`: `drive.isSignedIn()===false` → expect `{changed:false}` and **no** db/drive calls, no status change.
-  - `sync.driveThrows401`: `readFile` throws `{status:401}` → expect status set to "Anmeldung abgelaufen", `{changed:false, error}`, meta untouched.
-  - `sync.driveThrowsOffline`: `findFile` throws generic network error → expect status "Offline — lokale Daten", `{changed:false, error}`, no data loss.
-- **Gap — `saveCollection()` offline/dirty queue:**
-  - `save.offlineStaysDirty`: `navigator.onLine===false` → expect `replaceAll` ran, `meta.dirty=true`, no drive calls, status "Lokal gespeichert".
-  - `save.onlinePushClears`: signed-in + online, existing `fileId` → expect `updateFile` called, `dirty=false`, `source="drive"`.
-  - `save.pushFailsRemainsDirty`: `updateFile` throws → expect `dirty=true` still (queued for next sync), status "Sync ausstehend".
-  - `save.updatedMonotonic`: two `saveCollection` calls → expect second `meta.updated` strictly greater (inject `now`); guards LWW ordering.
-- **Gap — `loadLocal()` empty-DB seeding:**
-  - `load.emptyDbSeedsSnapshot`: empty `recipes` → fetch snapshot, `replaceAll`, `meta.source="snapshot"`, `dirty=false`.
-  - `load.snapshotUnreachable`: fetch throws → expect no crash, `meta.source="empty"`, `recipes=[]`.
+## Status of previous findings (2026-06-14 report, 145 tests; no IDs then — assigned now)
 
-### Forward coverage for Epic I2 (sync.js → collection-agnostic)  ·  risk: HIGH (pre-emptive)
-I2 generalises sync to a *second* synced object (e.g. shopping list / plan). Write these
-**before** the refactor so it's test-driven. They assume I2 extracts a pure
-`decideSync({localUpdated, remoteUpdated, dirty, source})` returning an action
-(`"push" | "pull" | "noop" | "create"`) — propose that extraction as the seam.
+| ID | Title | Status | Note |
+|---|---|---|---|
+| TW-01 | `data/sync.js` LWW/dirty decision branches untested | ✅ fixed | Decision extracted to `data/decideSync.js` (K2) with 9 cases in `tests/test-decide-sync.js` (create/pull/noop/push/conflict, empty marks, defaults). |
+| TW-02 | `sync.localDirtyButRemoteNewer` silently overwrites local edit | ✅ fixed | Now `conflict`, local kept (`decideSync.js:371`, `sync.js:114-121`), pinned by `decideSync: dirty, aber Remote ist NEUER → conflict`. |
+| TW-03 | `i2.decidePure.*` seam + equalDriveSource/equalNonDriveSource | ✅ fixed | Covered in `test-decide-sync.js`. |
+| TW-04 | `i2.twoWriterConverge`, tombstone propagation, CR-02 idempotency | ✅ fixed | `test-list-sync.js` (CR-01, CR-02, concurrent adds, touch) via `syncStep`/`mergeList`. |
+| TW-05 | `sync.js` async I/O (`syncWithDrive`, `saveCollection`, `loadLocal`) never run against fakes (`save.pushFailsRemainsDirty`, `driveThrows401/offline`, `load.snapshotUnreachable`) | ⏳ still open, downgraded high→med | Decision is pure and tested; the I/O shell (`sync.js:41-170`, 6 exports, none referenced by tests) is not. `listSync.js` (13 exports) has the same shape. |
+| TW-06 | `i2.offlineQueuePerObject`, `i2.separateFileIds` | ⏳ still open (med) | `listSync.doSync` never uses `decideSync`; it uses `syncStep`. No test proves the list sync never touches the recipe fileId/`META_KEY "collection"`. |
+| TW-07 | `toFileString` without injected `now` | ⏳ still open (low) | `test-migrate.js` only tests the injected clock path (`migrate.js:45-54`). |
+| TW-08 | `extractJson` adversarial (unbalanced, brace in string, array root) | ⏳ still open (low) | Probe now: `'{"a":1'`→`null`, `'[1,2,3]'`→`null`, brace-in-string OK (E1) — behaviour is right, still not pinned by a test (`test-ai.js:57-62` has the nested-brace case only). |
 
-- `i2.decidePure.remoteNewer`: `{local:"T1", remote:"T2", dirty:false}` → `"pull"`.
-- `i2.decidePure.localDirtyNewer`: `{local:"T2", remote:"T1", dirty:true}` → `"push"`.
-- `i2.decidePure.conflict`: `{local:"T2", remote:"T2-different-content", dirty:true}` → defined resolution (propose `"pull"` + flag, matching today's silent-remote-wins, or a new `"conflict"` action). **This is the case to nail down before two objects multiply it.**
-- `i2.decidePure.equalDriveSource`: `{local:"T1", remote:"T1", source:"drive"}` → `"noop"`.
-- `i2.decidePure.equalNonDriveSource`: `{local:"T1", remote:"T1", source:"snapshot"}` → `"pull"`.
-- `i2.twoWriterConverge`: device A pushes `vA`, device B (dirty, older) syncs → B pulls `vA`, B's later edit pushes `vB` > `vA`, A pulls `vB`. Expect both devices converge to `vB`, no lost write beyond the documented conflict rule.
-- `i2.collectionAgnostic.recipes` & `i2.collectionAgnostic.shopping`: same `decideSync` inputs drive both objects identically — proves the generalisation didn't special-case recipes.
-- `i2.offlineQueuePerObject`: object A dirty+offline, object B clean → next online sync pushes only A, leaves B as noop. Guards the per-object dirty flag.
-- `i2.separateFileIds`: two objects → two distinct Drive `fileId`s, never cross-written (a PATCH to A must never hit B's id).
+## New findings
 
-### v2/src/data/migrate.js — `toFileString` edge inputs  ·  risk: LOW
-- **Covered today:** round-trip fixpoint, umlaut/emoji byte-fidelity, `setUpdated` stamping, G1 external-edit + append, broken-input tolerance. Excellent.
-- **Gap (minor):** `toFileString` with `{ setUpdated:true }` but no `now` injected falls to `Date.now()` — one case asserting the output `updated` parses as a valid ISO string would close the only untested line.
+### TW-09 `features/shopping/logic.js` + `listMerge.js` + `friendMerge.js` — item identity · risk: high · evidence: E1
+- **Covered today:** `test-shopping.js` (aggregation sums same name+unit, unit-different stays separate — asserted *as intended*), `test-list-merge.js`, `test-list-sync.js` (id-based LWW, tombstones, prune), `test-friends.js` (qty+1 on exact key, seen replay, tombstone not counted).
+- **Gap:** no test asserts cross-path identity. The suite *encodes* the fragmented keys (`unterschiedliche Einheiten bleiben getrennt`) with no counter-case for qualifier/spelling/unit-null variants, and `mergeList` never dedupes by key. This is the direct cause class of FR-01 (H1–H4).
+- **Proposed cases:** see "Regression tests that pin FR-01" above (`FR01.*`).
+- **Guards against:** FR-01.
 
-### v2/src/ai/parse.js — `extractJson` adversarial input  ·  risk: LOW
-- **Covered today:** pure JSON, fenced, prose-wrapped, escaped quotes, nested braces, empty/none. Strong.
-- **Proposed cases:**
-  - `extractJson.unbalanced`: `'{"a":1'` (never-closed) → expect `null` (loop ends, no throw).
-  - `extractJson.braceInString`: `'{"note":"use { and } sparingly"}'` → expect the full object, not a truncation at the inner `}` (string-state machine already handles this — lock it in).
-  - `extractJson.arrayRoot`: `'[1,2,3]'` (no top-level `{`) → expect `null` (documents that only objects are extracted).
+### TW-10 `features/shopping/logic.js` `mergeItems` — first-hit wins · risk: high · evidence: E1
+- **Covered today:** `test-list-sync.js:96` (revives tombstone, same id), `test-shopping.js:96` (sum/qty/done).
+- **Gap:** `out.find(keyOf===key)` (`logic.js:123`) picks the first matching row, tombstone or not; test only has a single matching row.
+- **Proposed cases:** `mergeItems.tombstoneBeforeLive`, `mergeItems.liveBeforeTombstone` (live preferred, tombstone untouched), `mergeItems.twoLiveSameKey` (one gets bumped, other unchanged — pin which).
+- **Guards against:** FR-01 (H2).
 
----
+### TW-11 `features/shopping/friendMerge.js` `applyFriendItems` — id uniqueness · risk: med · evidence: E1
+- **Covered today:** `test-friends.js:34` (seen blocks replay), `:43` (tombstone not incremented).
+- **Gap:** replay without `seen` after deletion yields duplicate id `fr-<id>` (probe P8); re-delivery after `trimSeen` 300 boundary adds again (P7); friend name vs unit-bearing recipe row creates a second row (P6).
+- **Proposed cases:** `friend.replayAfterDelete`, `friend.seenTrimBoundary`, `friend.vsUnitRow` (see FR01 list), plus `friend.sameBatchTwiceSameName` (two ids, same name → one row qty 2, both ids in `seen`).
+- **Guards against:** FR-01 (H3).
+
+### TW-12 `features/shopping/listMerge.js` `pruneTombstones` / `syncStep` — stale-device resurrection · risk: med · evidence: E1
+- **Covered today:** `test-list-sync.js:81` (prune only old tombstones).
+- **Gap:** no test of "tombstone pruned remotely, stale live copy returns" (probe P5b: `merged=[x live]`, `writeRemote true`).
+- **Proposed cases:** `FR01.sync.staleDeviceResurrection` (see above); `syncStep.tieSameUpdatedPrefersLocal` pin (`mergeList` strict `>`, equal stamps keep local — document it); `syncStep.duplicateIdsInInput` (two entries same id in `local` → exactly one in output).
+- **Guards against:** FR-01 (H4).
+
+### TW-13 `data/derive.js` `parseIngredient` — real-data lines · risk: med · evidence: E1
+- **Covered today:** `test-derive.js` units/fractions/ranges/groups/🛒/optional.
+- **Gap:** no real-`rezepte.json` lines: `cm`/`Daumen` units not recognised; comma-joined two-ingredient line yields one item with `, 1 TL …` in the name (probe: `item 'gemahlene Nelken , 1 TL Ingwerpulver'`).
+- **Proposed cases:** `FR01.unitVariants`, `FR01.twoIngredientsInOneLine`; plus a **data-driven smoke test**: for every line in a fixture copy of `rezepte.json` ingredients, assert `item` contains no `🛒` and no `/,\s*\d/` (comma followed by a quantity). Cheap, catches the next bad line the user captures.
+- **Guards against:** FR-01 (H1).
+
+### TW-14 `data/listSync.js` / `data/friendInbox.js` — I/O shells untested · risk: med · evidence: E2
+- **Covered today:** their pure cores (`syncStep`, `applyFriendItems`, `trimSeen`, `snapshotOf`); no export of `listSync` (13) or `friendInbox` (11) is referenced by any test.
+- **Gap:** ordering invariant `applyExternal → patchInbox(seen) → fl_ack` (`friendInbox.js:93-100`) and the debounce/inflight sharing are untested; injecting `db`, `drive`, `rpc` fakes needs a seam (pass the modules as parameters or export a `createListSync(deps)` factory). Only worth doing as part of the FR-01 fix; otherwise treat as the "extract to a pure helper, then test" backlog.
+- **Proposed cases (after a `deps` seam):** `friendInbox.ackAfterSave` (fake `applyExternal` throws → `fl_ack` not called, `seen` unchanged), `friendInbox.ackFailsThenRepull` (ack rejects, second `fl_pull` returns same ids → `added 0`), `listSync.concurrentSyncShareRun` (two simultaneous calls → one `readFile`), `listSync.neverUsesRecipeFileId` (all `drive.*` calls use the list fileId, `createFile` always with `einkaufsliste.json`).
+- **Guards against:** TW-05/06 and FR-01 H3.
 
 ## If you add three tests, add these
-1. **`sync.localDirtyButRemoteNewer`** — the one place a user's offline edit can be silently overwritten. Highest blast radius, untested, and I2 will multiply it across objects. Test it first; decide explicitly whether today's behaviour is correct or a bug.
-2. **`save.pushFailsRemainsDirty`** — proves a failed Drive push doesn't drop the edit (stays queued). Core offline-first promise of the app.
-3. **`i2.decidePure.conflict`** (with the `decideSync` extraction) — write the conflict rule down as an executable spec before I2 generalises sync to a second object, so two-writer convergence has a fixed point to build against.
+1. **`FR01.invariant.noDuplicateIds` + `FR01.oneRowPerIngredient`** — a sequence test over aggregate → mergeItems → friend → mergeList with real Ingwer lines asserting unique ids and one live row per canonical item. Catches H1+H2+H3 in one go and will keep guarding every future shopping change.
+2. **`FR01.mergeItems.tombstoneBeforeLive`** — smallest reproducer of the duplicate-live-row bug; a three-line test, fails today.
+3. **`FR01.friend.replayAfterDelete`** — fails today with duplicate id `fr-<id>`; pins the one path where a friend suggestion can come back without anyone adding it.
 
-## Already well-covered (don't re-flag on reruns)
-- `data/migrate.js` — round-trip, byte-fidelity, G1 external-edit/append, broken-input. Gold standard.
-- `data/derive.js` — minutes/hours parsing, tipps structuring, ingredient parse (units, fractions, ranges, groups, 🛒, optional), scaling (metric vs. count, fraction output), servings. Exhaustive.
-- `features/shopping/logic.js` + `catalog.js` — marker vs. marker-less buying, staples override, aggregation/merge/scaling, catalog assignment. Thorough.
-- `features/planner/logic.js` — deterministic RNG, slot/effort/season/cuisine scoring, locks, leftover days, rotation. 16 cases.
-- `ai/gate.js` + `ai/parse.js` + `ai/prompts.js` — BYOK gating, `aiUnavailableReason` nokey/offline, coercion to schema, suggestion/plan id-filtering, prompt assembly. Strong.
-- `features/cookbook/filter.js`, `data/schema.js`, `data/baseLang.js`, `i18n.js`, `features/lager/logic.js`, `features/capture/parse.js` — all carry meaningful, non-trivial cases.
+## Checked and refuted
+- "sync.js overwrites a dirty local edit" — refuted by `decideSync` + `sync.js:114-121` (conflict preserves local).
+- "`applyFriendItems` re-adds when `fl_ack` fails" — refuted while `seen` persists: `friendInbox.js:99` writes `seen` *before* `fl_ack` and `test-friends.js:34` pins it. Only the `seen`-lost/trimmed edge (H3) remains.
+- "Deleted Ingwer revived by a normal sync on up-to-date devices" — refuted: probe P5 (37-day-old remote tombstone vs stale live) → merged `[]` (tombstone newer, then pruned); only the already-pruned case (H4) resurrects.
+- "mergeList is non-idempotent / flips on ties" — `test-list-merge.js:46` idempotent; ties keep local deterministically.
+- Pure-module coverage by export-name grep: every export of `schema` (except 3 constants), `migrate`, `derive`, `decideSync`, `shopping/*`, `planner/logic`, `lager/logic`, `cookbook/filter`, `ai/parse` is referenced in `v2/tests`. Untested exports are only IO/DOM: `sync.js` (5), `listSync.js` (13), `friendInbox.js` (11), `supabase.js` `rpc/randomToken`, `drive.js`, `db.js`, `settings.js`, `data/lager.js`, `store.js`, `ui/helpers.js`, `ai/client.js`, `router.js`; low-value untested pure bits: `catalog.sectionIcon`, `capture/parse.parseBulk`, `ai/prompts` 4 prompt builders, `i18n.hasLang`.
 
-**Conclusion:** one real gap (sync.js) on the highest-risk path; everything else is well-protected. A green suite — but sync needs tests before I2, not after.
+## Verified clean
+- Suite wiring: `run.js` imports all 20 `test-*.js` files; `test-syntax.js` and `test-sw-shell.js` guard the shell.
+- `decideSync` truth table (9 cases), `listMerge` LWW/tombstone/idempotency, `friendMerge` invite/author/snapshot/isListed, K4b canonical-German persistence invariant (`test-canonical.js`), `migrate` round trip.
+- `ai/parse.extractJson` behaves correctly on unbalanced / brace-in-string / array root (E1), just unpinned.
+
+## Cross-lens notes
+- → bug-hunter / data-guardian: `rezepte.json` line `"½ TL gemahlene Nelken 🛒, 1 TL Ingwerpulver 🛒"` is two ingredients in one string; data fix is in data-guardian's lens, the parser guard is TW-13.
+- → bug-hunter: `shopping.js:41` `save()` does not await `listSync.saveList`, while `friendInbox.doSync → applyExternal` reads `loadLocalList()` independently; a tap landing between the two could be overwritten (loss, not duplication). E3, unverified.
+- → ux-curator: H5 (catalog grid shifts under the finger when `paintList` grows above it).
+
+## Definition drift
+Agent file says the suite lives in "~11 test files / sync.js untested"; tree now has 20 test files, `decideSync.js` extracted, `listSync.js`/`friendInbox.js`/`friendMerge.js` exist. Old report's file list and sync gap description are obsolete (handled above).
+
+## Summary
+Suite 215/215 green. Gaps: 0 critical, **high 2** (TW-09 identity, TW-10 mergeItems first-hit), **med 6** (TW-05, TW-06, TW-11, TW-12, TW-13, TW-14), **low 2** (TW-07, TW-08); 4 old gaps fixed (TW-01..04). FR-01 reproduced at E1 via four independent pure-logic paths (key fragmentation, tombstone-first revive, friend duplicate id, prune resurrection); the most valuable item is a cross-path "one live row per canonical ingredient, unique ids" invariant test with real Ingwer lines.

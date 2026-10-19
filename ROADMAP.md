@@ -1,14 +1,14 @@
 # 🍳 Koch — Roadmap index
 
 > Start here. This page says **what is next** and where everything else lives.
-> **Last updated: 2026-10-19** (P1 sync core built as v2.15) · Live: **v2.14.1** (v2.15 goes live on merge)
+> **Last updated: 2026-10-19** (v2.15 one sync core merged · QA fleet findings → V2 Epic T, two hotfixes queued) · Live: **v2.15** (PR #10 merged; phone check open)
 
 ## The two roadmaps
 
 | File | Covers | Boundary |
 |------|--------|----------|
 | **[ROADMAP-V2.md](ROADMAP-V2.md)** | The **v2.x line**: features + the foundation V3 needs, until V3 launches and v2 becomes the fallback | Ships on today's address and architecture, carries over into V3 unchanged |
-| **[ROADMAP-V3.md](ROADMAP-V3.md)** | The **V3 line**: v3.0 infrastructure release (domain, Play Store, clean-up, onboarding), then v3.1, v3.x, v3.5/v4, someday | Needs the new domain, the Play build or the clean-up, or Marcel scheduled it after v3.0 |
+| **[ROADMAP-V3.md](ROADMAP-V3.md)** | The **V3 line**: v3.0 infrastructure release (domain, Play Store, production backend, clean-up, onboarding), then v3.1, v3.x, v3.5/v4, someday | Needs the new domain, the Play build or the clean-up, or Marcel scheduled it after v3.0 |
 
 Background and reasoning for V3: [`docs/v3/`](docs/v3/README.md). New idea after the scope freeze
 (31 Dec 2026)? → `ROADMAP-V3.md`, tagged v3.x.
@@ -19,10 +19,10 @@ Background and reasoning for V3: [`docs/v3/`](docs/v3/README.md). New idea after
 
 | When | V2 line | V3 line |
 |------|---------|---------|
-| **Oct 2026** | ✅ v2.14 friends link live (4 Oct) · ✅ e2e tests (12 Oct) + v2.14.1 hotfix · ✅ **v2.15** one sync core (19 Oct) · two-account sharing proof | Decisions: D8, A10, C7, D9 |
-| **Nov 2026** | **v2.16** AI housekeeping · **v2.17** find recipes faster · **v2.18** export/import | Long-lead: domain, Play account, 12 testers |
-| **Dec 2026** | **v2.19** calories | Spikes (TWA, sign-in, photos, repo layout) · ADRs · V3 plan · **scope freeze 31 Dec** |
-| **Jan–Mar 2027** | **v2.20** assistant edits recipes · **v2.21** move helper (before the domain switch) · v2.22+ small wins if time | **v3.0-a1 … a9** = slices 1–9 · closed test from slice 3 |
+| **Oct 2026** | ✅ v2.14 friends link live (4 Oct) · ✅ e2e tests (12 Oct) + v2.14.1 hotfix · ✅ **v2.15** one sync core (19 Oct) · 🔴 **v2.15.1** safe recipe sync · 🔴 **v2.15.2** shopping "Ingwer" fix · two-account sharing proof | ✅ Decisions D8, A10, D9, A11, E6, G7 answered (4 Oct) · open: D10, C7 availability |
+| **Nov 2026** | **v2.15b** backend hardening · **v2.16** AI housekeeping · **v2.16b** shopping clarity · **v2.17** find recipes faster · **v2.18** export/import · ★ **R1 data-model spike** (ingredient model, format 4) | Long-lead: domain (Citchen), Play account, 12 testers |
+| **Dec 2026** | **v2.19** ingredient master + calories | Spikes (TWA, sign-in, photos, **backend + hosting**) · ADRs · V3 plan · **scope freeze 31 Dec** |
+| **Jan–Mar 2027** | **v2.19b** structured recipe editor + capture · **v2.20** assistant edits recipes + editable instructions · **v2.21** move helper + English format/UI (before the domain switch) · v2.22+ small wins if time | **v3.0-a1 … a9** = slices 1, **1b backend**, 2–7, 9 (slice 8 moved to v3.x) · closed test from slice 3 |
 | **Apr 2027** | Fixes only | **v3.0 launch, target 30 Apr** |
 | **May 2027** | 30-day read-only fallback | Buffer · **hard cutoff 31 May** → leftovers to v3.1 |
 | **H2 2027** | Retired | v3.1 · v3.x (shared cookbook, spend display, longevity cards …) |
@@ -36,15 +36,19 @@ below every time an item is crossed off.
 
 | # | Item | Line | Owner | Why now | Effort | Unblocks |
 |---|------|------|-------|---------|--------|----------|
-| 1 | **Merge + check v2.15 live** (one sync core; includes the v2.14.1 fix) | V2 | Marcel | Live beats new. After the merge, on the phone: build line shows v2.15 · Settings → back → ♥ a recipe → no error · add an item on the shopping list → it appears on the partner's phone after 🔄 | 10 min | — |
-| 2 | **Live friend test** (V2 P4) — PR #8 merged 2026-10-04 | V2 | Marcel | v2.14 is live; the one backend piece should be proven with a real friend before D9 is written | 15 min | D9, closes I3 |
-| 3 | **Two-account sharing proof** (V2 P3): Picker API key, partner as test user, run the test in `v2/docs/SHARING.md` | V2 | Marcel (Claude guides) | **Last open V3 gate item** (P1 ✅, P2 ✅). The e2e suite proves the flow with fake accounts; this is the real-phone proof | ~45 min | V3 gate, US-06 |
-| 4 | **v2.16 — AI housekeeping** (V2 Q1–Q3) | V2 | Claude | Unblocked and small; capture still runs on an older model (risk R9); token data feeds the v3.x spend display | S | US-12 later |
-| 5 | **v2.18 — recipe export / import** (V2 G2) | V2 | Claude | Next unblocked core-tier item (v2.17 waits on Marcel's G7 answer); recipes are core tier | M | US-07, C-23 |
+| 1 | **Check v2.15 live** (one sync core; includes the v2.14.1 fix) — PR #10 merged | V2 | Marcel | Live beats new. On the phone: build line shows v2.15 · Settings → back → ♥ a recipe → no error · add an item on the shopping list → it appears on the partner's phone after 🔄. Do the FR-01 device check (below) in the same sitting | 10 min | — |
+| 2 | 🔴 **v2.15.1 — safe recipe sync** (V2 T1 · T2 · T3 · T11) | V2 | Claude | **P0 in the live app** (rule 1): a ♥ tap can erase project-Claude's Drive edits (v2.15 still saves without reading Drive first); a broken `rezepte.json` can wipe the cookbook | M | requirement #3 trustworthy again, T12 |
+| 3 | 🔴 **v2.15.2 — shopping list "Ingwer" fix** (V2 T4 · T5 · T6 · T7 · T8 · T10) — FR-01 | V2 | Claude (+ Marcel: 2-min device check, 2 rule confirmations below) | Your field report; the list adds a row by itself on every sync | M | P3 sharing proof on a clean list |
+| 4 | **Live friend test** (V2 P4) — PR #8 merged 2026-10-04 | V2 | Marcel | The backend piece should be proven with a real friend before it is hardened (P7). Best after v2.15.2 (same list code) | 15 min | P7, closes I3 |
+| 5 | **Two-account sharing proof** (V2 P3): Picker API key, partner as test user, run the test in `v2/docs/SHARING.md` | V2 | Marcel (Claude guides) | **Last open V3 gate item** (P1 ✅, P2 ✅). The e2e suite proves the flow with fake accounts; this is the real-phone proof | ~45 min | V3 gate, US-06 |
+
+**Waiting on Marcel — from the QA fleet (2026-10-12), each a yes/no:**
+**FR-01 device check** (2 min): open `einkaufsliste.json` in Drive, is there an item without `"id"`? Or tap 🔄 three times on Einkauf: does Ingwer go up by one each time? · **T5** a catalog-tile tap merges into an existing same-name row ("Ingwer" + "2 Stück Ingwer" → one row) (recommended: yes) · **T6** an item marked in stock in the Lager is skipped even when the recipe line has 🛒 (recommended: yes) · **T3** do you use the app in a non-German language? (yes → T3 becomes P0) · **T12** add a three-way merge rule for recipes to the new v2.15 sync core (QA AR-01, recommended: yes).
 
 **Waiting on Marcel — 5-minute answers that unblock the queue** (details in `ROADMAP-V3.md` §6):
-**G7** recipe-finding picks → v2.17 · **L1** nutrition model → v2.19 · **E6** assistant may delete? → v2.20 ·
-**D8 / L1** English as main language · **A10** shared plan · **C7** name + domain · **D9** keep Supabase in v3.0 → V3 plan.
+**D10** timing: accounts + recipe sharing in v3.0 or first in v3.x (recommended: v3.x) · **D11** sharing = send/invite, not public (recommended) · **R1** sign-off on the ingredient/unit spec (Nov) · **L1 nutrition** now resolved by R2, please confirm ·
+**C7** check `citchen.app` / `citchen.de` availability, then buy. *Answered 2026-10-04 and now unblocked:*
+G7 → v2.17 · E6 + A11 → v2.20 · D8 English → v2.21 · A10 → v3.x · D9 → P7 + slice 1b · C-20 same repo.
 
 ---
 
@@ -91,8 +95,9 @@ Part of every release's definition of done (Claude Code does this; the release-c
 
 | File | What it is |
 |------|------------|
-| [`docs/v3/`](docs/v3/README.md) | V3 preparation package: intent, user stories, decisions D1–D8, questions, risks, learning track |
+| [`docs/v3/`](docs/v3/README.md) | V3 preparation package: intent, user stories, decisions D1–D10, questions, risks, learning track |
 | [`v2/docs/SHARING.md`](v2/docs/SHARING.md) | How partner sharing and the friends link work + test steps |
-| [`qa/FLEET-REPORT.md`](qa/FLEET-REPORT.md) | QA agent findings; promoted into a roadmap by hand |
+| [`qa/FLEET-REPORT.md`](qa/FLEET-REPORT.md) | QA agent findings; promoted into a roadmap by hand (2026-10-12 run → V2 Epic T) |
+| [`qa/FIELD-REPORTS.md`](qa/FIELD-REPORTS.md) | What you saw on a real device (`FR-NN`); the QA fleet root-causes these first |
 | `.planning/ROADMAP.md` | Working file of the planning tool for the finished shared-list phase (v2.10). Not a product roadmap. |
 | `SCHEMA.md` | The `rezepte.json` contract |
