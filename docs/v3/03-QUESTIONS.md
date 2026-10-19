@@ -104,8 +104,11 @@ No answers needed from Marcel here. Changes since 2026-10-01 are marked.
 - [ ] **C-5.** v1, v2 and v3 on one origin share IndexedDB and service-worker scope. Confirm DB
       names and SW scopes cannot collide (depends on C-20).
 - [ ] **C-6.** Round-trip test: v3 reads the real `rezepte.json` (copy), writes it back unchanged.
-- [ ] **C-7.** Extract the sync core; both instances (recipes LWW, list item-merge) pass the
-      existing 206 tests plus two-instance tests.
+- [x] **C-7.** Extract the sync core; both instances (recipes LWW, list item-merge) pass the
+      existing 206 tests plus two-instance tests. — ✅ 2026-10-19 (V2 P1, v2.15):
+      `v2/src/data/syncCore.js` + `syncRules.js`; all 215 existing unit tests + 20 new two-device
+      tests (`v2/tests/test-sync-core.js`) + the 27 e2e tests green. A third file (C-28) is one
+      more rule.
 - [ ] **C-8.** Google OAuth with a public listing: Testing mode caps at 100 test users and shows
       a warning screen. Confirm what production status needs for `drive.file` (non-sensitive scope)
       and the Picker: verified domain, privacy policy, branding review.

@@ -1,30 +1,27 @@
 // listSync.js — Lokal-first Abgleich IndexedDB <-> Drive für die Einkaufsliste.
-// Die Rezept-Datei wird hier NIEMALS berührt: createFile() immer mit LIST_FILE_NAME.
+// Die Rezept-Datei wird hier NIEMALS berührt: der Sync-Kern legt nur LIST_FILE_NAME an.
 //
 // Modell (I2 + I3A, überarbeitet v2.11): JEDER Sync liest die Drive-Datei, mischt sie
 // item-weise mit der lokalen Liste (mergeList = Union + neuestes `updated` pro Item) und
-// schreibt nur dorthin zurück, wo sich etwas geändert hat. Es gibt keinen Datei-Zeitstempel-
-// Vergleich mehr — der war die Ursache von CR-02 (lokal alte Marke gespeichert, auf Drive eine
-// neue geschrieben → jeder Sync sah „Remote ist neuer“ und lud/schrieb erneut).
+// schreibt nur dorthin zurück, wo sich etwas geändert hat (CR-02).
+// Seit v2.15 (P1): Ablauf im Sync-Kern (syncCore.js), Merge-Regel in syncRules.js (itemMerge).
 // Speichern = lokal sofort + gebündelter (debounced) Sync, damit nie blind überschrieben wird.
+// Partner verbinden/trennen läuft in der Warteschlange des Kerns — nie mehr mitten in einen
+// laufenden Abgleich (P2-Fund: die Verbindung ging dabei still verloren).
 
 import * as db from "./db.js";
 import * as drive from "./drive.js";
-import { mergeList, ensureItemMeta, sameItems, syncStep, countOpen } from "../features/shopping/listMerge.js";
+import { createSyncEngine } from "./syncCore.js";
+import { itemMerge } from "./syncRules.js";
+import { ensureItemMeta, countOpen } from "../features/shopping/listMerge.js";
 
 const META_KEY = "listMeta";           // { fileId, ownFileId, linked, dirty, lastSync }
 const LIST_FILE_NAME = "einkaufsliste.json";
 const LIST_DB_ID = "current";          // IndexedDB "lists" store key
 const PUSH_DELAY = 1200;               // ms — bündelt schnelle Taps (+/+/+) zu einem Drive-Schreibvorgang
 
-// Status als Code — die UI übersetzt ihn (i18n). "local" = nicht angemeldet.
-let status = "local";
-const statusListeners = new Set();
 const changeListeners = new Set();
-export function onStatus(fn) { statusListeners.add(fn); return () => statusListeners.delete(fn); }
 export function onChange(fn) { changeListeners.add(fn); return () => changeListeners.delete(fn); }
-export function getStatus() { return status; }
-function setStatus(s) { status = s; for (const fn of statusListeners) fn(s); }
 
 // J2: Anzahl offener Artikel für das 🛒-Badge der Tab-Leiste (bei jedem Speichern + Partner-Sync).
 const countListeners = new Set();
@@ -36,8 +33,6 @@ export async function getOpenCount() { return countOpen(await loadLocalList()); 
 const savedListeners = new Set();
 export function onSaved(fn) { savedListeners.add(fn); return () => savedListeners.delete(fn); }
 function emitSaved(items) { for (const fn of savedListeners) { try { fn(items); } catch (e) { /* egal */ } } }
-
-export async function getMeta() { return db.kvGet(META_KEY, {}); }
 
 /** Lokale Liste aus IndexedDB; fehlende Sync-Felder werden einmalig ergänzt. */
 async function loadLocalList() {
@@ -51,78 +46,39 @@ async function loadLocalList() {
 /** Aktuelle lokale Liste (inkl. Tombstones) — für das Freunde-Schaufenster. */
 export function getList() { return loadLocalList(); }
 
-let inflight = null;
-let pushTimer = null;
+const engine = createSyncEngine({
+  name: "einkaufsliste",
+  metaKey: META_KEY,
+  fileName: LIST_FILE_NAME,
+  drive,
+  kv: { get: db.kvGet, update: db.kvUpdate },
+  // Zweites Gerät desselben Kontos? Dann existiert die Datei schon → wiederverwenden statt Duplikat.
+  // Nur EIGENE Dateien — die geteilte eines Partners kommt ausschließlich über linkToFile (Picker).
+  locate: async () => {
+    const id = await drive.findOwnFileByName(LIST_FILE_NAME);
+    return id ? { fileId: id, meta: { ownFileId: id, linked: false } } : null;
+  },
+  rule: itemMerge({
+    store: {
+      readAll: loadLocalList,
+      write: (items, now) => db.put("lists", { id: LIST_DB_ID, items, updated: now }),
+    },
+    onMerged: (items) => { for (const fn of changeListeners) fn(items); emitCount(items); emitSaved(items); },
+    onDirty: () => engine.schedule(PUSH_DELAY),
+  }),
+});
+
+// Status als Code — die UI übersetzt ihn (i18n). "local" = nicht angemeldet.
+export const onStatus = engine.onStatus;
+export const getStatus = engine.getStatus;
+export const getMeta = engine.getMeta;
 
 /**
  * Sync mit Drive. Gibt {changed, items?, meta?, error?} zurück. Gleichzeitige Aufrufe teilen
  * sich denselben Lauf (WR-03: kein doppeltes Anlegen der Datei bei parallelem Start).
  */
 export function syncListWithDrive() {
-  if (!drive.isSignedIn()) { setStatus("local"); return Promise.resolve({ changed: false }); }
-  if (inflight) return inflight;
-  inflight = doSync().finally(() => { inflight = null; });
-  return inflight;
-}
-
-async function doSync() {
-  setStatus("syncing");
-  let meta = await getMeta();
-  // Altbestand (≤ v2.10): eigene Datei-ID noch nicht separat gemerkt.
-  if (meta.fileId && !meta.linked && !meta.ownFileId) meta = { ...meta, ownFileId: meta.fileId };
-  try {
-    const local = await loadLocalList();
-    let fileId = meta.fileId;
-
-    if (!fileId) {
-      // Zweites Gerät desselben Kontos? Dann existiert die Datei schon → wiederverwenden statt Duplikat.
-      fileId = await drive.findOwnFileByName(LIST_FILE_NAME);
-      if (!fileId) {
-        const now = new Date().toISOString();
-        fileId = await drive.createFile(JSON.stringify({ version: 1, updated: now, items: local }), LIST_FILE_NAME);
-        meta = { ...meta, fileId, ownFileId: fileId, linked: false, dirty: false, lastSync: now };
-        await db.kvSet(META_KEY, meta);
-        setStatus("synced");
-        return { changed: false, items: local, meta };
-      }
-      meta = { ...meta, fileId, ownFileId: fileId, linked: false };
-    }
-
-    const remote = await drive.readFile(fileId);
-    const remoteItems = remote && Array.isArray(remote.items) ? remote.items : [];
-    const now = new Date().toISOString();
-    const { merged, writeRemote } = syncStep(local, remoteItems, now);
-
-    // Ein einziger Zeitstempel für Datei UND Meta (CR-02); geschrieben wird nur bei Änderung.
-    if (writeRemote) {
-      await drive.updateFile(fileId, JSON.stringify({ version: 1, updated: now, items: merged }));
-    }
-
-    // Während des Netzwerk-Roundtrips kann lokal getippt worden sein → nochmal einmischen.
-    const latest = await loadLocalList();
-    const final = mergeList(merged, latest);
-    const localChanged = !sameItems(local, final) || !sameItems(latest, final);
-    if (localChanged) await db.put("lists", { id: LIST_DB_ID, items: final, updated: now });
-    const stillDirty = !sameItems(final, merged);
-
-    meta = { ...meta, fileId, dirty: stillDirty, lastSync: now };
-    await db.kvSet(META_KEY, meta);
-    setStatus("synced");
-    if (localChanged) { for (const fn of changeListeners) fn(final); emitCount(final); emitSaved(final); }
-    if (stillDirty) schedulePush();
-    return { changed: localChanged, items: final, meta };
-  } catch (e) {
-    console.warn("Listen-Sync fehlgeschlagen:", e);
-    setStatus(e.status === 401 ? "auth"
-      : (e.status === 404 || e.status === 403) ? "notFound"
-      : (typeof navigator !== "undefined" && navigator.onLine === false) ? "offline" : "error");
-    return { changed: false, error: e };
-  }
-}
-
-function schedulePush() {
-  if (pushTimer) clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => { pushTimer = null; syncListWithDrive(); }, PUSH_DELAY);
+  return engine.sync();
 }
 
 /**
@@ -134,9 +90,8 @@ export async function saveList(items) {
   await db.put("lists", { id: LIST_DB_ID, items: ensureItemMeta(items, now), updated: now });
   emitCount(items);
   emitSaved(items);
-  const meta = await getMeta();
-  await db.kvSet(META_KEY, { ...meta, dirty: true });
-  if (drive.isSignedIn() && (typeof navigator === "undefined" || navigator.onLine !== false)) schedulePush();
+  await engine.patchMeta({ dirty: true });
+  if (drive.isSignedIn() && engine.isOnline()) engine.schedule(PUSH_DELAY);
 }
 
 /**
@@ -154,17 +109,13 @@ export async function applyExternal(fn) {
 }
 
 /** Mit der geteilten Liste eines Partners verbinden (fileId kommt aus dem Google Picker). */
-export async function linkToFile(fileId) {
-  const meta = await getMeta();
-  await db.kvSet(META_KEY, { ...meta, ownFileId: meta.ownFileId || meta.fileId || null, fileId, linked: true });
-  return syncListWithDrive();
+export function linkToFile(fileId) {
+  return engine.retarget((m) => ({ ownFileId: m.ownFileId || m.fileId || null, fileId, linked: true }));
 }
 
 /** Verbindung trennen → zurück zur eigenen Datei (deine Liste behält die aktuellen Artikel). */
-export async function unlink() {
-  const meta = await getMeta();
-  await db.kvSet(META_KEY, { ...meta, fileId: meta.ownFileId || null, linked: false });
-  return syncListWithDrive();
+export function unlink() {
+  return engine.retarget((m) => ({ fileId: m.ownFileId || null, linked: false }));
 }
 
 if (typeof window !== "undefined") {

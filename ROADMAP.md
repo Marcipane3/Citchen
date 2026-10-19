@@ -1,7 +1,7 @@
 # 🍳 Koch — Roadmap index
 
 > Start here. This page says **what is next** and where everything else lives.
-> **Last updated: 2026-10-12** (P2 e2e suite + v2.14.1 hotfix built) · Live: **v2.14** (v2.14.1 goes live on merge)
+> **Last updated: 2026-10-19** (P1 sync core built as v2.15) · Live: **v2.14.1** (v2.15 goes live on merge)
 
 ## The two roadmaps
 
@@ -19,7 +19,7 @@ Background and reasoning for V3: [`docs/v3/`](docs/v3/README.md). New idea after
 
 | When | V2 line | V3 line |
 |------|---------|---------|
-| **Oct 2026** | ✅ v2.14 friends link live (4 Oct) · ✅ e2e tests (12 Oct) + v2.14.1 hotfix · **v2.15** one sync core · two-account sharing proof | Decisions: D8, A10, C7, D9 |
+| **Oct 2026** | ✅ v2.14 friends link live (4 Oct) · ✅ e2e tests (12 Oct) + v2.14.1 hotfix · ✅ **v2.15** one sync core (19 Oct) · two-account sharing proof | Decisions: D8, A10, C7, D9 |
 | **Nov 2026** | **v2.16** AI housekeeping · **v2.17** find recipes faster · **v2.18** export/import | Long-lead: domain, Play account, 12 testers |
 | **Dec 2026** | **v2.19** calories | Spikes (TWA, sign-in, photos, repo layout) · ADRs · V3 plan · **scope freeze 31 Dec** |
 | **Jan–Mar 2027** | **v2.20** assistant edits recipes · **v2.21** move helper (before the domain switch) · v2.22+ small wins if time | **v3.0-a1 … a9** = slices 1–9 · closed test from slice 3 |
@@ -36,11 +36,11 @@ below every time an item is crossed off.
 
 | # | Item | Line | Owner | Why now | Effort | Unblocks |
 |---|------|------|-------|---------|--------|----------|
-| 1 | **Merge + check v2.14.1 live** (hotfix found by P2) | V2 | Marcel | Live beats new: in v2.14 every save after visiting Settings fails and skips Drive. After the merge: open Settings, then ♥ a recipe → no error | 5 min | — |
+| 1 | **Merge + check v2.15 live** (one sync core; includes the v2.14.1 fix) | V2 | Marcel | Live beats new. After the merge, on the phone: build line shows v2.15 · Settings → back → ♥ a recipe → no error · add an item on the shopping list → it appears on the partner's phone after 🔄 | 10 min | — |
 | 2 | **Live friend test** (V2 P4) — PR #8 merged 2026-10-04 | V2 | Marcel | v2.14 is live; the one backend piece should be proven with a real friend before D9 is written | 15 min | D9, closes I3 |
-| 3 | **Two-account sharing proof** (V2 P3): Picker API key, partner as test user, run the test in `v2/docs/SHARING.md` | V2 | Marcel (Claude guides) | Gate item for V3 slice 1; open since v2.11. The e2e suite already proves the flow with fake accounts; this is the real-phone proof | ~45 min | V3 gate, US-06 |
-| 4 | **v2.15 — one sync core** (V2 P1) | V2 | Claude | Last gate item from the V2 side; now unblocked — e2e specs 07/08 pin today's sync behaviour. Must also fix the link race the suite found (known-bug test in `v2/e2e/tests/07-partner-sync.spec.js`) | L | V3 slice 1, slice 8 |
-| 5 | **v2.16 — AI housekeeping** (V2 Q1–Q3) | V2 | Claude | Unblocked and small; capture still runs on an older model (risk R9); token data feeds the v3.x spend display | S | US-12 later |
+| 3 | **Two-account sharing proof** (V2 P3): Picker API key, partner as test user, run the test in `v2/docs/SHARING.md` | V2 | Marcel (Claude guides) | **Last open V3 gate item** (P1 ✅, P2 ✅). The e2e suite proves the flow with fake accounts; this is the real-phone proof | ~45 min | V3 gate, US-06 |
+| 4 | **v2.16 — AI housekeeping** (V2 Q1–Q3) | V2 | Claude | Unblocked and small; capture still runs on an older model (risk R9); token data feeds the v3.x spend display | S | US-12 later |
+| 5 | **v2.18 — recipe export / import** (V2 G2) | V2 | Claude | Next unblocked core-tier item (v2.17 waits on Marcel's G7 answer); recipes are core tier | M | US-07, C-23 |
 
 **Waiting on Marcel — 5-minute answers that unblock the queue** (details in `ROADMAP-V3.md` §6):
 **G7** recipe-finding picks → v2.17 · **L1** nutrition model → v2.19 · **E6** assistant may delete? → v2.20 ·
