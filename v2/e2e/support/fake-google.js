@@ -97,6 +97,12 @@ export class FakeDrive {
   }
   /** Inhalt als JSON. */
   read(id) { return JSON.parse(this.files.get(id).content); }
+  /** Fremder Schreiber (Projekt-Claude, v1, Drive-Web) ändert den Inhalt direkt. fn(json) → json | String. */
+  write(id, fn) {
+    const f = this.files.get(id);
+    const next = fn(JSON.parse(f.content));
+    f.content = typeof next === "string" ? next : JSON.stringify(next, null, 2);
+  }
   /** Besitzer gibt die Datei in Drive für einen anderen Nutzer frei (wie „Freigeben“ in Drive). */
   share(id, user) { this.files.get(id).sharedWith.add(user); }
 

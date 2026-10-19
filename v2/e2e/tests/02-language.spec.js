@@ -1,7 +1,7 @@
 // Flow 2 — Sprachwechsel: UI + Basis-Rezepte wechseln sofort (ohne Reload), gespeichert bleibt
 // IMMER kanonisches Deutsch (Drive-Datei wird mit v1 und Projekt-Claude geteilt).
 import { test, expect, snapshot } from "../support/fixtures.js";
-import { openApp, menu, tab, card, idb } from "../support/app.js";
+import { openApp, menu, tab, card, idb, sheet } from "../support/app.js";
 
 test("Sprachwechsel DE → ES → DE: Oberfläche und Basis-Rezepte übersetzt, Daten bleiben deutsch", async ({ device }) => {
   const dev = await device();
@@ -34,6 +34,26 @@ test("Sprachwechsel DE → ES → DE: Oberfläche und Basis-Rezepte übersetzt, 
   // Regression v2.14.1: nach einem Besuch der Einstellungen schlug jedes Speichern fehl
   // („Speichern fehlgeschlagen“), weil deren Listener nach dem Verlassen weiterliefen.
   expect(dev.dialogs).toEqual([]);
+
+  // T3 (DG-02): „Bearbeiten“ in der spanischen Oberfläche öffnet das deutsche Original und
+  // schreibt nie die Übersetzung in die Rezeptdatei.
+  await page.locator("#search").fill(es.name);
+  await card(page, es.name).click();
+  const detail = await sheet(page);
+  await detail.locator(".edit").click();
+  const form = await sheet(page);
+  await expect(form.locator(".form-original")).toBeVisible();
+  await expect(form.locator("#f-name")).toHaveValue(de.name);
+  await expect(form.locator("#f-ing .frow input").first()).toHaveValue(de.ingredients[0]);
+  await form.locator("#f-time").fill("40 Min");
+  await form.locator(".save-btn").click();
+  await expect.poll(async () => (await idb(page, "recipes", "r01")).time).toBe("40 Min");
+  const afterEdit = await idb(page, "recipes", "r01");
+  expect(afterEdit.name).toBe(de.name);
+  expect(afterEdit.ingredients).toEqual(de.ingredients);
+  expect(afterEdit.steps).toEqual(de.steps);
+  await page.keyboard.press("Escape");
+  await page.locator("#search").fill("");
 
   // Sprache überlebt den Neustart.
   await page.reload();

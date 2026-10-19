@@ -1,5 +1,9 @@
 # Koch v2 — Architecture
 
+> Originally the build brief for v2 (June 2026). Sections 2 and 5 were refreshed for v2.15.1
+> (2026-10): they describe the code as it is. The rest is still the brief's intent; the code wins
+> where they differ. Planning: `ROADMAP.md`. Data contract: `SCHEMA.md`.
+
 ## 1. Tech stack
 
 - **No bundler / no build step.** Use native ES modules (`<script type="module">`, `import`/`export`).
@@ -28,11 +32,17 @@
     app.js                # bootstrap, router, mounts views
     router.js             # hash-based routing (offline + Pages friendly)
     /data
-      db.js               # IndexedDB wrapper (recipes, plans, lists, settings)
-      drive.js            # Google Drive auth + read/write rezepte.json
-      sync.js             # local <-> Drive reconciliation
+      db.js               # IndexedDB wrapper (recipes, plans, lists, kv); atomic kvUpdate
+      drive.js            # Google auth (GIS) + Drive REST + Picker — the only Google code
+      syncCore.js         # ONE sync engine for every Drive file: queue, single-flight, meta patches
+      syncRules.js        # pluggable merge rules: recipeSync (rezepte.json), itemMerge (einkaufsliste.json)
+      recipeMerge.js      # pure: validate inbound rezepte.json + per-recipe three-way merge
+      sync.js             # recipes: config of the engine + snapshot seeding + saveChange()
+      listSync.js         # shopping list: config of the engine + partner link/unlink
+      decideSync.js       # old file-level rule, now only used once when upgrading without a base
+      friendInbox.js      # friends link (Supabase) — its own channel, not the sync core
       schema.js           # schema constants, validation, ID generation
-      migrate.js          # v1 rezepte.json -> v2 in-memory model (additive, lossless)
+      migrate.js          # load/serialize rezepte.json (additive, lossless)
     /features
       /cookbook           # browse, search, filter, recipe detail, "zuletzt gekocht"
       /cooking-mode       # step-by-step, timers, portion scaler, wake lock
@@ -81,8 +91,14 @@
 - **Important distinction:** the "create-new-file, can't overwrite" limitation only applies to the
   Drive *MCP connector used in chat*. The **PWA using the Drive API can update the file in place**.
   Build proper in-place save (update existing file content), not create-duplicate.
-- Sync strategy: local-first. On save, write IndexedDB first (instant), then push to Drive when
-  online. Use last-write-wins with a `updatedAt` timestamp; surface conflicts simply if they occur.
+- Sync strategy (v2.15.1): local-first, and **never write without reading**. Every save is a queued
+  change on the current IndexedDB state, followed by a sync in the one engine (`syncCore.js`):
+  read Drive → validate (`recipeMerge.inspectRemote`: refuse non-objects, missing `recipes`, newer
+  format; rescue missing/duplicate ids) → three-way merge per recipe against the stored base (last
+  state agreed with Drive) → write Drive only if something changed → replace local only if
+  something changed (one backup kept). Recipes also re-sync when the app returns to the foreground
+  or comes back online. A merge that would delete many recipes asks first. The shopping list uses
+  the same engine with an item-level rule (union by id, newest `updated` wins, tombstones).
 - Google sign-in is **optional**. Without it, the app runs fully on local data; sync is just off.
 
 ## 6. BYOK (Bring Your Own Key) & premium gating

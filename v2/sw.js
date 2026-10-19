@@ -6,8 +6,11 @@
 //  - Fonts (fonts.googleapis.com / fonts.gstatic.com): cache-first zur Laufzeit,
 //    damit die Typo auch offline stimmt.
 
-const CACHE = "koch-v2.15-1";
+const CACHE = "koch-v2.15-2";
 
+// Bewusst NICHT im SHELL: add.html (Freundes-Seite des I3-Freunde-Links). Sie wird von Freunden
+// ohne App geöffnet und braucht ohnehin Netz (Supabase); wird sie hier im Scope geladen, landet sie
+// nur über den normalen Laufzeit-Cache unten im Cache (RC-01).
 const SHELL = [
   "./",
   "./index.html",
@@ -30,6 +33,7 @@ const SHELL = [
   "./src/data/decideSync.js",
   "./src/data/syncCore.js",
   "./src/data/syncRules.js",
+  "./src/data/recipeMerge.js",
   "./src/data/baseLang.js",
   "./src/ui/sheet.js",
   "./src/ui/helpers.js",

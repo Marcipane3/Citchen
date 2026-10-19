@@ -166,7 +166,9 @@ export function openDetail(id) {
   // Aktionen
   el.querySelector(".back").onclick = close;
   el.querySelector(".act-cook").onclick = () => { closeAllSheets(); navigate(`cook/${r.id}`); };
-  el.querySelector(".edit").onclick = () => { close(); openForm(r); };
+  // T3 (DG-02): bearbeitet wird immer das deutsche Original, nie die Übersetzung — sonst landet
+  // der übersetzte Text in der deutschen Drive-Datei (geteilt mit v1 + Projekt-Claude).
+  el.querySelector(".edit").onclick = () => { close(); openForm(getRecipeDe(r.id) || r); };
   el.querySelector(".cooked").onclick = async (e) => {
     const btn = e.currentTarget;
     if (btn.disabled) return;

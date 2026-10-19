@@ -74,7 +74,7 @@ KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
 ${buildCollectionContext(recipes)}
 
 REGELN:
-1. Antworte IMMER auf ${langName}, kurz und klar.
+1. Antworte IMMER auf ${langName}, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in ${langName}.
 2. Antworte mit GENAU EINEM JSON-Objekt (ohne Markdown-Zaun, ohne Text davor/danach):
    - Vorschläge: {"type":"suggestions","intro":"1 Satz","items":[{"id":"r… oder null","name":"…","reason":"1 Satz"}]} — 3 bis 5 Stück. "id" nur, wenn das Rezept WIRKLICH im Kochbuch steht (exakte id aus der Liste). Neue Ideen: id=null.
    - Vollrezept: {"type":"recipe","intro":"1 Satz","recipe":{…}} — Schema unten.

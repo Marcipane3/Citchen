@@ -45,17 +45,38 @@ test("Kanonik: was nach Drive serialisiert wird, ist DEUTSCH — nie der Overlay
   assert(wrong.includes("Sweet potato curry"), "Kontroll-Annahme falsch — Overlay übersetzt nicht");
 });
 
-test("Kanonik: store.js übergibt der Persistenz ausschließlich recipesDe (Verdrahtungs-Wächter)", () => {
+test("Kanonik: store.js persistiert nur Änderungen am kanonischen Stand, nie die Anzeige-Sicht (Verdrahtungs-Wächter)", () => {
   const here = dirname(fileURLToPath(import.meta.url));
   const src = readFileSync(join(here, "..", "src", "store.js"), "utf8");
-  const args = [...src.matchAll(/saveCollection\(\s*([^)]*?)\s*\)/g)].map((m) => m[1].trim());
-  assert(args.length > 0, "kein saveCollection-Aufruf gefunden — store.js refaktoriert?");
-  for (const a of args) {
-    assertEqual(a, "recipesDe"); // jeder Persistenz-Aufruf nutzt die deutsche Quelle
-  }
+  // v2.15.1: Persistenz = sync.saveChange(change) — die Änderung läuft auf dem deutschen IndexedDB-Stand.
+  assert(/sync\.saveChange\(change\)/.test(src), "persist() ruft nicht sync.saveChange(change) — store.js refaktoriert?");
+  assert(!/saveCollection\(/.test(src), "alter Voll-Speicherpfad (saveCollection) wieder da");
   // Die lokalisierte Anzeige-Sicht darf NIE an die Persistenz gehen.
-  assert(
-    !/saveCollection\([^)]*state\.recipes/.test(src),
-    "state.recipes (Anzeige-Sicht) wird persistiert — Kanonik verletzt!"
-  );
+  assert(!/save\w*\([^)]*state\.recipes/.test(src), "state.recipes (Anzeige-Sicht) wird persistiert — Kanonik verletzt!");
+  // Jede Mutation schreibt in recipesDe (kanonisch), nie in state.recipes.
+  assert(!/state\.recipes\s*=(?!=)/.test(src.replace(/function recomputeView\(\)[^}]*}/, "")), "state.recipes wird außerhalb von recomputeView geschrieben");
 });
+
+test("Kanonik / T3 (DG-02): „Bearbeiten“ öffnet das deutsche Original, nie die übersetzte Anzeige", () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const src = readFileSync(join(here, "..", "src", "features", "cookbook", "detail.js"), "utf8");
+  const calls = [...src.matchAll(/openForm\(([^)]*)\)/g)].map((m) => m[1].trim());
+  assert(calls.length > 0, "kein openForm-Aufruf in detail.js gefunden");
+  for (const c of calls) assert(/getRecipeDe\(/.test(c), `openForm(${c}) — bearbeitet die Anzeige-Sicht statt getRecipeDe(id)`);
+});
+
+test("Kanonik / T3: so wie das Formular speichert, bleibt der Drive-Inhalt deutsch", () => {
+  // Formular-Weg nachgestellt: Felder werden aus dem Rezept gelesen, das Formular bekommt
+  // (seit v2.15.1) das deutsche Original; ein geänderter Wert wird per Object.assign übernommen.
+  const original = DE[0];
+  const fields = { name: original.name, ingredients: original.ingredients, steps: original.steps, tips: original.tips, time: "40 Min" };
+  const saved = Object.assign({ ...original }, fields);
+  const drive = toFileString({ updated: "2026-10-19T00:00:00Z", recipes: [saved] });
+  assert(drive.includes("Süßkartoffel-Curry") && drive.includes("40 Min"), "Änderung + deutscher Inhalt");
+  assert(!drive.includes("Sweet potato"), "Übersetzung im Drive-Inhalt — Leak!");
+  // Gegenprobe: hätte das Formular die Anzeige-Sicht bekommen, stünde Englisch in der Datei.
+  const view = localizeRecipes(DE, buildLangMap(EN))[0];
+  const leaked = Object.assign({ ...original }, { name: view.name, steps: view.steps, time: "40 Min" });
+  assert(toFileString({ recipes: [leaked] }).includes("Sweet potato"), "Kontroll-Annahme falsch");
+});
+

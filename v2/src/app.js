@@ -6,7 +6,7 @@ import * as router from "./router.js";
 import * as sync from "./data/sync.js";
 import * as drive from "./data/drive.js";
 import * as friendInbox from "./data/friendInbox.js";
-import { state, onState, setRecipes, setSignedIn, applyLanguageOverlay } from "./store.js";
+import { state, onState, setRecipes, setSignedIn, applySynced, applyLanguageOverlay } from "./store.js";
 import { renderCookbook } from "./features/cookbook/cookbook.js";
 import { renderMatch } from "./features/match/match.js";
 import { renderCook } from "./features/cooking/cooking.js";
@@ -95,13 +95,20 @@ async function boot() {
   // 4. Auth lautlos, dann Hintergrund-Sync
   drive.onAuthChange(async (signedIn) => {
     setSignedIn(signedIn);
-    if (signedIn) {
-      const res = await sync.syncWithDrive();
-      if (res.changed) setRecipes(res.recipes, res.meta);
-      else if (res.meta) state.meta = res.meta;
-    }
+    if (signedIn) applySynced(await sync.syncWithDrive());
   });
   drive.initAuth({ silent: true });
+
+  // 5. T1: zurück in die App (aus dem Hintergrund) oder wieder online → Rezepte abgleichen, damit
+  //    Änderungen von Claude/v1/dem anderen Gerät da sind, bevor hier weiter bearbeitet wird.
+  let lastResume = 0;
+  const resume = async () => {
+    if (!drive.isSignedIn() || Date.now() - lastResume < 10000) return;
+    lastResume = Date.now();
+    applySynced(await sync.syncWithDrive());
+  };
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") resume(); });
+  window.addEventListener("online", resume);
 }
 
 boot();
