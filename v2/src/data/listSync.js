@@ -13,9 +13,9 @@ import * as db from "./db.js";
 import * as drive from "./drive.js";
 import { createSyncEngine } from "./syncCore.js";
 import { itemMerge } from "./syncRules.js";
-import { ensureItemMeta, countOpen } from "../features/shopping/listMerge.js";
+import { ensureItemMeta, adoptLegacy, countOpen } from "../features/shopping/listMerge.js";
 
-const META_KEY = "listMeta";           // { fileId, ownFileId, linked, dirty, lastSync }
+const META_KEY = "listMeta";           // { fileId, ownFileId, linked, dirty, lastSync, syncedFile }
 const LIST_FILE_NAME = "einkaufsliste.json";
 const LIST_DB_ID = "current";          // IndexedDB "lists" store key
 const PUSH_DELAY = 1200;               // ms — bündelt schnelle Taps (+/+/+) zu einem Drive-Schreibvorgang
@@ -34,11 +34,16 @@ const savedListeners = new Set();
 export function onSaved(fn) { savedListeners.add(fn); return () => savedListeners.delete(fn); }
 function emitSaved(items) { for (const fn of savedListeners) { try { fn(items); } catch (e) { /* egal */ } } }
 
-/** Lokale Liste aus IndexedDB; fehlende Sync-Felder werden einmalig ergänzt. */
+/**
+ * Lokale Liste aus IndexedDB; fehlende Sync-Felder werden einmalig ergänzt.
+ * T4: Ein Artikel ohne id kann hier nur noch Altbestand von Drive sein (ein früherer Abgleich hat
+ * ihn so gespeichert; die UI vergibt ids beim Speichern) → stabile id statt bei jedem Laden einer
+ * neuen Zufalls-id (die war eine Zeile mehr pro Sync, FR-01).
+ */
 async function loadLocalList() {
   const row = await db.get("lists", LIST_DB_ID);
   const raw = row && Array.isArray(row.items) ? row.items : [];
-  const items = ensureItemMeta(raw);
+  const items = ensureItemMeta(adoptLegacy(raw));
   if (items.some((it, i) => it !== raw[i])) await db.put("lists", { id: LIST_DB_ID, items, updated: new Date().toISOString() });
   return items;
 }

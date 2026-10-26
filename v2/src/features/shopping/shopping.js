@@ -8,7 +8,7 @@ import * as listSync from "../../data/listSync.js";
 import * as friendInbox from "../../data/friendInbox.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
-import { touch, newItemId, ensureItemMeta } from "./listMerge.js";
+import { touch, newItemId, ensureItemMeta, adoptLegacy } from "./listMerge.js";
 import { CATALOG, SECTION_ORDER, sectionIcon } from "../../data/catalog.js";
 import { itemKey, itemLabel, formatListAsText } from "./logic.js";
 import { friendName } from "./friendMerge.js";
@@ -31,7 +31,7 @@ let friendNoteTimer = null;
 
 async function load() {
   const row = await db.get("lists", LIST_ID);
-  ITEMS = row && Array.isArray(row.items) ? row.items : [];
+  ITEMS = row && Array.isArray(row.items) ? adoptLegacy(row.items) : []; // T4: Altbestand ohne id → stabile id
   sortMode = await db.kvGet(SORT_KEY, "aisle");
 }
 const live = () => ITEMS.filter((x) => !x.deleted);
@@ -172,7 +172,7 @@ async function paintSync(container) {
   const st = signedIn ? listSync.getStatus() : "local";
   const where = !signedIn ? t("shopping.syncLocalTitle") : meta.linked ? t("shopping.syncSharedTitle") : t("shopping.syncDriveTitle");
   const line = st === "synced" ? t("shopping.syncDone", { time: timeLabel(meta.lastSync) }) : t("shopping.syncState." + st);
-  const warn = st === "error" || st === "auth" || st === "notFound";
+  const warn = st === "error" || st === "auth" || st === "notFound" || st === "rejected";
   el.innerHTML = `
     <div class="sl-sync ${warn ? "warn" : ""}">
       <div class="sl-sync-row">
@@ -339,10 +339,10 @@ function paintList(container) {
   const rowHTML = (it, i) => {
     const hasAmount = it.amount !== null && it.amount !== undefined;
     return `<div class="sl-item ${it.done ? "done" : ""}">
-      <span class="sl-ic">${it.icon || "🛒"}</span>
+      <span class="sl-ic">${esc(it.icon || "🛒")}</span>
       <span class="sl-name" data-i="${i}">${esc(itemLabel(it))}${fromTag(it)}</span>
       <div class="sl-ctrl">
-        ${hasAmount ? "" : `<button class="sl-dec" data-i="${i}" aria-label="${t("shopping.less")}">−</button><span class="sl-qty">${it.qty}</span><button class="sl-inc" data-i="${i}" aria-label="${t("shopping.more")}">+</button>`}
+        ${hasAmount ? "" : `<button class="sl-dec" data-i="${i}" aria-label="${t("shopping.less")}">−</button><span class="sl-qty">${esc(String(it.qty))}</span><button class="sl-inc" data-i="${i}" aria-label="${t("shopping.more")}">+</button>`}
         <button class="sl-rm" data-i="${i}" aria-label="${t("common.remove")}">✕</button>
       </div>
     </div>`;
@@ -356,7 +356,7 @@ function paintList(container) {
 
   const indexed = ITEMS.map((it, i) => ({ it, i })).filter(({ it }) => !it.deleted);
   if (sortMode === "alpha") {
-    indexed.sort((a, b) => (a.it.done - b.it.done) || a.it.name.localeCompare(b.it.name));
+    indexed.sort((a, b) => (a.it.done - b.it.done) || String(a.it.name ?? "").localeCompare(String(b.it.name ?? "")));
     html += indexed.map(({ it, i }) => rowHTML(it, i)).join("");
   } else {
     const cats = [...new Set(visible.map((x) => x.cat))].sort((a, b) => {
@@ -421,8 +421,8 @@ function catItemHTML(name, cat, icon) {
   const low = name.toLowerCase();
   const inList = live().find((x) => (x.nameDe || x.name).toLowerCase() === low);
   return `<button class="cat-item" data-name="${esc(name)}" data-cat="${esc(cat)}" data-icon="${esc(icon || "🛒")}">
-    <span class="ci-ic">${icon || "🛒"}</span><span class="ci-nm">${esc(name)}</span>
-    ${inList ? `<span class="ci-badge">${inList.qty}</span>` : ""}
+    <span class="ci-ic">${esc(icon || "🛒")}</span><span class="ci-nm">${esc(name)}</span>
+    ${inList ? `<span class="ci-badge">${esc(String(inList.qty))}</span>` : ""}
   </button>`;
 }
 

@@ -209,6 +209,46 @@ mitgeschrieben — dort nichts ablegen.
 App muss dafür nicht geschlossen sein; ein ♥ in einer noch offenen App überschreibt Claudes Edit
 nicht mehr (früher: Last-Write-Wins, siehe Git-Historie dieser Datei).
 
+## Nebenbei: `einkaufsliste.json` (geteilte Einkaufsliste, seit v2.15.2 geprüft)
+
+Nicht Teil des Rezept-Vertrags, aber dieselbe Drive-Logik: die Einkaufsliste liegt als eigene
+Datei `einkaufsliste.json` im Drive der Person, die sie angelegt hat; ein Partner schreibt über die
+Google-Freigabe in **dieselbe** Datei. Claude muss sie normalerweise nicht anfassen. Wer es tut
+(Claude, ein Skript, von Hand), hält sich an dieses Format:
+
+```jsonc
+{
+  "version": 1,                              // > 1 → die App lehnt die Datei ab
+  "updated": "2026-10-19T10:00:00.000Z",
+  "prunedBefore": "2026-09-19T10:00:00.000Z",  // optional, setzt die App (s. u.)
+  "items": [
+    { "id": "li-mg3x7k-a1b2c3",              // Pflicht, eindeutig, nie wiederverwenden
+      "name": "Hafermilch",                  // Pflicht (Text, ≤ 200 Zeichen)
+      "nameDe": "Hafermilch",                // optional: deutscher Schlüssel, wenn `name` übersetzt ist
+      "qty": 1, "amount": null, "unit": null, // Menge: `amount` + `unit` ODER `qty`
+      "cat": "Milch & Eier", "icon": "🥛",   // Gang (≤ 80 Zeichen) + EIN Emoji (≤ 16 Zeichen)
+      "done": false, "deleted": false,       // gelöscht = Tombstone, NICHT aus der Liste entfernen
+      "updated": "2026-10-19T10:00:00.000Z", // bei JEDER Änderung neu stempeln — neuester gewinnt
+      "author": "local" }
+  ]
+}
+```
+
+- **Zusammenführen:** pro Artikel-`id`; der Artikel mit dem späteren `updated` gewinnt. Löschen =
+  `deleted: true` + neues `updated` (sonst taucht der Artikel beim nächsten Abgleich wieder auf).
+- **Aufräumen:** Tombstones älter als 30 Tage entfernt die App und trägt die Grenze als
+  `prunedBefore` ein. Ein Gerät, das diese Datei schon kennt, verwirft danach lokale Artikel, die in
+  der Datei fehlen und älter als `prunedBefore` sind (sie waren gelöscht) — so holt ein Gerät nach
+  langer Offline-Zeit nichts Gelöschtes zurück.
+- **Abgelehnt** (Sync-Karte: „unbekanntes Format — lokale Liste behalten, nichts überschrieben“;
+  die App schreibt nicht, bis die Datei wieder passt): kein JSON-Objekt, kaputtes JSON, kein
+  `items`-Array, `version` > 1.
+- **Repariert** (und einmal zurückgeschrieben): falsche Feldtypen werden korrigiert (z. B. `qty` als
+  Text → 1, `icon` mit HTML/zu lang → entfernt), offene Artikel ohne Namen fallen weg. Artikel
+  **ohne `id`** (Altbestand vor v2.11) bekommen eine feste id aus Name + Einheit (`li-x-…`);
+  die Kopien, die ältere Versionen davon angelegt haben, werden zu einer Zeile zusammengefasst.
+- Alles aus der Datei wird in der App nur als **Text** angezeigt (nie als HTML).
+
 ### Worked Example — bestehendes Rezept anpassen (Feedback einarbeiten)
 
 ```jsonc
