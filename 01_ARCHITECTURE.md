@@ -13,8 +13,9 @@
 - **CSS**: plain CSS with custom properties (design tokens) for theming (light/dark). No CSS framework.
 - **Storage**: IndexedDB for the recipe store, plans, lists, and settings. `localStorage` only for
   tiny flags (e.g., theme). The API key is stored locally (see §6).
-- **Offline**: a Service Worker with a cache-first strategy for the app shell and a stale-while-
-  revalidate strategy for recipe data.
+- **Offline**: a Service Worker with a cache-first strategy for the app shell (served only from
+  the active worker's own cache; a new build arrives as a whole with the next worker, so every
+  release bumps `CACHE`) and network-first for `index.html`.
 - **Sync**: Google Drive via the Drive REST/JS API, `drive.file` OAuth scope.
 - **Hosting**: GitHub Pages, served from the **`/v2`** path. v1 stays at the repo root.
 
@@ -135,5 +136,5 @@ List anything ambiguous at the Phase 0 checkpoint rather than dropping it.
 
 - Installable: valid `manifest.webmanifest` (name, icons, theme color, `start_url` scoped to `/v2`,
   `display: standalone`).
-- Service worker caches the app shell for offline launch; recipe data served stale-while-revalidate.
+- Service worker caches the app shell for offline launch; updates arrive atomically with the next worker (v2.15c).
 - Works when fully offline: launch, browse, cook, plan, build a shopping list — all without network.

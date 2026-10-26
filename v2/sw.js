@@ -1,12 +1,24 @@
 // sw.js — Service Worker für /v2.
 // Strategie (v1-bewährt + 01_ARCHITECTURE):
 //  - index.html: NETWORK-FIRST (neue Builds "kleben" nicht), Cache als Offline-Fallback.
-//  - Statische Assets (Styles, Module, Icons, Snapshot): CACHE-FIRST mit Hintergrund-Update.
+//  - Statische Assets (Styles, Module, Icons, Snapshot): CACHE-FIRST aus dem EIGENEN Cache.
 //  - Google-Auth/Drive (accounts.google.com, www.googleapis.com): NIE cachen.
 //  - Fonts (fonts.googleapis.com / fonts.gstatic.com): cache-first zur Laufzeit,
 //    damit die Typo auch offline stimmt.
+//
+// Ein Build = ein Worker = ein Cache (v2.15c). Neue Module kommen NUR als Ganzes mit dem neuen
+// Worker (addAll beim install, dann skipWaiting + Aktivierung) — deshalb muss jeder Release CACHE
+// ändern. Bis v2.15b hat der laufende Worker Assets zusätzlich im Hintergrund nachgeladen und
+// Stück für Stück in seinen Cache gelegt („stale-while-revalidate“). Das hatte drei Folgen:
+//  1. gemischter Modul-Graph: lädt ein Teil nicht nach (Funkloch) oder öffnet man die App, bevor
+//     alles da ist, laufen neue Module neben alten (fehlender Export = leere App);
+//  2. das Schreiben lief außerhalb der Event-Lebenszeit und konnte NACH der Aktivierung des neuen
+//     Workers ankommen — caches.open() legte den gerade gelöschten alten Cache wieder an;
+//  3. gelesen wurde über ALLE Caches (caches.match ohne cacheName), also auch aus so einem
+//     Überbleibsel.
+// Jetzt: lesen nur aus CACHE, schreiben nur solange CACHE existiert und innerhalb des Events.
 
-const CACHE = "koch-v2.15b-1";
+const CACHE = "koch-v2.15c-1";
 
 // Bewusst NICHT im SHELL: add.html (Freundes-Seite des I3-Freunde-Links). Sie wird von Freunden
 // ohne App geöffnet und braucht ohnehin Netz (Supabase); wird sie hier im Scope geladen, landet sie
@@ -84,13 +96,34 @@ self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 
+// Bei der Aktivierung gelöschte Caches der Vorgänger. Ein Worker bis v2.15b kann seinen noch kurz
+// danach wieder anlegen (s. o., 2.) — beim nächsten Öffnen wird er erneut entfernt. Nur diese
+// Namen, nie „alles außer CACHE“: sonst träfe es den Cache eines gerade installierenden Nachfolgers.
+let retired = [];
+
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => { retired = keys.filter((k) => k !== CACHE); return Promise.all(retired.map((k) => caches.delete(k))); })
       .then(() => self.clients.claim())
   );
 });
+
+/** Nur aus dem eigenen Cache — nie aus dem eines anderen Builds. */
+const fromCache = (req) => caches.match(req, { cacheName: CACHE });
+
+/** In den eigenen Cache legen — aber nur, solange es ihn gibt: ein abgelöster Worker legt den
+ *  Cache, den sein Nachfolger gerade gelöscht hat, nicht wieder an. */
+const store = (req, res) =>
+  caches.has(CACHE).then((ok) => ok && caches.open(CACHE).then((c) => c.put(req, res))).catch(() => {});
+
+/** Aus dem Netz holen und ablegen — innerhalb der Lebenszeit des Events (waitUntil), damit der
+ *  Browser einen Nachfolger erst aktiviert, wenn das Schreiben durch ist. */
+const fetchAndStore = (e, req, keep = (res) => res.ok) =>
+  fetch(req).then((res) => {
+    if (keep(res)) e.waitUntil(store(req, res.clone()));
+    return res;
+  });
 
 self.addEventListener("fetch", (e) => {
   const req = e.request;
@@ -103,15 +136,9 @@ self.addEventListener("fetch", (e) => {
     if (url.hostname !== "fonts.googleapis.com") return;
   }
 
-  // Fonts: cache-first (offline-Typo)
+  // Fonts: cache-first (offline-Typo); auch opake Antworten (Stylesheet ohne CORS) ablegen.
   if (url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com") {
-    e.respondWith(
-      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
-        return res;
-      }))
-    );
+    e.respondWith(fromCache(req).then((hit) => hit || fetchAndStore(e, req, (res) => res.ok || res.type === "opaque")));
     return;
   }
 
@@ -121,29 +148,17 @@ self.addEventListener("fetch", (e) => {
   const isHTML = req.mode === "navigate" || url.pathname.endsWith("/") || url.pathname.endsWith("index.html");
 
   if (isHTML) {
+    // Überbleibsel alter Caches wegräumen — nicht während ein Update installiert.
+    if (retired.length && !self.registration.installing && !self.registration.waiting) {
+      e.waitUntil(Promise.all(retired.map((k) => caches.delete(k))).catch(() => {}));
+    }
     // Network-first: immer den neuesten Build holen, Cache nur offline.
     e.respondWith(
-      fetch(req).then((res) => {
-        if (res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
-        }
-        return res;
-      }).catch(() => caches.match(req).then((r) => r || caches.match("./index.html")))
+      fetchAndStore(e, req).catch(() => fromCache(req).then((r) => r || fromCache("./index.html")))
     );
   } else {
-    // Assets: cache-first, im Hintergrund aktualisieren (stale-while-revalidate light).
-    e.respondWith(
-      caches.match(req).then((hit) => {
-        const refresh = fetch(req).then((res) => {
-          if (res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
-          }
-          return res;
-        }).catch(() => hit);
-        return hit || refresh;
-      })
-    );
+    // Assets: cache-first aus dem eigenen Cache. Neue Versionen bringt allein der nächste Worker
+    // (s. o.); nicht Vorgecachtes (z. B. add.html-Ressourcen) wird beim ersten Abruf abgelegt.
+    e.respondWith(fromCache(req).then((hit) => hit || fetchAndStore(e, req)));
   }
 });

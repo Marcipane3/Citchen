@@ -6,7 +6,7 @@
 > v3.0 → see **[ROADMAP-V3.md](ROADMAP-V3.md)**. What to do next → **[ROADMAP.md](ROADMAP.md)**.
 >
 > Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-10-26** (QA fleet findings of
-> 2026-10-12 placed as Epic T; v2.16b merged, v2.15b built) · Current build: **v2.15b** (`/v2`, 334 unit tests + 40
+> 2026-10-12 placed as Epic T; v2.16b merged, v2.15b built, v2.15c update fix) · Current build: **v2.15c** (`/v2`, 334 unit tests + 41
 > end-to-end tests in `v2/e2e/` + the Supabase test run `supabase/tests/run.sh`; v2.16b merged with PR #14 on 2026-10-26).
 
 ---
@@ -264,6 +264,7 @@ Full detail lives in the git history, the in-app changelog (`v2/src/version.js`)
 | v2.15.3 (2026-10-26) | Epic T5 · T6 (+ their T8 tests): one "same item?" rule (recipe, tile, free text, friends, partner sync → one row per item, other units in the same row), tile badge shows that row, Lager beats 🛒, two-in-one lines split, double-tap guard, atomic list writes (AR-10) — closes the FR-01 duplicates |
 | v2.16b (2026-10-26) | T9 shopping list clarity: origin on every row, "new since your last visit", undo snackbar for every list action, result sheet instead of `confirm()`, tile stays under the finger, ✕ away from + |
 | v2.15b (2026-10-26) | P7 backend hardening: schema rebuild proven by a local test run, AR-12 abuse brakes on `fl_create`, DG-12 atomic friend import, keep-alive, dev/prod switch, ADR D9 (Free + keep-alive now, Pro with V3 accounts) |
+| v2.15c (2026-10-26) | Atomic app updates: the service worker reads only its own cache and no longer refreshes assets piecemeal in the background (could mix old and new modules, and re-created the old cache after the update — e2e 10 flaked under load); stray old caches swept on the next open; e2e 10 also runs the update from the current worker |
 
 **Architecture decisions worth remembering** (details in the linked files):
 - Sharing models (Epic I): couples = shared Drive file + Google Picker, no backend; friends without

@@ -153,4 +153,14 @@ export async function waitForServiceWorker(page, cache) {
   await expect.poll(() => page.evaluate((c) => caches.keys().then((k) => k.includes(c)), cache)).toBe(true);
 }
 
+/** Warten, bis der Browser ein Update im Hintergrund fertig eingespielt hat: kein Worker mehr in
+ *  install/wartend, der aktive ist aktiviert und `cache` (die Shell des neuen Builds) existiert.
+ *  Das ist die Zeit, die zwischen zwei echten App-Starts vergeht. */
+export async function waitForUpdateApplied(page, cache, timeout = 30_000) {
+  await expect.poll(() => page.evaluate(async (c) => {
+    const r = await navigator.serviceWorker.getRegistration();
+    return !!r && !r.installing && !r.waiting && r.active?.state === "activated" && (await caches.keys()).includes(c);
+  }, cache), { timeout }).toBe(true);
+}
+
 export function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
