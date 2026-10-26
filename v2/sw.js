@@ -6,7 +6,7 @@
 //  - Fonts (fonts.googleapis.com / fonts.gstatic.com): cache-first zur Laufzeit,
 //    damit die Typo auch offline stimmt.
 //
-// Ein Build = ein Worker = ein Cache (v2.15c). Neue Module kommen NUR als Ganzes mit dem neuen
+// Ein Build = ein Worker = ein Cache (v2.16.1). Neue Module kommen NUR als Ganzes mit dem neuen
 // Worker (addAll beim install, dann skipWaiting + Aktivierung) — deshalb muss jeder Release CACHE
 // ändern. Bis v2.15b hat der laufende Worker Assets zusätzlich im Hintergrund nachgeladen und
 // Stück für Stück in seinen Cache gelegt („stale-while-revalidate“). Das hatte drei Folgen:
@@ -18,7 +18,7 @@
 //     Überbleibsel.
 // Jetzt: lesen nur aus CACHE, schreiben nur solange CACHE existiert und innerhalb des Events.
 
-const CACHE = "koch-v2.15c-1";
+const CACHE = "koch-v2.16.1-1";
 
 // Bewusst NICHT im SHELL: add.html (Freundes-Seite des I3-Freunde-Links). Sie wird von Freunden
 // ohne App geöffnet und braucht ohnehin Netz (Supabase); wird sie hier im Scope geladen, landet sie
@@ -77,6 +77,8 @@ const SHELL = [
   "./src/ai/client.js",
   "./src/ai/prompts.js",
   "./src/ai/parse.js",
+  "./src/ai/models.js",
+  "./src/ai/usage.js",
   "./src/flags.js",
   "./src/i18n.js",
   "./src/features/capture/capture.js",
@@ -96,7 +98,7 @@ self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 
-// Bei der Aktivierung gelöschte Caches der Vorgänger. Ein Worker bis v2.15b kann seinen noch kurz
+// Bei der Aktivierung gelöschte Caches der Vorgänger. Ein Worker bis v2.16 kann seinen noch kurz
 // danach wieder anlegen (s. o., 2.) — beim nächsten Öffnen wird er erneut entfernt. Nur diese
 // Namen, nie „alles außer CACHE“: sonst träfe es den Cache eines gerade installierenden Nachfolgers.
 let retired = [];

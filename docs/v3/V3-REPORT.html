@@ -297,7 +297,7 @@ dl.gl dt { font-weight: 700; } dl.gl dd { margin: 0; color: var(--ink-2); }
           <tr><td>Testing</td><td>206 unit tests in Node; no browser tests</td><td>Store builds and real users need the 10 core flows tested in a real browser.</td></tr>
           <tr><td>Offline file list</td><td>Hand-kept list of every module in <code>sw.js</code> (guarded by a test)</td><td>A small generator script removes the chore entirely.</td></tr>
           <tr><td>Partner sharing</td><td>Built and simulated; real two-account test pending</td><td>Needs your Google Cloud setup (test user, Picker API key).</td></tr>
-          <tr><td>AI models</td><td>Chat on Haiku 4.5; photo and URL capture on <code>claude-sonnet-4-6</code></td><td>Sonnet 5.5 is newer and cheaper ($2/$10 vs $3/$15 per million tokens). Worth switching after a quick quality check.</td></tr>
+          <tr><td>AI models</td><td>Chat on Haiku 4.5; photo and URL capture on <code>claude-sonnet-5-5</code> since v2.16 (all IDs in one config)</td><td>Switched from <code>claude-sonnet-4-6</code> in v2.16 ($2/$10 vs $3/$15 per million tokens); the 10-sample quality check is open. Haiku 5.5 for chat is proposed (V2 Q5).</td></tr>
           <tr><td>Versions</td><td>v1 still live at the repo root, v2 at <code>/v2</code>, same origin</td><td>They share browser storage. A V3 must not collide with them, and v1 should retire.</td></tr>
           <tr><td>Distribution</td><td>Install from the browser only</td><td>No store presence, so nobody finds it without a link.</td></tr>
         </tbody>
@@ -534,7 +534,7 @@ dl.gl dt { font-weight: 700; } dl.gl dd { margin: 0; color: var(--ink-2); }
       </table></div>
 
       <h3>AI cost per action (estimates)</h3>
-      <p>Current list prices: Haiku 4.5 at $1 input and $5 output per million tokens; Sonnet 5.5 at $2 and $10. Token counts below are estimates for this app's prompts, not measurements. Check C-10 replaces them with real numbers from the API responses.</p>
+      <p>Current list prices: Haiku 4.5 at $1 input and $5 output per million tokens; Sonnet 5.5 at $2 and $10. Token counts below are estimates for this app's prompts, not measurements. Check C-10 replaces them with real numbers from the API responses: since v2.16 the app logs them per action (Settings → KI → „Verbrauch“); this table is updated once a few weeks of real use are in.</p>
       <div class="tbl"><table>
         <thead><tr><th>Action</th><th>Model</th><th class="n">Input tok.</th><th class="n">Output tok.</th><th class="n">Cost</th></tr></thead>
         <tbody>

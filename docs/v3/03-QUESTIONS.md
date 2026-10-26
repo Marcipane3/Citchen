@@ -126,10 +126,11 @@ No answers needed from Marcel here. Changes since 2026-10-01 are marked.
 ### AI and cost
 
 - [ ] **C-9.** Model IDs current; `claude-sonnet-4-6` → `claude-sonnet-5-5` for capture; re-run a
-      capture eval on 10 real photos/URLs.
+      capture eval on 10 real photos/URLs. *(v2.16: config + switch built; the 10-sample check is Marcel's.)*
 - [ ] **C-10.** Measure real token usage per action from `response.usage`; replace the estimates
       in the report. Also the data source for the later spend display (US-12, v3.x).
-- [ ] **C-11.** Prompt caching on the assistant system prompt.
+      *(v2.16: measuring built — Settings → KI → „Verbrauch“; replacing the estimates waits for ~2 weeks of real use.)*
+- [x] **C-11.** Prompt caching on the assistant system prompt. *(v2.16; hits on Haiku 4.5 only from 4,096 tokens — see V2 Q5.)*
 - [ ] **C-12.** *(deferred to v3.5/v4)* Proxy design for a shared key. Only requirement now: all
       model calls stay behind `ai/client.js`.
 - [ ] **C-24.** *(deferred to v3.x)* AI spend display: price table in one config, monthly counter,

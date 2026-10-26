@@ -136,5 +136,5 @@ List anything ambiguous at the Phase 0 checkpoint rather than dropping it.
 
 - Installable: valid `manifest.webmanifest` (name, icons, theme color, `start_url` scoped to `/v2`,
   `display: standalone`).
-- Service worker caches the app shell for offline launch; updates arrive atomically with the next worker (v2.15c).
+- Service worker caches the app shell for offline launch; updates arrive atomically with the next worker (v2.16.1).
 - Works when fully offline: launch, browse, cook, plan, build a shopping list — all without network.

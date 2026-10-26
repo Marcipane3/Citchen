@@ -3,11 +3,11 @@
 // ausschließlich Richtung api.anthropic.com (client.js).
 // gate.isPremium() = Schlüssel vorhanden → KI-Features sichtbar.
 
-export const MODELS = Object.freeze([
-  { id: "claude-haiku-4-5", label: "Haiku 4.5 — schnell & günstig (Standard)", tier: "haiku" },
-  { id: "claude-sonnet-4-6", label: "Sonnet 4.6 — stärker, teurer", tier: "sonnet" },
-]);
-export const DEFAULT_MODEL = "claude-haiku-4-5";
+import { CHAT_MODELS, DEFAULT_CHAT_MODEL } from "./models.js";
+
+// Modell-IDs stehen seit v2.16 (Q1) nur noch in models.js.
+export const MODELS = CHAT_MODELS;
+export const DEFAULT_MODEL = DEFAULT_CHAT_MODEL;
 
 const KEY_KEY = "kochv2_apikey";
 const MODEL_KEY = "kochv2_model";

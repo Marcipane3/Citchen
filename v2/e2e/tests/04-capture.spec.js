@@ -1,7 +1,12 @@
 // Flow 4 — Erfassung mit Review: URL → (Fake-)KI → Entwurf im Formular prüfen → speichern.
 // Nie wird etwas ungeprüft gespeichert; ohne Key bleibt die KI ehrlich gesperrt.
 import { test, expect } from "../support/fixtures.js";
-import { openApp, menu, sheet, fillForm, idb } from "../support/app.js";
+import { openApp, menu, tab, sheet, fillForm, idb } from "../support/app.js";
+// Wire-Werte aus v2/src/ai/models.js (Playwright lädt src/ nicht als ES-Modul; test-ai-usage.js
+// bindet dieselben Werte an die Konfiguration).
+const CAPTURE_MODEL = "claude-sonnet-5-5";
+const CHAT_DEFAULT = "claude-haiku-4-5";
+const FALLBACK_BETA = "server-side-fallback-2026-07-01";
 
 const KEY = "sk-ant-e2e-not-a-real-key";
 const DRAFT = {
@@ -63,6 +68,11 @@ test("URL-Import: KI-Entwurf wird geprüft, korrigiert und als neues Rezept gesp
   expect(req.headers["anthropic-dangerous-direct-browser-access"]).toBe("true");
   expect(req.body.tools.map((t) => t.name)).toEqual(["web_fetch"]);
   expect(JSON.stringify(req.body.messages)).toContain("https://example.com/rezept/shakshuka");
+  // v2.16 (Q1): Erfassung = feste Aufgabe aus ai/models.js (Sonnet 5.5, wenig Denkaufwand, Fallback).
+  expect(req.body.model).toBe(CAPTURE_MODEL);
+  expect(req.body.output_config).toEqual({ effort: "low" });
+  expect(req.body.fallbacks).toBe("default");
+  expect(req.headers["anthropic-beta"]).toBe(FALLBACK_BETA);
 
   // Prüfen + korrigieren, dann speichern → Detail des neuen Rezepts.
   await fillForm(form, { name: "Shakshuka (E2E)" });
@@ -111,4 +121,41 @@ test("Mehrere auf einmal: Auswahl prüfen, nur Angehakte werden gespeichert", as
   const names = (await idb(page, "recipes")).map((r) => r.name);
   expect(names).toContain("Linsen-Dal");
   expect(names).not.toContain(DRAFT.name);
+});
+
+test("v2.16: Assistent cached den System-Prompt; Einstellungen zeigen den echten Verbrauch pro Aktion", async ({ page, ai }) => {
+  await openApp(page);
+  await saveKey(page);
+  await expect(page.locator("#usage-box")).toContainText("Noch keine KI-Aufrufe");
+
+  // Q2: zwei Chat-Runden — jedes Mal derselbe System-Prompt als Block mit cache_control.
+  await tab(page, "assistant");
+  for (const [i, q] of ["Was koche ich heute?", "Und morgen?"].entries()) {
+    ai.reply(JSON.stringify({ type: "text", text: `Linsen-Dal ${i + 1}!` }));
+    await page.locator("#ai-input").fill(q);
+    await page.locator("#ai-send").click();
+    await expect(page.locator(".ai-msg.ai")).toHaveCount(i + 1); // erst die Antwort, dann die nächste Frage
+    await expect(page.locator(".ai-msg.ai").last()).toContainText(`Linsen-Dal ${i + 1}!`);
+  }
+  expect(ai.requests).toHaveLength(2);
+  const [a, b] = ai.requests.map((r) => r.body);
+  expect(a.model).toBe(CHAT_DEFAULT);
+  expect(a.system).toHaveLength(1);
+  expect(a.system[0].cache_control).toEqual({ type: "ephemeral" });
+  expect(a.system[0].text).toContain("KOCHBUCH");
+  expect(b.system).toEqual(a.system); // Byte-gleich → Cache-Treffer möglich
+  expect(a.output_config).toBeUndefined(); // Haiku 4.5 kennt kein effort
+  expect(ai.requests[0].headers["anthropic-beta"]).toBeUndefined();
+
+  // Q3: Fake-API meldet je 10/10 Tokens → 1 Zeile „Assistent“, 2 Aufrufe.
+  await menu(page, "settings");
+  const rows = page.locator("#usage-box tbody tr");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("Assistent");
+  await expect(rows.first().locator("td").nth(1)).toHaveText("2");
+  await expect(rows.first().locator("td").nth(2)).toHaveText("10 / 10");
+  await expect(page.locator("#usage-box tfoot")).toContainText("Summe");
+
+  await page.locator("#usage-clear").click();
+  await expect(page.locator("#usage-box")).toContainText("Noch keine KI-Aufrufe");
 });

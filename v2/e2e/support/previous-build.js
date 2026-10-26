@@ -20,7 +20,7 @@ export function buildOf(dir) { return BUILD_RE.exec(readFileSync(join(dir, "v2/s
 export function cacheOf(dir) { return CACHE_RE.exec(readFileSync(join(dir, "v2/sw.js"), "utf8"))[1]; }
 
 /** Liest der Worker nur aus seinem eigenen Cache und legt einen gelöschten nicht wieder an (ab
- *  v2.15c)? Ältere Worker können ihren Cache nach der Aktivierung des Nachfolgers neu anlegen. */
+ *  v2.16.1)? Ältere Worker können ihren Cache nach der Aktivierung des Nachfolgers neu anlegen. */
 export function atomicWorker(dir) { return /cacheName:\s*CACHE/.test(readFileSync(join(dir, "v2/sw.js"), "utf8")); }
 
 const git = (...args) => execFileSync("git", ["-C", REPO_ROOT, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });

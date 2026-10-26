@@ -46,7 +46,7 @@ for (const from of ["vorigen Build", "aktuellen Worker"]) {
       //    Das erste Öffnen läuft noch über den alten Worker (alter Build) und stößt das Update an:
       //    der neue Worker lädt die ganze Shell (addAll) und übernimmt. Zwischen zwei echten Starts
       //    vergeht diese Zeit; früher hat der Test stattdessen im 2-s-Takt neu geladen und damit nur
-      //    das stückweise Nachladen des alten Workers gemessen (bis v2.15b, s. sw.js).
+      //    das stückweise Nachladen des alten Workers gemessen (bis v2.16, s. sw.js).
       await tab(page, "cookbook");
       let opens = 1;
       await page.reload();
@@ -59,9 +59,9 @@ for (const from of ["vorigen Build", "aktuellen Worker"]) {
       await expect(buildLine, "neuer Build braucht zu viele Neustarts").toHaveText(`Build ${CURRENT_BUILD}`);
       testInfo.annotations.push({ type: "opens until new build", description: String(opens) });
 
-      // Alter Cache ist weg, der neue Worker steuert. Ein Worker bis v2.15b kann seinen Cache noch
+      // Alter Cache ist weg, der neue Worker steuert. Ein Worker bis v2.16 kann seinen Cache noch
       // kurz NACH der Aktivierung des neuen wieder anlegen (Hintergrund-Update außerhalb der Event-
-      // Lebenszeit) — der neue liest nie daraus und räumt ihn beim nächsten Öffnen weg. Ab v2.15c
+      // Lebenszeit) — der neue liest nie daraus und räumt ihn beim nächsten Öffnen weg. Ab v2.16.1
       // passiert das nicht mehr: dann muss er sofort und ohne weiteres Öffnen weg sein.
       await waitForServiceWorker(page, CACHE);
       if (prev.atomic) {

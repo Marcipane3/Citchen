@@ -198,6 +198,7 @@ export function renderPlanner(container) {
         const { text } = await complete({
           system: buildSystemPrompt({ recipes: state.recipes, staples }),
           messages: [{ role: "user", content: planUserPrompt({ wish, plan: PLAN, lockedDays }) }],
+          action: "planner",
         });
         const parsed = coercePlanDays(extractJson(text), new Set(state.recipes.map((r) => r.id)));
         if (!parsed) { alert(t("planner.aiBad")); return; }

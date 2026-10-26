@@ -6,8 +6,8 @@
 > v3.0 → see **[ROADMAP-V3.md](ROADMAP-V3.md)**. What to do next → **[ROADMAP.md](ROADMAP.md)**.
 >
 > Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-10-26** (QA fleet findings of
-> 2026-10-12 placed as Epic T; v2.16b merged, v2.15b built, v2.15c update fix) · Current build: **v2.15c** (`/v2`, 334 unit tests + 41
-> end-to-end tests in `v2/e2e/` + the Supabase test run `supabase/tests/run.sh`; v2.16b merged with PR #14 on 2026-10-26).
+> 2026-10-12 placed as Epic T; v2.15b merged, v2.16 built, v2.16.1 update fix) · Current build: **v2.16.1** (`/v2`, 348 unit tests + 42
+> end-to-end tests in `v2/e2e/` + the Supabase test run `supabase/tests/run.sh`; v2.15b merged with PR #15 on 2026-10-26).
 
 ---
 
@@ -44,9 +44,9 @@ V3 slices in Q1 2027 if time is short (risk R19).
 | **v2.15.2** | 🔴 Hotfix: shopping list data safety (FR-01 root cause) | T4 · T7 · T10 + their T8 tests | Oct | ✅ merged 26 Oct (PR #12) | — |
 | **v2.15.3** | Shopping list: one identity rule + Lager beats 🛒 (FR-01 duplicates) | T5 · T6 + their T8 tests | Oct/Nov | ✅ merged 26 Oct (PR #13) | ✅ Marcel: T5 yes, T6 yes (26 Oct) |
 | **v2.16b** | Shopping list clarity | T9 | Nov | ✅ merged 26 Oct (PR #14) | — |
-| **v2.15b** | Backend hardening | P7 (migrations in repo, advisor check, pause/backup plan) | Nov | ✅ built 26 Oct · deploy = merge **+ Marcel applies the migration on prod** | D10 only for V3's final scope |
+| **v2.15b** | Backend hardening | P7 (migrations in repo, advisor check, pause/backup plan) | Nov | ✅ merged 26 Oct (PR #15) · ✅ migration applied on prod + advisors clean (18 expected warnings), 26 Oct | D10 only for V3's final scope |
 | — (Marcel) | ★ Sharing proof | P3 two-account test, P4 live friend test | Oct | open since v2.11 | Picker key + partner as test user |
-| **v2.16** | AI housekeeping | Q1 Sonnet 5.5 capture + model config · Q2 prompt caching · Q3 token measurement | early Nov | planned | — |
+| **v2.16** | AI housekeeping | Q1 Sonnet 5.5 capture + model config · Q2 prompt caching · Q3 token measurement | early Nov | ✅ built 26 Oct (pulled forward) · deploy = merge **+ Marcel's capture check on 10 real photos/URLs** | — |
 | **v2.17** | Find recipes faster | F4 (all of a–f, incl. ingredient search) | mid Nov | planned | G7 ✅ answered |
 | **v2.18** | Recipe export / import | G2 | late Nov | planned | — |
 | — (no release) | ★ Data-model spike | R1 ingredient model + unit spec + format-4 design (shared with P6, P7, D10) | Nov, before format 4 is frozen | proposed | — |
@@ -149,9 +149,10 @@ Risk: this is the biggest data change before V3. Cut order if time runs out: R5 
 
 | # | Item | Detail & acceptance | Pri | Eff | Target |
 |---|------|---------------------|-----|-----|--------|
-| Q1 | **Capture on Sonnet 5.5 + model IDs in one config** (C-9, risk R9) | Capture still runs on `claude-sonnet-4-6`. Move all model IDs to one config; switch capture to `claude-sonnet-5-5`; re-run a capture check on 10 real photos/URLs. | P1 | S | v2.16 |
-| Q2 | **Prompt caching** (C-11) | Cache the assistant system prompt (profile + stock + recipe list) to cut cost per chat turn. | P2 | S | v2.16 |
-| Q3 | **Measure real token usage** (C-10) | Log `response.usage` per action locally; replace the estimates in the V3 report. Also the data source for the v3.x spend display. | P2 | S | v2.16 |
+| Q1 | ◐ **Capture on Sonnet 5.5 + model IDs in one config** (C-9, risk R9) — *built in v2.16: every model ID and price lives in `v2/src/ai/models.js` (a unit test fails if an ID appears anywhere else in `src/`); photo/URL capture and the fridge scan run as fixed tasks on `claude-sonnet-5-5` at effort `low`, 8,000/4,000 max tokens (thinking counts toward the limit), server-side refusal fallback on, `refusal` answers shown as such. Left: **Marcel's capture check on 10 real photos/URLs** with his key.* | Capture still runs on `claude-sonnet-4-6`. Move all model IDs to one config; switch capture to `claude-sonnet-5-5`; re-run a capture check on 10 real photos/URLs. | P1 | S | v2.16 |
+| Q2 | ✅ **Prompt caching** (C-11) — *v2.16: the assistant sends its system prompt as one block with `cache_control`; byte-identical between turns (e2e 04). On Haiku 4.5 the API only caches from 4,096 tokens, i.e. a cookbook of roughly 60+ recipes — the usage view shows whether it hits ("from cache").* | Cache the assistant system prompt (profile + stock + recipe list) to cut cost per chat turn. | P2 | S | v2.16 |
+| Q3 | ◐ **Measure real token usage** (C-10) — *built in v2.16: `v2/src/ai/usage.js` logs `response.usage` (incl. cache and web-fetch counts, summed over `pause_turn` rounds) per action on the device, numbers only, last 500 calls; Settings → KI → „Verbrauch (dieses Gerät)“ shows per action calls, Ø tokens in/out, cache share and ≈ US$, with „Als JSON kopieren“. Left: after ~2 weeks of use Marcel copies the JSON to Claude, who replaces the estimates in V3 report chapter 07.* | Log `response.usage` per action locally; replace the estimates in the V3 report. Also the data source for the v3.x spend display. | P2 | S | v2.16 |
+| Q5 | *(proposed, decision: Marcel)* **Chat on the 5.5 generation** | Found while building Q1–Q2: Haiku 5.5 costs $0.10/$0.50 per million tokens vs $1/$5 for Haiku 4.5 (the chat default) and caches from 512 tokens instead of 4,096, so Q2 would hit for every cookbook size. Sonnet 5.5 ($2/$10) would replace Sonnet 4.6 ($3/$15) as the stronger option. Needs an explicit effort level per model and a short quality check of assistant answers. **Done:** both options in `models.js`, assistant answers checked on 10 real questions. | P2 | S | v2.17 or v2.20 |
 | **Q4** | **Editable assistant instructions** (A11 = b) | Settings screen where the user edits the assistant's instructions; variables (e.g. `{profile}`, `{stock}`, `{recipes}`, `{language}`) are filled in at send time. "Reset to default" button; default text shipped with the app; guard against removing the variables silently. **Done:** edited instructions persist and change assistant behaviour; reset restores default. | P1 | M | v2.20 |
 
 ### Epic F — Discovery *(Marcel's main pain: "finding recipes is the hardest part")*
@@ -264,7 +265,8 @@ Full detail lives in the git history, the in-app changelog (`v2/src/version.js`)
 | v2.15.3 (2026-10-26) | Epic T5 · T6 (+ their T8 tests): one "same item?" rule (recipe, tile, free text, friends, partner sync → one row per item, other units in the same row), tile badge shows that row, Lager beats 🛒, two-in-one lines split, double-tap guard, atomic list writes (AR-10) — closes the FR-01 duplicates |
 | v2.16b (2026-10-26) | T9 shopping list clarity: origin on every row, "new since your last visit", undo snackbar for every list action, result sheet instead of `confirm()`, tile stays under the finger, ✕ away from + |
 | v2.15b (2026-10-26) | P7 backend hardening: schema rebuild proven by a local test run, AR-12 abuse brakes on `fl_create`, DG-12 atomic friend import, keep-alive, dev/prod switch, ADR D9 (Free + keep-alive now, Pro with V3 accounts) |
-| v2.15c (2026-10-26) | Atomic app updates: the service worker reads only its own cache and no longer refreshes assets piecemeal in the background (could mix old and new modules, and re-created the old cache after the update — e2e 10 flaked under load); stray old caches swept on the next open; e2e 10 also runs the update from the current worker |
+| v2.16 (2026-10-26) | AI housekeeping: Q1 one model config + capture/fridge scan on Sonnet 5.5 (capture check by Marcel left) · Q2 assistant prompt caching · Q3 local per-action token log + usage view in Settings |
+| v2.16.1 (2026-10-26) | Atomic app updates: the service worker reads only its own cache and no longer refreshes assets piecemeal in the background (could mix old and new modules, and re-created the old cache after the update — e2e 10 flaked under load); stray old caches swept on the next open; e2e 10 also runs the update from the current worker |
 
 **Architecture decisions worth remembering** (details in the linked files):
 - Sharing models (Epic I): couples = shared Drive file + Google Picker, no backend; friends without
