@@ -227,6 +227,9 @@ Google-Freigabe in **dieselbe** Datei. Claude muss sie normalerweise nicht anfas
       "nameDe": "Hafermilch",                // optional: deutscher Schlüssel, wenn `name` übersetzt ist
       "qty": 1, "amount": null, "unit": null, // Menge: `amount` + `unit` ODER `qty`
       "more": [{ "amount": 2, "unit": "EL" }], // optional (v2.15.3): weitere Mengen in anderer Einheit
+      "sources": ["r1749400040000"],         // optional: aus welchen Rezepten (Rezept-ids)
+      "plan": true,                          // optional (v2.16b): kam über „Einkaufsliste erstellen“ im Wochenplan
+      "by": "d-k3j9x2ab",                    // optional (v2.16b): Gerät, das die Zeile angelegt hat
       "cat": "Milch & Eier", "icon": "🥛",   // Gang (≤ 80 Zeichen) + EIN Emoji (≤ 16 Zeichen)
       "done": false, "deleted": false,       // gelöscht = Tombstone, NICHT aus der Liste entfernen
       "updated": "2026-10-19T10:00:00.000Z", // bei JEDER Änderung neu stempeln — neuester gewinnt

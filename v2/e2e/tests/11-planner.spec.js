@@ -1,7 +1,7 @@
 // Flow 11 (niedrigere Priorität) — Wochenplan → Einkaufsliste: Woche erzeugen, Tag festhalten,
 // Rezept selbst wählen, Plan überlebt Neustart, Zutaten der Woche landen auf der Liste.
 import { test, expect, snapshot } from "../support/fixtures.js";
-import { openApp, sheet, shoppingNames } from "../support/app.js";
+import { openApp, sheet, shoppingNames, addedSheet, goToList } from "../support/app.js";
 
 const days = (page) => page.locator("#plan-days .plan-day");
 const dayName = (page, d) => page.locator(`.plan-day[data-day="${d}"] .pd-name`);
@@ -42,11 +42,12 @@ test("Wochenplan: erzeugen, festhalten, selbst wählen, Neustart, Einkaufsliste 
   await page.reload();
   await expect(page.locator("#plan-days .pd-name")).toHaveText(week);
 
-  // Einkaufsliste aus dem Plan → Bestätigung → Wechsel zur Liste mit den Artikeln.
+  // Einkaufsliste aus dem Plan → Ergebnis-Blatt (T9) → „Zur Liste“ mit den Artikeln.
   await page.locator("#shopBtn").click();
-  await expect(page).toHaveURL(/#\/shopping$/);
-  const msg = dev.dialogs.at(-1);
-  const added = Number((/(\d+) Artikel zur Einkaufsliste hinzugefügt/.exec(msg.message) || [])[1]);
+  const added = await (await addedSheet(page)).locator(".as-line").count();
   expect(added).toBeGreaterThan(0);
+  await goToList(page);
   await expect.poll(async () => (await shoppingNames(page)).length).toBe(added);
+  // Herkunft „Wochenplan“ steht an jeder Zeile (T9, UX-10).
+  await expect(page.locator("#shop-list .sl-origin", { hasText: "Wochenplan" })).toHaveCount(added);
 });

@@ -20,6 +20,33 @@ const LIST_FILE_NAME = "einkaufsliste.json";
 const LIST_DB_ID = "current";          // IndexedDB "lists" store key
 const PUSH_DELAY = 1200;               // ms — bündelt schnelle Taps (+/+/+) zu einem Drive-Schreibvorgang
 
+/* ---------- T9: dieses Gerät + „Neu seit deinem letzten Besuch“ ---------- */
+
+const DEVICE_KEY = "deviceId";
+const NEWS_KEY = "listNews";            // [{ name, who, at }] — who: "friend:Anna" | "friend" | "other"
+const NEWS_MAX = 30;
+let deviceIdCache = null;
+
+/** Zufällige, dauerhafte Kennung dieses Geräts (nur für „von anderem Gerät“ in der Liste). */
+export async function deviceId() {
+  if (deviceIdCache) return deviceIdCache;
+  const id = await db.kvUpdate(DEVICE_KEY, (cur) => cur || "d-" + Math.random().toString(36).slice(2, 10), null);
+  deviceIdCache = id;
+  return id;
+}
+
+const newsListeners = new Set();
+export function onNews(fn) { newsListeners.add(fn); return () => newsListeners.delete(fn); }
+export const getNews = () => db.kvGet(NEWS_KEY, []);
+export async function clearNews() { await db.kvSet(NEWS_KEY, []); for (const fn of newsListeners) fn([]); }
+
+/** Neues von außen merken (Freunde-Import, Partner-Abgleich) — bleibt, bis du die Liste ansiehst. */
+export async function addNews(entries) {
+  if (!entries.length) return;
+  const all = await db.kvUpdate(NEWS_KEY, (cur) => [...(cur || []), ...entries].slice(-NEWS_MAX), []);
+  for (const fn of newsListeners) fn(all);
+}
+
 const changeListeners = new Set();
 export function onChange(fn) { changeListeners.add(fn); return () => changeListeners.delete(fn); }
 
@@ -61,6 +88,29 @@ async function mutateList(fn, now = new Date().toISOString()) {
   return row.items;
 }
 
+/**
+ * T9: `by` (Gerät, das die Zeile angelegt hat) erhalten bzw. für neue Zeilen setzen. Die Ansicht kennt
+ * die Kennung nicht — sie wird hier beim Speichern ergänzt und von gespeicherten Zeilen übernommen.
+ */
+function stampBy(mine, current, dev) {
+  const byId = new Map(current.map((x) => [x.id, x]));
+  return mine.map((it) => {
+    if (it.by) return it;
+    const cur = byId.get(it.id);
+    if (cur) return cur.by ? { ...it, by: cur.by } : it;
+    return dev ? { ...it, by: dev } : it;
+  });
+}
+
+/** T9: Was ein Abgleich NEU auf die Liste gebracht hat (nicht von diesem Gerät) → News. */
+function newsFromMerge(final, before, dev) {
+  const had = new Set(before.map((x) => x.id));
+  const at = new Date().toISOString();
+  return final
+    .filter((x) => !x.deleted && !had.has(x.id) && !(x.by && x.by === dev))
+    .map((x) => ({ name: x.name, who: typeof x.author === "string" && x.author.startsWith("friend") ? x.author : "other", at }));
+}
+
 /** Aktuelle lokale Liste (inkl. Tombstones) — für das Freunde-Schaufenster. */
 export function getList() { return loadLocalList(); }
 
@@ -82,7 +132,11 @@ const engine = createSyncEngine({
       write: (items, now) => db.put("lists", { id: LIST_DB_ID, items, updated: now }),
       update: (fn, now) => mutateList(fn, now), // AR-10: Abgleich mischt atomar ein
     },
-    onMerged: (items) => { for (const fn of changeListeners) fn(items); emitCount(items); emitSaved(items); },
+    onMerged: (items, { before = [] } = {}) => {
+      for (const fn of changeListeners) fn(items);
+      emitCount(items); emitSaved(items);
+      deviceId().then((dev) => addNews(newsFromMerge(items, before, dev))).catch(() => {});
+    },
     onDirty: () => engine.schedule(PUSH_DELAY),
   }),
 });
@@ -109,8 +163,9 @@ export function syncListWithDrive() {
  */
 export async function saveList(items) {
   const now = new Date().toISOString();
+  const dev = await deviceId().catch(() => "");
   const mine = ensureItemMeta(items, now);
-  const saved = await mutateList((current) => mergeList(current, mine), now);
+  const saved = await mutateList((current) => mergeList(current, stampBy(mine, current, dev)), now);
   emitCount(saved);
   emitSaved(saved);
   if (!sameItems(saved, mine)) for (const fn of changeListeners) fn(saved);

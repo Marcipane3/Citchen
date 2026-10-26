@@ -151,9 +151,11 @@ export function openDetail(id) {
   if (addIngBtn) addIngBtn.onclick = async () => {
     if (addIngBtn.disabled) return;          // BH-10: Doppel-Tipp würde alle Mengen verdoppeln
     addIngBtn.disabled = true;
-    let res;
+    let res, showAddedSheet;
     try {
-      const { addRecipesToList } = await import("../shopping/shopping.js");
+      const shop = await import("../shopping/shopping.js");
+      const { addRecipesToList } = shop;
+      showAddedSheet = shop.showAddedSheet;
       // Einkaufsliste matcht gegen den deutschen Katalog → deutsches Rezept aggregieren;
       // angezeigt wird der Artikelname in der UI-Sprache (S3). Lager wird abgezogen (T6).
       res = await addRecipesToList([getRecipeDe(r.id) || r], { displayById: { [r.id]: r } });
@@ -162,8 +164,8 @@ export function openDetail(id) {
     }
     const { items, skipped } = res;
     if (!items.length) { alert(skipped ? t("detail.allInStock") : t("detail.nothingToAdd")); return; }
-    const msg = t("detail.addedToShopping", { n: items.length }) + (skipped ? t("detail.inStockSkipped", { n: skipped }) : "") + ".\n" + t("detail.switchToList");
-    if (confirm(msg)) { closeAllSheets(); navigate("shopping"); }
+    // T9 (UX-14): Ergebnis-Blatt statt confirm() — zeigt, was neu ist und was aufaddiert wurde.
+    showAddedSheet(res, { onToList: () => { closeAllSheets(); navigate("shopping"); } });
   };
 
   // Aktionen

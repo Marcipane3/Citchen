@@ -36,12 +36,12 @@ Handy extras: `npm --prefix v2/e2e run test:headed` (watch the browser),
 | 3 | `03-recipe-edit` | Add (with validation), search, edit, survive restart, delete; favourite / rating / cooked |
 | 4 | `04-capture` | URL → AI draft → review form → save; what is sent to Anthropic; errors; no-key lock; bulk |
 | 5 | `05-cooking` | Cooking mode: scale portions, tick steps (persisted), step-by-step, timer (fake clock) |
-| 6 | `06-shopping` | Custom + catalog items, quantities, done, clear + undo, badge, restart; recipe → list; one row per item (recipe + tile taps + second recipe, tile badge, double tap) and Lager beats 🛒 (v2.15.3) |
-| 7 | `07-partner-sync` | Two Google accounts share one list (I2): merge, adds, deletes, both offline, unlink; legacy id-less item stays one row over repeated syncs, HTML in the partner file shown as text, unknown file format refused (v2.15.2); both partners add the same item → one row (v2.15.3) |
+| 6 | `06-shopping` | Custom + catalog items, quantities, done, clear + undo, badge, restart; recipe → list; one row per item (recipe + tile taps + second recipe, tile badge, double tap) and Lager beats 🛒 (v2.15.3); undo snackbar for ✕ / clear done, tile stays under the finger, result sheet with undo, origin line (v2.16b) |
+| 7 | `07-partner-sync` | Two Google accounts share one list (I2): merge, adds, deletes, both offline, unlink; legacy id-less item stays one row over repeated syncs, HTML in the partner file shown as text, unknown file format refused (v2.15.2); both partners add the same item → one row (v2.15.3); "new since your last visit" + "von anderem Gerät" (v2.16b) |
 | 8 | `08-recipe-sync` | `rezepte.json` across two devices + external writer: first upload, pull, both devices edit → both survive, Claude adds on Drive + ♥ → both survive, resume re-sync, broken file refused, mass-delete question (v2.15.1) |
 | 9 | `09-offline` | Offline start from the service-worker cache: every view, data, language switch |
 | 10 | `10-update` | Update from the **previous release** (from git history): new build arrives, old cache gone, data kept |
-| 11 | `11-planner` | Weekly plan → lock / pick a day → restart → shopping list (lower priority) |
+| 11 | `11-planner` | Weekly plan → lock / pick a day → restart → shopping list via the result sheet, origin "Wochenplan" (lower priority) |
 
 Every test also fails on any uncaught browser error (the v2.10 "blank app" class of bug).
 

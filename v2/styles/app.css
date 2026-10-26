@@ -247,7 +247,6 @@ label.check input { width: auto; }
 .sl-sync-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .sl-sync-btns .sl-btn { flex: 1 1 140px; }
 .sl-btn.sl-friends.on { border-color: var(--accent); }
-.sl-friend-note { background: var(--line-soft); border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 600; }
 .sl-friend-st { font-size: 12.5px; color: var(--muted-strong); }
 .sl-friend-st.warn { color: var(--danger); }
 .sl-from { font-size: 12px; font-weight: 600; color: var(--accent); white-space: nowrap; }
@@ -255,7 +254,6 @@ label.check input { width: auto; }
 .sheet .sl-field { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 8px; }
 .sheet .sl-field input { width: 100%; min-height: 44px; border: 1.5px solid var(--line); border-radius: 12px; padding: 0 12px; font-size: 15px; background: var(--paper); color: var(--ink); }
 .sl-fine { font-size: 12.5px; margin-top: 12px; }
-.sl-undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; margin: 6px 0; border: 1.5px solid var(--accent); border-radius: 12px; background: var(--line-soft); font-weight: 600; }
 .sl-undo-btn { background: var(--accent); color: #fff; border: none; border-radius: 9px; padding: 7px 14px; font-weight: 700; }
 .sl-sort { display: flex; gap: 6px; margin: 8px 0 4px; }
 .sl-sortbtn { background: var(--card); border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; color: var(--muted-strong); }
@@ -426,3 +424,35 @@ body.no-tabbar .tabbar { display: none; }
 .cap-slot:empty { display: none; }
 .cap-slot { margin-top: 10px; }
 .cap-msg { margin: 0; }
+
+/* ---------- v2.16b (T9): Herkunft, Snackbar, Neu-Hinweis, Ergebnis-Blatt, sichere Tipps ---------- */
+.sl-origin { display: block; font-size: 12px; font-weight: 600; color: var(--muted-strong); margin-top: 2px; text-decoration: none; }
+.sl-origin.tap { color: var(--accent); }
+.sl-item.done .sl-origin { opacity: .7; }
+/* UX-13: ✕ weg vom + (vorher 6px Abstand) */
+.sl-rm { margin-left: 14px; }
+/* UX-13: Kopf-Aktionen mit 44px-Tippfläche */
+.sl-clear, .sl-clear-all, .sl-share { min-height: 44px; padding: 0 4px; }
+.sl-actions { gap: 8px; }
+.snack {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 30;
+  bottom: calc(12px + var(--tabbar-h) + env(safe-area-inset-bottom));
+  width: calc(100% - 2 * var(--pad)); max-width: calc(var(--maxw) - 2 * var(--pad));
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--ink); color: var(--paper); border-radius: 12px; padding: 8px 8px 8px 14px;
+  font-weight: 600; font-size: 14px; box-shadow: 0 6px 20px rgba(0, 0, 0, .25);
+}
+.snack[hidden] { display: none; }
+.snack .snack-txt { flex: 1; min-width: 0; }
+.snack .sl-undo-btn { min-height: 40px; }
+.sl-news { background: var(--line-soft); border: 1.5px solid var(--accent); border-radius: 12px; padding: 8px 8px 10px 14px; margin: 0 0 12px; font-size: 14px; }
+.sl-news-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sl-news ul { margin: 4px 0 0; padding-left: 18px; }
+.sl-news li { margin: 2px 0; }
+.sl-news-more { font-size: 12.5px; color: var(--muted-strong); margin-top: 4px; }
+.as-sum { font-size: 14px; color: var(--muted-strong); margin: 8px 0; }
+.as-list { list-style: none; padding: 0; margin: 0 0 14px; max-height: 45vh; overflow: auto; }
+.as-line { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 15px; }
+.as-tag { font-size: 12px; font-weight: 700; color: var(--accent); white-space: nowrap; align-self: center; }
+.as-tag.merged { color: var(--muted-strong); }
+.sheet .as-undo { margin-top: 8px; }

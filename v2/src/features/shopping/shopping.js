@@ -10,7 +10,11 @@ import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { touch, newItemId, ensureItemMeta, adoptLegacy } from "./listMerge.js";
 import { CATALOG, SECTION_ORDER, sectionIcon } from "../../data/catalog.js";
-import { itemLabel, formatListAsText, mergeItems, aggregateIngredients, addOne, findSame, badgeOf } from "./logic.js";
+import {
+  itemLabel, formatListAsText, mergeItems, aggregateIngredients, addOne, findSame, badgeOf,
+  originOf, snapshotItems, changedIds, undoChange, addSummary,
+} from "./logic.js";
+import { getRecipe } from "../../store.js";
 import { getStaples } from "../../data/settings.js";
 import { getInStock } from "../../data/lager.js";
 import { friendName } from "./friendMerge.js";
@@ -26,12 +30,12 @@ let ITEMS = [];
 let search = "";
 let openSection = null;
 let sortMode = "aisle";   // E2: Sortierung der Liste
-let undoSnapshot = null;  // E1: ids der zuletzt geleerten Artikel, für „Rückgängig"
-let undoTimer = null;
-let friendNote = "";      // I3: „👋 2 Artikel von Freunden hinzugefügt“ (kurz sichtbar)
-let friendNoteTimer = null;
+let snackTimer = null;    // T9: Snackbar „… · Rückgängig“ unten (UX-11/13)
+let myDevice = "";        // T9: Kennung dieses Geräts → „von anderem Gerät“
+const expanded = new Set(); // T9: Zeilen, deren Rezept-Herkunft aufgeklappt ist
 
 async function load() {
+  myDevice = await listSync.deviceId().catch(() => "");
   const row = await db.get("lists", LIST_ID);
   ITEMS = row && Array.isArray(row.items) ? adoptLegacy(row.items) : []; // T4: Altbestand ohne id → stabile id
   sortMode = await db.kvGet(SORT_KEY, "aisle");
@@ -47,6 +51,45 @@ function save() {
 function remove(it, now) {
   it.deleted = true;
   touch(it, now);
+}
+
+/* ---------- T9: jede Änderung mit „Rückgängig“ (UX-11, UX-13) ---------- */
+
+/** Kurze Meldung unten über der Tab-Leiste; mit undo → Knopf „Rückgängig“. Verschwindet nach 6 s. */
+function showSnack(container, text, undo) {
+  const el = container.querySelector("#shop-snack");
+  if (!el) return;
+  if (snackTimer) clearTimeout(snackTimer);
+  el.innerHTML = `<span class="snack-txt">${esc(text)}</span>${undo ? `<button class="sl-undo-btn">${t("shopping.undo")}</button>` : ""}`;
+  el.hidden = false;
+  const hide = () => { el.hidden = true; el.innerHTML = ""; snackTimer = null; };
+  const b = el.querySelector(".sl-undo-btn");
+  if (b) b.onclick = () => { if (snackTimer) clearTimeout(snackTimer); hide(); undo(); };
+  snackTimer = setTimeout(hide, 6000);
+}
+
+/**
+ * Eine Listen-Aktion ausführen, speichern, neu zeichnen und „Rückgängig“ anbieten.
+ * fn() ändert ITEMS und gibt den Snackbar-Text zurück (oder "" = keine Meldung).
+ * Rückgängig nimmt NUR die Zeilen dieser Aktion zurück (ein Abgleich dazwischen bleibt).
+ */
+function act(container, fn) {
+  const before = snapshotItems(ITEMS);
+  const text = fn();
+  ITEMS = ensureItemMeta(ITEMS);
+  const ids = changedIds(before, ITEMS);
+  save(); paintList(container); paintCatalog(container);
+  if (!ids.length || !text) return;
+  showSnack(container, text, () => {
+    undoChange(ITEMS, before, ids);
+    save(); paintList(container); paintCatalog(container);
+    showSnack(container, t("shopping.snack.undone"));
+  });
+}
+
+/** Snackbar-Text nach einem Hinzufügen: neue Zeile oder „+1 → 3 Stück Ingwer“. */
+function addedText(row, wasThere) {
+  return wasThere ? t("shopping.snack.bumped", { label: itemLabel(row) }) : t("shopping.snack.added", { name: row.name });
 }
 
 async function shareList(container) {
@@ -81,11 +124,21 @@ export function shopAdd(name, cat, icon) {
   return row;
 }
 
-/** Aggregierte Artikel in die Liste mischen (eine Zeile pro Artikel, T5). */
+/**
+ * Aggregierte Artikel in die Liste mischen (eine Zeile pro Artikel, T5).
+ * T9: → { lines: [{label, merged}], undo() } für das Ergebnis-Blatt (UX-14).
+ */
 export async function addItemsToList(newItems) {
   await load();
-  ITEMS = mergeItems(ITEMS, newItems);
+  const before = snapshotItems(ITEMS);
+  ITEMS = ensureItemMeta(mergeItems(ITEMS, newItems));
+  const ids = changedIds(before, ITEMS);
+  const lines = addSummary(before, ITEMS, newItems);
   save();
+  return {
+    lines,
+    undo: async () => { await load(); undoChange(ITEMS, before, ids); save(); },
+  };
 }
 
 /**
@@ -93,11 +146,36 @@ export async function addItemsToList(newItems) {
  * recipes = deutsche (kanonische) Rezepte; displayById = dieselben in der UI-Sprache (S3).
  * Lager (T6) und Basics werden abgezogen. → { items, skipped }
  */
-export async function addRecipesToList(recipes, { displayById = {} } = {}) {
+export async function addRecipesToList(recipes, { displayById = {}, plan = false } = {}) {
   const [staples, inStock] = await Promise.all([getStaples(), getInStock()]);
   const res = aggregateIngredients(recipes, { staples, inStock, displayById });
-  if (res.items.length) await addItemsToList(res.items);
-  return res;
+  if (plan) for (const it of res.items) it.plan = true; // T9: Herkunft „Wochenplan“
+  const done = res.items.length ? await addItemsToList(res.items) : { lines: [], undo: async () => {} };
+  return { ...res, ...done };
+}
+
+/**
+ * T9 / UX-14: Ergebnis von „Auf die Liste“ — statt eines nativen confirm() ein Blatt, das zeigt,
+ * WAS hinzukam und was nur aufaddiert wurde; „Zur Liste“, „Rückgängig“ oder einfach schließen.
+ */
+export function showAddedSheet({ lines = [], skipped = 0, undo }, { onToList } = {}) {
+  const merged = lines.filter((l) => l.merged).length;
+  const { el, close } = openSheet(`
+    <div class="sheet-head"><span class="cat-label">${t("shopping.addedSheet.title")}</span><button class="icon-btn close" aria-label="${t("common.close")}">✕</button></div>
+    <p class="as-sum" role="status">${esc(t("shopping.addedSheet.summary", { n: lines.length, m: merged }))}${skipped ? esc(t("detail.inStockSkipped", { n: skipped })) : ""}</p>
+    <ul class="as-list">${lines.map((l) => `<li class="as-line"><span>${esc(l.label)}</span><span class="as-tag ${l.merged ? "merged" : ""}">${esc(t(l.merged ? "shopping.addedSheet.merged" : "shopping.addedSheet.new"))}</span></li>`).join("")}</ul>
+    <button class="btn-primary sl-wide as-tolist">${t("shopping.addedSheet.toList")}</button>
+    <button class="btn-sec sl-wide as-undo">${t("shopping.undo")}</button>
+  `);
+  el.querySelector(".as-tolist").onclick = () => { close(); if (onToList) onToList(); };
+  el.querySelector(".as-undo").onclick = async (e) => {
+    e.currentTarget.disabled = true;
+    await undo();
+    el.querySelector(".as-sum").textContent = t("shopping.addedSheet.undone");
+    el.querySelector(".as-list").remove();
+    el.querySelector(".as-undo").remove();
+  };
+  return { el, close };
 }
 
 export function renderShopping(container) {
@@ -119,10 +197,12 @@ export function renderShopping(container) {
     })}
     <main class="app-main">
       <div id="shop-sync"></div>
+      <div id="shop-news"></div>
       <div id="shop-list"></div>
       <div id="shop-catalog"></div>
     </main>
     <div class="build-line">Build ${esc(BUILD)}</div>
+    <div id="shop-snack" class="snack" role="status" aria-live="polite" hidden></div>
   `;
   wireHeader(container, "shopping");
   const s = container.querySelector("#shop-search");
@@ -130,7 +210,13 @@ export function renderShopping(container) {
   const custom = container.querySelector("#shop-custom");
   const addCustom = () => {
     const v = custom.value.trim();
-    if (v) { shopAdd(v, "Sonstiges", "📝"); custom.value = ""; paintList(container); paintCatalog(container); custom.focus(); }
+    if (!v) return;
+    act(container, () => {
+      const was = !!findSame(live(), v);
+      const row = shopAdd(v, "Sonstiges", "📝");
+      return row ? addedText(row, was) : "";
+    });
+    custom.value = ""; custom.focus();
   };
   container.querySelector(".add-custom").onclick = addCustom;
   custom.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } });
@@ -139,22 +225,45 @@ export function renderShopping(container) {
   const offChange = listSync.onChange((items) => { ITEMS = items; paintList(container); paintCatalog(container); });
   const offStatus = listSync.onStatus(() => paintSync(container));
   const offAuth = drive.onAuthChange((signedIn) => { paintSync(container); if (signedIn) listSync.syncListWithDrive(); });
-  // I3: Freunde-Vorschläge kommen über listSync.onChange in die Liste; hier nur Status + Hinweis.
+  // I3: Freunde-Vorschläge kommen über listSync.onChange in die Liste; hier nur der Status.
   const offFriendStatus = friendInbox.onStatus(() => paintSync(container));
-  const offImported = friendInbox.onImported((n) => {
-    friendNote = tn("shopping.friends.imported", n);
-    if (friendNoteTimer) clearTimeout(friendNoteTimer);
-    friendNoteTimer = setTimeout(() => { friendNote = ""; friendNoteTimer = null; paintSync(container); }, 8000);
-    paintSync(container);
-  });
+  // T9 (UX-15): Neues von Freunden/anderem Gerät bleibt sichtbar, bis du die Liste wieder verlässt.
+  const offNews = listSync.onNews((news) => paintNews(container, news));
 
   load().then(() => {
     paintSync(container); paintList(container); paintCatalog(container);
+    listSync.getNews().then((news) => paintNews(container, news)).catch(() => {});
     listSync.syncListWithDrive(); // Ergebnis kommt über onChange/onStatus
     friendInbox.syncFriends();
   });
 
-  return () => { offChange(); offStatus(); offAuth(); offFriendStatus(); offImported(); };
+  return () => {
+    offChange(); offStatus(); offAuth(); offFriendStatus(); offNews();
+    if (snackTimer) { clearTimeout(snackTimer); snackTimer = null; }
+    listSync.clearNews().catch(() => {}); // gesehen
+  };
+}
+
+/* ---------- T9: „Neu seit deinem letzten Besuch“ (UX-15) ---------- */
+
+function whoLabel(who) {
+  if (who === "other") return t("shopping.origin.other");
+  const n = friendName(who);
+  return n === null ? "" : n ? t("shopping.friends.fromName", { name: n }) : t("shopping.friends.fromAnon");
+}
+
+function paintNews(container, news = []) {
+  const el = container.querySelector("#shop-news");
+  if (!el) return;
+  if (!news.length) { el.innerHTML = ""; return; }
+  const shown = news.slice(-6).reverse();
+  const more = news.length - shown.length;
+  el.innerHTML = `<div class="sl-news" role="status">
+    <div class="sl-news-head"><strong>${t("shopping.news.title")}</strong><button class="icon-btn sl-news-x" aria-label="${t("shopping.news.dismiss")}">✕</button></div>
+    <ul>${shown.map((x) => `<li>${esc(x.name)}${whoLabel(x.who) ? ` <span class="sl-from">${esc(whoLabel(x.who))}</span>` : ""}</li>`).join("")}</ul>
+    ${more > 0 ? `<div class="sl-news-more">${esc(t("shopping.news.more", { n: more }))}</div>` : ""}
+  </div>`;
+  el.querySelector(".sl-news-x").onclick = () => { listSync.clearNews().catch(() => {}); };
 }
 
 /* ---------- Sync- & Partner-Karte ---------- */
@@ -184,7 +293,6 @@ async function paintSync(container) {
         <div class="sl-sync-txt"><strong>${where}</strong><span>${esc(line)}</span></div>
         ${signedIn || inbox ? `<button class="sl-btn sl-refresh" aria-label="${t("shopping.refresh")}" ${st === "syncing" || fst === "syncing" ? "disabled" : ""}>🔄</button>` : ""}
       </div>
-      ${friendNote ? `<div class="sl-friend-note" role="status">${esc(friendNote)}</div>` : ""}
       ${inbox && fst !== "idle" && fst !== "off" ? `<div class="sl-friend-st ${fwarn ? "warn" : ""}">${esc(t("shopping.friends.state." + fst))}</div>` : ""}
       <div class="sl-sync-btns">
         ${signedIn
@@ -305,11 +413,22 @@ async function openFriendsSheet(container) {
 
 /* ---------- Liste ---------- */
 
-/** I3: kleines „von Anna“ hinter Artikeln, die ein Freund über den Link hinzugefügt hat. */
-function fromTag(it) {
-  const n = friendName(it.author);
-  if (n === null) return "";
-  return ` <span class="sl-from">${esc(n ? t("shopping.friends.fromName", { name: n }) : t("shopping.friends.fromAnon"))}</span>`;
+/**
+ * T9 (UX-10): Zweitzeile „woher?“ — „aus Thai-Curry“ / „aus 3 Rezepten“ (antippen = Namen),
+ * „Wochenplan“, „von Anna“, „von anderem Gerät“. Von Hand ohne Rezept: keine Zeile.
+ */
+function originLine(it) {
+  const o = originOf(it, { device: myDevice });
+  const parts = [];
+  if (o.friend !== null) parts.push(o.friend ? t("shopping.friends.fromName", { name: o.friend }) : t("shopping.friends.fromAnon"));
+  const names = o.recipes.map((id) => getRecipe(id)).filter(Boolean).map((r) => r.name);
+  if (o.recipes.length === 1) parts.push(names[0] ? t("shopping.origin.recipe", { name: names[0] }) : t("shopping.origin.recipes", { n: 1 }));
+  else if (o.recipes.length > 1) parts.push(expanded.has(it.id) && names.length ? t("shopping.origin.recipe", { name: names.join(", ") }) : t("shopping.origin.recipes", { n: o.recipes.length }));
+  if (o.plan) parts.push(t("shopping.origin.plan"));
+  if (o.other && o.friend === null) parts.push(t("shopping.origin.other"));
+  if (!parts.length) return "";
+  const tappable = o.recipes.length > 1 && names.length;
+  return `<span class="sl-origin${tappable ? " tap" : ""}" data-id="${esc(it.id)}">${esc(parts.join(" · "))}</span>`;
 }
 
 function paintList(container) {
@@ -322,18 +441,7 @@ function paintList(container) {
   if (sub) sub.textContent = visible.length ? (doneCount ? t("shopping.openDone", { n: openCount, d: doneCount }) : t("shopping.open", { n: openCount })) : t("shopping.empty");
 
   if (!visible.length) {
-    const undoBar = undoSnapshot
-      ? `<div class="sl-undo">${t("shopping.cleared")} <button class="sl-undo-btn">${t("shopping.undo")}</button></div>`
-      : "";
-    el.innerHTML = undoBar + `<p class="empty">${t("shopping.emptyList")}</p>`;
-    const ub = el.querySelector(".sl-undo-btn");
-    if (ub) ub.onclick = () => {
-      if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
-      const ids = new Set(undoSnapshot); undoSnapshot = null;
-      const now = new Date().toISOString();
-      ITEMS.forEach((x) => { if (ids.has(x.id)) { x.deleted = false; touch(x, now); } });
-      save(); paintList(container); paintCatalog(container);
-    };
+    el.innerHTML = `<p class="empty">${t("shopping.emptyList")}</p>`;
     return;
   }
 
@@ -344,7 +452,7 @@ function paintList(container) {
     const hasAmount = it.amount !== null && it.amount !== undefined;
     return `<div class="sl-item ${it.done ? "done" : ""}">
       <span class="sl-ic">${esc(it.icon || "🛒")}</span>
-      <span class="sl-name" data-i="${i}">${esc(itemLabel(it))}${fromTag(it)}</span>
+      <span class="sl-name" data-i="${i}">${esc(itemLabel(it))}${originLine(it)}</span>
       <div class="sl-ctrl">
         ${hasAmount ? "" : `<button class="sl-dec" data-i="${i}" aria-label="${t("shopping.less")}">−</button><span class="sl-qty">${esc(String(it.qty))}</span><button class="sl-inc" data-i="${i}" aria-label="${t("shopping.more")}">+</button>`}
         <button class="sl-rm" data-i="${i}" aria-label="${t("common.remove")}">✕</button>
@@ -379,14 +487,20 @@ function paintList(container) {
   // Jede Änderung → touch(), sonst übernimmt der Partner-Sync sie nicht.
   const at = (b) => ITEMS[+b.dataset.i];
   el.querySelectorAll(".sl-name").forEach((n) => {
-    n.onclick = () => { const it = at(n); if (it) { it.done = !it.done; touch(it); save(); paintList(container); } };
+    n.onclick = (e) => {
+      // T9: „aus 3 Rezepten“ antippen klappt die Rezeptnamen auf (statt abzuhaken).
+      const o = e.target.closest(".sl-origin.tap");
+      if (o) { const id = o.dataset.id; if (expanded.has(id)) expanded.delete(id); else expanded.add(id); paintList(container); return; }
+      const it = at(n); if (it) { it.done = !it.done; touch(it); save(); paintList(container); }
+    };
   });
   el.querySelectorAll(".sl-dec").forEach((b) => {
     b.onclick = () => {
       const it = at(b);
       if (!it) return;
+      if (it.qty <= 1) { act(container, () => { remove(it); return t("shopping.snack.removed", { name: it.name }); }); return; }
       it.qty--;
-      if (it.qty <= 0) remove(it); else touch(it);
+      touch(it);
       save(); paintList(container); paintCatalog(container);
     };
   });
@@ -394,29 +508,25 @@ function paintList(container) {
     b.onclick = () => { const it = at(b); if (it) { it.qty++; touch(it); save(); paintList(container); paintCatalog(container); } };
   });
   el.querySelectorAll(".sl-rm").forEach((b) => {
-    b.onclick = () => { const it = at(b); if (it) { remove(it); save(); paintList(container); paintCatalog(container); } };
+    b.onclick = () => { const it = at(b); if (it) act(container, () => { remove(it); return t("shopping.snack.removed", { name: it.name }); }); };
   });
   el.querySelectorAll(".sl-sortbtn").forEach((b) => {
     b.onclick = () => { sortMode = b.dataset.sort; db.kvSet(SORT_KEY, sortMode).catch(() => {}); paintList(container); };
   });
   const clr = el.querySelector(".sl-clear");
-  if (clr) clr.onclick = () => {
+  if (clr) clr.onclick = () => act(container, () => {
     const now = new Date().toISOString();
-    live().filter((x) => x.done).forEach((x) => remove(x, now));
-    save(); paintList(container); paintCatalog(container);
-  };
+    const done = live().filter((x) => x.done);
+    done.forEach((x) => remove(x, now));
+    return tn("shopping.snack.clearedDone", done.length);
+  });
   const clrAll = el.querySelector(".sl-clear-all");
-  if (clrAll) clrAll.onclick = () => {
-    const visibleNow = live();
-    if (!visibleNow.length) return;
-    undoSnapshot = visibleNow.map((x) => x.id);   // E1: für „Rückgängig" merken
+  // E1 + T9: „Alles löschen“ → Snackbar mit Rückgängig (wie jede andere Aktion).
+  if (clrAll) clrAll.onclick = () => act(container, () => {
     const now = new Date().toISOString();
-    visibleNow.forEach((x) => remove(x, now));
-    save();
-    if (undoTimer) clearTimeout(undoTimer);
-    undoTimer = setTimeout(() => { undoSnapshot = null; undoTimer = null; paintList(container); }, 6000);
-    paintList(container); paintCatalog(container);
-  };
+    live().forEach((x) => remove(x, now));
+    return t("shopping.cleared");
+  });
   const shareBtn = el.querySelector(".sl-share");
   if (shareBtn) shareBtn.onclick = () => shareList(container);
 }
@@ -455,14 +565,21 @@ function paintCatalog(container) {
   // Artikel +1 (Badge in place, Sektion bleibt offen — v1-Verhalten)
   el.querySelectorAll(".cat-item").forEach((b) => {
     b.onclick = () => {
-      const it = shopAdd(b.dataset.name, b.dataset.cat, b.dataset.icon);
-      if (!it) return;
-      let badge = b.querySelector(".ci-badge");
-      if (!badge) { badge = document.createElement("span"); badge.className = "ci-badge"; b.appendChild(badge); }
-      badge.textContent = badgeOf(it);
-      b.classList.add("just-added");
-      setTimeout(() => b.classList.remove("just-added"), 220);
-      paintList(container);
+      // T9 (UX-12): die Liste über dem Katalog wächst beim Hinzufügen — danach so scrollen, dass die
+      // angetippte Kachel an derselben Stelle unter dem Finger bleibt (kein Fehl-Tipp auf den Nachbarn).
+      const top = b.getBoundingClientRect().top;
+      let row = null;
+      act(container, () => {
+        const was = !!findSame(live(), b.dataset.name);
+        row = shopAdd(b.dataset.name, b.dataset.cat, b.dataset.icon);
+        return row ? addedText(row, was) : "";
+      });
+      const tile = container.querySelector(`#shop-catalog .cat-item[data-name="${CSS.escape(b.dataset.name)}"]`) || b;
+      const shift = tile.getBoundingClientRect().top - top;
+      if (shift) window.scrollBy(0, shift);
+      if (!row) return;
+      tile.classList.add("just-added");
+      setTimeout(() => tile.classList.remove("just-added"), 220);
     };
   });
 }

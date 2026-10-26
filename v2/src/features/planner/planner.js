@@ -10,7 +10,7 @@ import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "../cookbook/detail.js";
 import { navigate } from "../../router.js";
 import { generatePlan, planRecipeIds, mondayOf, DAYS, MEAL_CATEGORIES } from "./logic.js";
-import { addRecipesToList } from "../shopping/shopping.js";
+import { addRecipesToList, showAddedSheet } from "../shopping/shopping.js";
 import { BUILD } from "../../version.js";
 import { t } from "../../i18n.js";
 
@@ -168,13 +168,13 @@ export function renderPlanner(container) {
       // Einkaufsliste matcht gegen den deutschen Katalog → deutsche Rezepte aggregieren.
       const recipes = planRecipeIds(PLAN).map((id) => getRecipeDe(id)).filter(Boolean);
       const displayById = Object.fromEntries(recipes.map((x) => [x.id, getRecipe(x.id)])); // S3: Namen in UI-Sprache
-      res = await addRecipesToList(recipes, { displayById }); // Lager + Basics abgezogen (T6)
+      res = await addRecipesToList(recipes, { displayById, plan: true }); // Lager + Basics abgezogen (T6); Herkunft „Wochenplan“ (T9)
     } finally {
       btn.disabled = false;
     }
     const { items, skipped } = res;
-    const msg = t("detail.addedToShopping", { n: items.length }) + (skipped ? t("detail.inStockSkipped", { n: skipped }) : "") + ".\n" + t("detail.switchToList");
-    if (confirm(msg)) navigate("shopping");
+    if (!items.length) { alert(skipped ? t("detail.allInStock") : t("detail.nothingToAdd")); return; }
+    showAddedSheet(res, { onToList: () => navigate("shopping") }); // T9 (UX-14): statt confirm()
   };
 
   // Optionaler KI-Hook (Premium): Wochenplan per Wunsch anpassen

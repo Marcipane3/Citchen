@@ -119,7 +119,7 @@ export function recipeSync({ store, approveDrop = async () => false, onRetry = (
 /**
  * store = { readAll() → items[] (inkl. Tombstones), write(items, now),
  *           update?(fn, now) → items — atomar lesen + fn + schreiben (AR-10; ohne: readAll + write) }
- * onMerged(items, { stillDirty }) — nach einem Abgleich, der lokal etwas geändert hat
+ * onMerged(items, { before }) — nach einem Abgleich, der lokal etwas geändert hat (before = Stand davor)
  * onDirty() — Abgleich hat nicht alles untergebracht (lokal währenddessen getippt) → später nochmal.
  *
  * Status-Codes: synced · syncing · local · offline · auth · notFound · error ·
@@ -180,7 +180,7 @@ export function itemMerge({ store, onMerged = () => {}, onDirty = () => {} }) {
             meta: { dirty: stillDirty, lastSync: now, syncedFile: fileId },
             status: "synced",
             result: { changed: localChanged, items: final },
-            after: () => { if (localChanged) onMerged(final); if (stillDirty) onDirty(); },
+            after: () => { if (localChanged) onMerged(final, { before: latest }); if (stillDirty) onDirty(); },
           };
         },
       };

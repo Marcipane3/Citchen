@@ -6,8 +6,8 @@
 > v3.0 → see **[ROADMAP-V3.md](ROADMAP-V3.md)**. What to do next → **[ROADMAP.md](ROADMAP.md)**.
 >
 > Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-10-26** (QA fleet findings of
-> 2026-10-12 placed as Epic T; v2.15.2 merged, v2.15.3 built) · Current build: **v2.15.3** (`/v2`, 324 unit tests + 36
-> end-to-end tests in `v2/e2e/`; v2.15.2 merged with PR #12 on 2026-10-26).
+> 2026-10-12 placed as Epic T; v2.15.3 merged, v2.16b built) · Current build: **v2.16b** (`/v2`, 331 unit tests + 40
+> end-to-end tests in `v2/e2e/`; v2.15.3 merged with PR #13 on 2026-10-26).
 
 ---
 
@@ -42,8 +42,8 @@ V3 slices in Q1 2027 if time is short (risk R19).
 | **v2.15** | ★ One sync core | P1 | late Oct | ✅ built 19 Oct · deploy = merge | — |
 | **v2.15.1** | 🔴 Hotfix: safe recipe sync | T1 · T2 · T3 · T11 (+ T12 core, T8 recipe tests) | Oct | ✅ merged 19 Oct (PR #11) | — |
 | **v2.15.2** | 🔴 Hotfix: shopping list data safety (FR-01 root cause) | T4 · T7 · T10 + their T8 tests | Oct | ✅ merged 26 Oct (PR #12) | — |
-| **v2.15.3** | Shopping list: one identity rule + Lager beats 🛒 (FR-01 duplicates) | T5 · T6 + their T8 tests | Oct/Nov | ✅ built 26 Oct · deploy = merge | ✅ Marcel: T5 yes, T6 yes (26 Oct) |
-| **v2.16b** | Shopping list clarity | T9 | Nov | proposed | v2.15.3 |
+| **v2.15.3** | Shopping list: one identity rule + Lager beats 🛒 (FR-01 duplicates) | T5 · T6 + their T8 tests | Oct/Nov | ✅ merged 26 Oct (PR #13) | ✅ Marcel: T5 yes, T6 yes (26 Oct) |
+| **v2.16b** | Shopping list clarity | T9 | Nov | ✅ built 26 Oct · deploy = merge | — |
 | **v2.15b** | Backend hardening | P7 (migrations in repo, advisor check, pause/backup plan) | Nov | planned | D10 for the final scope |
 | — (Marcel) | ★ Sharing proof | P3 two-account test, P4 live friend test | Oct | open since v2.11 | Picker key + partner as test user |
 | **v2.16** | AI housekeeping | Q1 Sonnet 5.5 capture + model config · Q2 prompt caching · Q3 token measurement | early Nov | planned | — |
@@ -106,11 +106,11 @@ phone tests.
 |---|------|---------------------|-----|-----|--------|
 | **T12** | ◐ **Three-way merge rule for recipes** *(QA AR-01)* — *core shipped with T1 in v2.15.1: a safe "read before write" needs a base anyway, so the per-recipe three-way rule IS the T1 fix (both-sides-offline test green). Left: reuse for the Supabase transport (V3 slice 1b).* | P1 shipped as one engine with file-level last-write-wins. The architect's point still holds: LWW plus a blind save can't keep two writers' edits. Since rules are now pluggable (`syncRules.js`), add a per-recipe three-way rule (each device compares against what it last saw on Drive) and use it for `rezepte.json`; same rule later serves the Supabase transport (V3 slice 1b). T1 is the minimal fix; T12 is the durable one. **Done:** two-device tests in `test-sync-core.js` where both sides edit different recipes offline → both edits survive. | P2 | M–L | before V3 slice 1b |
 
-**v2.16b — shopping list clarity** *(proposed)*
+**v2.16b — shopping list clarity** *(✅ built 26 Oct)*
 
 | # | Item | Detail & acceptance | Pri | Eff | Target |
 |---|------|---------------------|-----|-----|--------|
-| **T9** | **Show why an item is on the list + safer taps** (UX-10, UX-12, UX-13, UX-14, UX-15) | Origin on every row ("aus 3 Rezepten", "von Anna", "Plan", "Partner"); friend/partner imports announced even when the tab is closed; "+1 → Ingwer ×3 · Rückgängig" snackbar instead of a silent badge; undo for single delete and "Erledigte löschen", ✕ moved away from +; replace the native `confirm()` after "add to list" with a summary sheet; stop the catalog grid from shifting under the finger (**live check on a phone first**, UX-12). | P2 | M | v2.16b |
+| **T9** | ✅ **Show why an item is on the list + safer taps** (UX-10, UX-12, UX-13, UX-14, UX-15) — *v2.16b: origin line under every row („aus Thai-Curry“ / „aus 3 Rezepten“ → tap for names, „Wochenplan“, „von Anna“, „von anderem Gerät“ — rows now carry `by` = creating device and `plan`; a partner can't be told apart from your own second device, so the label says „anderes Gerät“); „Neu seit deinem letzten Besuch“ banner fed by friend imports and partner syncs, kept until you leave the list; one snackbar with „Rückgängig“ for tile/free-text adds („+1 → 3 Stück Ingwer“), ✕, „Erledigte entfernen“, „Alles löschen“ (undo touches only that action's rows); ✕ 14px further from +, 44px header actions; result sheet (new vs. added up, „Zur Liste“, „Rückgängig“) instead of `confirm()`; after a tile tap the page scrolls by exactly the list growth, so the tile stays under the finger (also where Safari has no scroll anchoring). Still worth the live phone check (UX-12): background-sync repaints can still shift the grid. Tests: `tests/test-shopping-ux.js`, e2e 06/07/11.* | Origin on every row ("aus 3 Rezepten", "von Anna", "Plan", "Partner"); friend/partner imports announced even when the tab is closed; "+1 → Ingwer ×3 · Rückgängig" snackbar instead of a silent badge; undo for single delete and "Erledigte löschen", ✕ moved away from +; replace the native `confirm()` after "add to list" with a summary sheet; stop the catalog grid from shifting under the finger (**live check on a phone first**, UX-12). | P2 | M | v2.16b |
 
 ### Epic P — Path to V3: foundation & proof *(gates V3 slice 1)*
 
@@ -262,6 +262,7 @@ Full detail lives in the git history, the in-app changelog (`v2/src/version.js`)
 | v2.15.1 (2026-10-19) | Epic T1 · T2 · T3 · T11: saves read Drive first + per-recipe three-way merge (T12 core), re-sync on resume, broken Drive files refused/repaired with backup + mass-delete question, edit form writes German, contract docs |
 | v2.15.2 (2026-10-19) | Epic T4 · T7 · T10 (+ their T8 tests): id-less legacy list items get a stable id and their copies collapse to one row (FR-01 main cause), tombstone pruning no longer loops and a long-offline device can't revive pruned deletes, `einkaufsliste.json` validated + escaped + documented |
 | v2.15.3 (2026-10-26) | Epic T5 · T6 (+ their T8 tests): one "same item?" rule (recipe, tile, free text, friends, partner sync → one row per item, other units in the same row), tile badge shows that row, Lager beats 🛒, two-in-one lines split, double-tap guard, atomic list writes (AR-10) — closes the FR-01 duplicates |
+| v2.16b (2026-10-26) | T9 shopping list clarity: origin on every row, "new since your last visit", undo snackbar for every list action, result sheet instead of `confirm()`, tile stays under the finger, ✕ away from + |
 
 **Architecture decisions worth remembering** (details in the linked files):
 - Sharing models (Epic I): couples = shared Drive file + Google Picker, no backend; friends without

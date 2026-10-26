@@ -299,6 +299,7 @@ export function mergeItems(existing, incoming, now = new Date().toISOString()) {
     } else if (hit) {
       mergeQuantity(hit, inc);
       if (Array.isArray(inc.sources)) hit.sources = [...new Set([...(hit.sources || []), ...inc.sources])];
+      if (inc.plan) hit.plan = true;
       hit.done = false;
     } else {
       out.push({ ...inc, updated: now });
@@ -347,4 +348,79 @@ export function itemLabel(it) {
     return `${partsOf(it).map(fmtPart).join(" + ")} ${it.name}`.trim();
   }
   return it.name;
+}
+
+/* ============================================================
+   T9 (v2.16b): Herkunft zeigen, Rückgängig für jede Aktion, Ergebnis nach „Auf die Liste“
+   ============================================================ */
+
+/**
+ * Woher kommt eine Zeile? → { recipes: [ids], plan, friend, other }
+ * friend: null = kein Freundes-Artikel, "" = Freund ohne Namen, sonst sein Name.
+ * other: auf einem ANDEREN Gerät angelegt (Partner oder dein zweites Gerät) — `by` ≠ dieses Gerät.
+ */
+export function originOf(row, { device = "" } = {}) {
+  const a = typeof row.author === "string" ? row.author : "";
+  return {
+    recipes: Array.isArray(row.sources) ? row.sources.filter((x) => typeof x === "string") : [],
+    plan: row.plan === true,
+    friend: a === "friend" ? "" : a.startsWith("friend:") ? a.slice(7) : null,
+    other: !!(device && typeof row.by === "string" && row.by && row.by !== device),
+  };
+}
+
+const rowJson = (x) => JSON.stringify(x);
+
+/** Tiefe Kopie der Liste vor einer Aktion (für Rückgängig). */
+export function snapshotItems(items = []) {
+  return items.map((x) => JSON.parse(JSON.stringify(x)));
+}
+
+/** ids, die eine Aktion geändert oder neu angelegt hat (Vergleich vorher/nachher). */
+export function changedIds(before = [], after = []) {
+  const prev = new Map(before.map((x) => [x.id, rowJson(x)]));
+  return after.filter((x) => x.id && prev.get(x.id) !== rowJson(x)).map((x) => x.id);
+}
+
+/**
+ * Eine Aktion rückgängig machen — NUR die Zeilen, die sie geändert hat (`ids`); was ein
+ * Abgleich inzwischen anderswo geändert hat, bleibt. Geänderte Zeilen → alter Stand, neue → gelöscht.
+ * Immer mit neuer Marke, sonst gewinnt beim Partner-Abgleich wieder die Aktion. Mutiert `items`.
+ */
+export function undoChange(items, before, ids, now = new Date().toISOString()) {
+  const prev = new Map(before.map((x) => [x.id, x]));
+  const want = new Set(ids);
+  let n = 0;
+  for (const it of items) {
+    if (!want.has(it.id)) continue;
+    const old = prev.get(it.id);
+    if (!old) {
+      if (!it.deleted) { it.deleted = true; it.updated = now; n++; }
+      continue;
+    }
+    for (const k of Object.keys(it)) if (!(k in old)) delete it[k];
+    Object.assign(it, JSON.parse(JSON.stringify(old)), { updated: now });
+    n++;
+  }
+  return n;
+}
+
+/**
+ * UX-14: Was hat „Auf die Liste“ getan? Pro eingemischtem Artikel die Zeile, wie sie jetzt aussieht,
+ * und ob sie neu ist oder auf eine schon vorhandene aufaddiert wurde.
+ * → [{ label, merged }]
+ */
+export function addSummary(before = [], after = [], incoming = []) {
+  const wasLive = before.filter((x) => !x.deleted);
+  const nowLive = after.filter((x) => !x.deleted);
+  const seen = new Set();
+  const out = [];
+  for (const inc of incoming) {
+    const name = inc.nameDe || inc.name;
+    const row = findSame(nowLive, name);
+    if (!row || seen.has(row)) continue;
+    seen.add(row);
+    out.push({ label: itemLabel(row), merged: !!findSame(wasLive, name) });
+  }
+  return out;
 }

@@ -8,7 +8,7 @@
 import * as db from "./db.js";
 import * as listSync from "./listSync.js";
 import { rpc, randomToken } from "./supabase.js";
-import { applyFriendItems, snapshotOf, inviteUrl, trimSeen } from "../features/shopping/friendMerge.js";
+import { applyFriendItems, snapshotOf, inviteUrl, trimSeen, friendAuthor } from "../features/shopping/friendMerge.js";
 
 const KEY = "friendInbox";   // { ownerToken, invite, ownerName, seen: [], published: "" }
 const PUBLISH_DELAY = 1500;  // ms — bündelt schnelle Taps wie listSync
@@ -90,11 +90,16 @@ async function doSync() {
     let added = 0;
     if (pulled.length) {
       let seen = inbox.seen || [];
+      const news = [];
       await listSync.applyExternal((items) => {
         const r = applyFriendItems(items, pulled, { seen });
         added = r.added; seen = r.seen;
+        // T9 (UX-15): jeder neue Vorschlag landet in „Neu seit deinem letzten Besuch“.
+        const fresh = new Set(seen.filter((id) => !(inbox.seen || []).includes(id)));
+        for (const p of pulled) if (fresh.has(p.id) && String(p.name || "").trim()) news.push({ name: String(p.name).trim().slice(0, 80), who: friendAuthor(p.author), at: new Date().toISOString() });
         return r.added ? r.items : null;
       });
+      if (news.length) await listSync.addNews(news);
       // Erst lokal gespeichert, dann gemerkt, dann auf dem Server gelöscht.
       await patchInbox({ seen: trimSeen(seen) });
       await rpc("fl_ack", { p_owner_token: inbox.ownerToken, p_ids: pulled.map((x) => x.id) });
