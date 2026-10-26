@@ -4,6 +4,7 @@
 import { state, applySynced } from "../../store.js";
 import * as gate from "../../ai/gate.js";
 import { testKey, AiError } from "../../ai/client.js";
+import { getUsageLog, summarizeUsage, clearUsage } from "../../ai/usage.js";
 import * as drive from "../../data/drive.js";
 import * as sync from "../../data/sync.js";
 import { getTheme, setTheme, getProfile, setProfile, resetProfile } from "../../data/settings.js";
@@ -34,6 +35,14 @@ export function renderSettings(container) {
         <label style="margin-top:14px">${t("settings.model")}</label>
         ${gate.MODELS.map((m) => `
           <label class="check"><input type="radio" name="set-model" value="${m.id}" ${gate.getModel() === m.id ? "checked" : ""}/> ${esc(m.label)}</label>`).join("")}
+        <label style="margin-top:14px">${t("settings.usageHeading")}</label>
+        <p class="set-note">${t("settings.usageNote")}</p>
+        <div id="usage-box"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn-sec" id="usage-copy">${t("settings.usageCopy")}</button>
+          <button class="btn-sec btn-del" id="usage-clear">${t("settings.usageClear")}</button>
+        </div>
+        <p class="set-note" id="usage-status"></p>
       </div>
 
       <div class="card set-card">
@@ -146,6 +155,22 @@ export function renderSettings(container) {
   };
   container.querySelectorAll('input[name="set-model"]').forEach((r) => { r.onchange = () => gate.setModel(r.value); });
 
+  /* ---------- KI-Verbrauch (v2.16, Q3) ---------- */
+  const usageBox = container.querySelector("#usage-box");
+  const usageStatus = container.querySelector("#usage-status");
+  const paintUsage = () => { usageBox.innerHTML = usageTableHtml(summarizeUsage(getUsageLog())); };
+  paintUsage();
+  container.querySelector("#usage-copy").onclick = async () => {
+    const log = getUsageLog();
+    const json = JSON.stringify({ build: BUILD, summary: summarizeUsage(log), log }, null, 1);
+    try { await navigator.clipboard.writeText(json); usageStatus.textContent = t("settings.usageCopied"); }
+    catch (e) { window.prompt(t("settings.usageCopy"), json); }
+  };
+  container.querySelector("#usage-clear").onclick = () => {
+    if (!confirm(t("settings.usageClearConfirm"))) return;
+    clearUsage(); paintUsage(); usageStatus.textContent = "";
+  };
+
   /* ---------- Drive ---------- */
   const driveStatus = container.querySelector("#drive-status");
   const paintDrive = () => {
@@ -185,4 +210,21 @@ export function renderSettings(container) {
   container.querySelectorAll('input[name="set-theme"]').forEach((r) => { r.onchange = () => setTheme(r.value); });
 
   return () => { offAuth(); offStatus(); };
+}
+
+/** Verbrauchs-Übersicht: eine Zeile pro Aktion + Summe. „aus Cache“ = Anteil der Eingabe, der
+ *  aus dem Prompt-Cache gelesen wurde (zeigt, ob Q2 greift). */
+function usageTableHtml(sum) {
+  if (!sum.total.calls) return `<p class="set-note">${t("settings.usageEmpty")}</p>`;
+  const n = (x) => Math.round(x).toLocaleString(getLang());
+  const usd = (x) => (x < 0.1 ? x.toFixed(4) : x.toFixed(2));
+  const pct = (r) => { const all = r.in + r.cr + r.cw; return all ? Math.round((r.cr / all) * 100) + " %" : "–"; };
+  const label = (a) => { const k = "settings.usageAct." + a.replace(/\./g, "_"); const v = t(k); return v === k ? a : v; };
+  const row = (r, name) => `<tr><td>${esc(name)}</td><td class="n">${r.calls}</td><td class="n">${n(r.avgIn)} / ${n(r.avgOut)}</td><td class="n">${pct(r)}</td><td class="n">${usd(r.cost)}</td></tr>`;
+  return `<table class="usage-table">
+    <thead><tr><th>${t("settings.usageColAction")}</th><th class="n">${t("settings.usageColCalls")}</th><th class="n">${t("settings.usageColAvg")}</th><th class="n">${t("settings.usageColCache")}</th><th class="n">${t("settings.usageColCost")}</th></tr></thead>
+    <tbody>${sum.rows.map((r) => row(r, label(r.action))).join("")}</tbody>
+    <tfoot>${row(sum.total, t("settings.usageTotal"))}</tfoot>
+  </table>
+  <p class="set-note">${t("settings.usageSince", { d: esc(new Date(sum.since).toLocaleDateString(getLang())) })}</p>`;
 }

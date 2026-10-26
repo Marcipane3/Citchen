@@ -5,27 +5,53 @@
 // "anthropic-dangerous-direct-browser-access: true" (CORS-Opt-in der API).
 
 import { getKey, getModel } from "./gate.js";
+import { TASKS, VISION_MODEL, FALLBACK_BETA } from "./models.js";
+import { normalizeUsage, addUsage, recordUsage } from "./usage.js";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 
-// Vision-Aufgaben (Foto-/Kühlschrank-Scan) laufen immer auf einem vision-fähigen
-// Modell, unabhängig von der Textmodell-Wahl des Nutzers.
-export const VISION_MODEL = "claude-sonnet-4-6";
+// Vision-Aufgaben (Foto-/Kühlschrank-Scan) laufen über eine feste Aufgabe aus models.js
+// (`task: "capture"` / `"fridge"`), unabhängig von der Textmodell-Wahl des Nutzers.
+export { VISION_MODEL };
 // Server-Tool für URL-Import: Anthropic holt die Seite serverseitig (kein CORS).
 export const WEB_FETCH_TOOL = { type: "web_fetch_20260209", name: "web_fetch", max_uses: 3 };
 
 export class AiError extends Error {
-  constructor(msg, kind) { super(msg); this.kind = kind; } // "nokey"|"offline"|"auth"|"ratelimit"|"overloaded"|"api"
+  constructor(msg, kind) { super(msg); this.kind = kind; } // "nokey"|"offline"|"auth"|"ratelimit"|"overloaded"|"refusal"|"api"
 }
 
-function headers(key) {
-  return {
+function headers(key, beta = "") {
+  const h = {
     "Content-Type": "application/json",
     "x-api-key": key,
     "anthropic-version": API_VERSION,
     "anthropic-dangerous-direct-browser-access": "true",
   };
+  if (beta) h["anthropic-beta"] = beta;
+  return h;
+}
+
+/**
+ * Pur & testbar: der Anfrage-Body. Mit `task` (models.TASKS) kommen Modell, Effort, Token-Limit
+ * und Fallback aus der Konfiguration; sonst das gewählte Textmodell.
+ * cacheSystem (Q2): der System-Prompt wird als Block mit cache_control gesendet → Folge-Anfragen
+ * mit demselben Prompt lesen ihn aus dem Cache (~10 % des Preises). Unter der Mindestlänge des
+ * Modells (Haiku 4.5: 4096 Tokens) cached die API still nicht — kein Fehler.
+ */
+export function buildRequest({ system, messages, maxTokens = 4096, model = null, tools = null, task = null, cacheSystem = false }) {
+  const cfg = task ? TASKS[task] : null;
+  if (task && !cfg) throw new Error(`Unbekannte KI-Aufgabe: ${task}`);
+  const body = {
+    model: (cfg && cfg.model) || model || getModel(),
+    max_tokens: (cfg && cfg.maxTokens) || maxTokens,
+    system: system ? (cacheSystem ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] : system) : undefined,
+    messages,
+    tools: tools || undefined,
+  };
+  if (cfg && cfg.effort) body.output_config = { effort: cfg.effort };
+  if (cfg && cfg.fallback) body.fallbacks = "default";
+  return { body, beta: cfg && cfg.fallback ? FALLBACK_BETA : "" };
 }
 
 async function throwForStatus(r) {
@@ -41,8 +67,10 @@ async function throwForStatus(r) {
  * Eine Messages-Anfrage. messages = [{role, content}], system optional,
  * tools optional (z.B. WEB_FETCH_TOOL). Bei Server-Tools wird pause_turn
  * automatisch fortgesetzt (max. 4 Runden). Gibt den finalen Text zurück.
+ * action (Q3): Name fürs Verbrauchsprotokoll ("assistant", "capture.photo", …) — der summierte
+ * `usage` aller Runden wird lokal protokolliert, auch wenn die Antwort danach nicht passt.
  */
-export async function complete({ system, messages, maxTokens = 4096, model = null, tools = null }) {
+export async function complete({ system, messages, maxTokens = 4096, model = null, tools = null, task = null, cacheSystem = false, action = "other" }) {
   const key = getKey();
   if (!key) throw new AiError("Kein API-Schlüssel hinterlegt (Einstellungen → KI).", "nokey");
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
@@ -50,26 +78,19 @@ export async function complete({ system, messages, maxTokens = 4096, model = nul
   }
 
   const convo = messages.slice();
+  const { body, beta } = buildRequest({ system, messages: convo, maxTokens, model, tools, task, cacheSystem });
   let data = null;
+  let used = normalizeUsage(null);
   for (let round = 0; round < 4; round++) {
     let r;
     try {
-      r = await fetch(API_URL, {
-        method: "POST",
-        headers: headers(key),
-        body: JSON.stringify({
-          model: model || getModel(),
-          max_tokens: maxTokens,
-          system: system || undefined,
-          messages: convo,
-          tools: tools || undefined,
-        }),
-      });
+      r = await fetch(API_URL, { method: "POST", headers: headers(key, beta), body: JSON.stringify(body) });
     } catch (e) {
       throw new AiError("Keine Verbindung zur Anthropic-API (offline oder blockiert).", "offline");
     }
     if (!r.ok) await throwForStatus(r);
     data = await r.json();
+    used = addUsage(used, normalizeUsage(data.usage));
 
     // Server-Tool (web_fetch) hat das Iterationslimit erreicht → fortsetzen.
     if (data.stop_reason === "pause_turn") {
@@ -78,9 +99,16 @@ export async function complete({ system, messages, maxTokens = 4096, model = nul
     }
     break;
   }
+  // Abgerechnet wird auch eine Ablehnung → erst protokollieren. Bei Fallback antwortet ggf. ein
+  // anderes Modell (data.model) — dessen Preis zählt.
+  recordUsage({ action, model: data.model || body.model, usage: used });
 
+  if (data.stop_reason === "refusal") {
+    throw new AiError("Die KI hat diese Anfrage abgelehnt. Formuliere sie anders oder versuch es mit einer anderen Quelle.", "refusal");
+  }
+  // Antwort nach Block-Typ lesen: Sonnet 5.5 kann leere thinking-Blöcke voranstellen.
   const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
-  return { text, usage: data.usage || null, stopReason: data.stop_reason };
+  return { text, usage: used, stopReason: data.stop_reason };
 }
 
 /** Baut einen User-Turn mit Bild-Blöcken + Text (Vision). images = [base64Jpeg]. */

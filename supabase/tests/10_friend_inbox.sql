@@ -142,6 +142,12 @@ select tests.ok(
   = array['fl_ack', 'fl_add', 'fl_create', 'fl_delete', 'fl_publish', 'fl_pull', 'fl_rotate', 'fl_set_name', 'fl_view'],
   'anon darf genau die 9 fl_*-Funktionen ausführen');
 select tests.ok(
+  (select array_agg(p.proname::text order by p.proname)
+     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute'))
+  = array['fl_ack', 'fl_add', 'fl_create', 'fl_delete', 'fl_publish', 'fl_pull', 'fl_rotate', 'fl_set_name', 'fl_view'],
+  'authenticated darf dieselben 9 — genau die 18 erwarteten Advisor-Warnungen (0028 + 0029)');
+select tests.ok(
   not exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
                where n.nspname = 'public' and c.relkind = 'r'
                  and (has_table_privilege('anon', c.oid, 'select') or has_table_privilege('anon', c.oid, 'insert')

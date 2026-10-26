@@ -1,10 +1,11 @@
 // parse.js — Capture-Logik: Foto/URL → Rezept-Entwurf (flaches v3-Schema).
-// Vision (Foto) via claude-sonnet-4-6; URL via web_fetch-Server-Tool (kein CORS).
+// Foto + URL laufen als feste Aufgabe "capture" (Modell/Effort in ai/models.js); URL via
+// web_fetch-Server-Tool (kein CORS).
 // Ergebnis läuft IMMER durch coerceRecipe (Schema-Validierung) und dann durchs
 // Review-Formular — nie auto-speichern.
 
 import { FLAGS } from "../../flags.js";
-import { complete, visionMessage, blobToBase64, VISION_MODEL, WEB_FETCH_TOOL } from "../../ai/client.js";
+import { complete, visionMessage, blobToBase64, WEB_FETCH_TOOL } from "../../ai/client.js";
 import { extractJson, coerceRecipe } from "../../ai/parse.js";
 import { compressImage } from "../../ui/helpers.js";
 import { CATEGORIES } from "../../data/schema.js";
@@ -104,7 +105,7 @@ export async function parseBulk({ text = "", generate = false, wish = "", count 
   if (!generate && !text.trim()) throw new CaptureParseError("noText");
   const prompt = buildBulkPrompt({ generate, wish, count, profile, staples });
   const content = generate ? prompt : `${prompt}\n\nTEXT:\n${text}`;
-  const { text: out } = await complete({ messages: [{ role: "user", content }], maxTokens: 4000 });
+  const { text: out } = await complete({ messages: [{ role: "user", content }], maxTokens: 4000, action: generate ? "capture.ideas" : "capture.text" });
   const json = extractJson(out);
   const arr = json && Array.isArray(json.recipes) ? json.recipes : (Array.isArray(json) ? json : []);
   const recipes = [];
@@ -116,8 +117,8 @@ export async function parseBulk({ text = "", generate = false, wish = "", count 
   return recipes;
 }
 
-async function runAndCoerce(messages, { tools = null } = {}) {
-  const { text } = await complete({ messages, model: VISION_MODEL, maxTokens: 2000, tools });
+async function runAndCoerce(messages, { tools = null, action }) {
+  const { text } = await complete({ messages, task: "capture", tools, action });
   const json = extractJson(text);
   if (json && json.error) throw new CaptureParseError("noRecipe");
   const { recipe, errors } = coerceRecipe(json && (json.recipe || json));
@@ -135,11 +136,11 @@ export async function parseCapture(input = {}) {
   if (input.photoBlob) {
     const blob = await compressImage(input.photoBlob, 1568, 0.8);
     const b64 = await blobToBase64(blob);
-    return runAndCoerce([visionMessage([b64], buildCapturePrompt("aus diesem Bild", { staples: input.staples || [] }))]);
+    return runAndCoerce([visionMessage([b64], buildCapturePrompt("aus diesem Bild", { staples: input.staples || [] }))], { action: "capture.photo" });
   }
   if (input.url) {
     const prompt = `${buildCapturePrompt("von dieser URL", { staples: input.staples || [] })}\nURL: ${input.url}\nNutze das web_fetch-Werkzeug, um die Seite zu lesen.`;
-    return runAndCoerce([{ role: "user", content: prompt }], { tools: [WEB_FETCH_TOOL] });
+    return runAndCoerce([{ role: "user", content: prompt }], { tools: [WEB_FETCH_TOOL], action: "capture.url" });
   }
   throw new CaptureParseError("noInput");
 }

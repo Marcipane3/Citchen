@@ -27,8 +27,9 @@ and friend suggestions that haven't been picked up yet. Drive stays the source o
    `supabase/tests/run.sh` — a throw-away local Postgres that applies all migrations in order and
    tests the RPCs as `anon`. That run *is* the restore test for the schema.
 2. **Security model stays "no tables, only token-checked functions":** RLS on, no policies, all grants
-   revoked; 9 `SECURITY DEFINER` functions with a fixed `search_path`. The run asserts it. The one
-   expected advisor warning ("`SECURITY DEFINER` executable by `anon`") is intentional.
+   revoked; 9 `SECURITY DEFINER` functions with a fixed `search_path`. The run asserts it. The
+   expected advisor warnings ("`SECURITY DEFINER` executable by `anon`" and "… by `authenticated`",
+   one each per function = 18) are intentional.
 3. **Abuse (AR-12):** without accounts there is no proof of origin, so `fl_create` gets brakes instead:
    - 30 new lists per hour overall (`rate`);
    - lazy clean-up of abandoned lists: never published and older than 7 days, or 120 days without an
@@ -65,6 +66,5 @@ and friend suggestions that haven't been picked up yet. Drive stays the source o
 - `fl_create` can now answer `rate` / `capacity`; the app shows "too many links right now, try again in
   an hour" instead of "are you online?".
 - A list nobody opens for 120 days loses its friends link (the app then says "gone").
-- Open item: the security advisor and the v2.15b migration must be run **on the prod project by
-  Marcel** — this session's Supabase connector is linked to a different account (see
-  `supabase/README.md`, "To do once for v2.15b").
+- Done 2026-10-26: Marcel applied the v2.15b migration on prod; the security advisor shows only
+  the 18 expected warnings (see `supabase/README.md`).

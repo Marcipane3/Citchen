@@ -27,8 +27,12 @@ to rebuild your cookbook or your shopping list.
   than 7 days, or the owner hasn't called in 120 days) — added in v2.15b against AR-12.
 - **Secrets:** the client only holds the *publishable* key. No service-role / secret key, database
   password or access token is in the repo (checked in v2.15b). Keep it that way.
-- **Expected advisor warning:** "Function … `SECURITY DEFINER` executable by `anon`" for the `fl_*`
-  functions — intentional, see above. Anything else the security advisor reports is a real finding.
+- **Expected advisor warnings — 18 in total, all intentional:** for each of the 9 `fl_*` functions
+  one "Public Can Execute SECURITY DEFINER Function" (`anon`, lint 0028) and one "Signed-In Users
+  Can Execute SECURITY DEFINER Function" (`authenticated`, lint 0029). Calling them without an
+  account is the whole design (see above); `authenticated` keeps the same rights so a friend who
+  happens to be signed in (V3 accounts) still gets the same functions. `supabase/tests/run.sh`
+  asserts exactly this set. **Anything else** the security advisor reports is a real finding.
 
 ## Rebuild the database from the repo
 
@@ -44,15 +48,12 @@ On a real (new or existing) Supabase project, apply the migrations **in file-nam
 - **Dashboard:** SQL Editor → paste each file from `supabase/migrations/` → Run, oldest first.
 - **CLI:** `supabase link --project-ref <ref>` then `supabase db push`.
 
-Then run **Advisors → Security** in the dashboard; only the expected warning above should remain.
+Then run **Advisors → Security** in the dashboard; only the 18 expected warnings above should remain.
 
-### ⚠️ To do once for v2.15b on prod
+### v2.15b on prod — done 2026-10-26
 
-The v2.15b migration `20261026220000_p7_hardening.sql` is in the repo but **not yet applied** to
-`wbvhgeqdixrcfeszsiob` (this session's Supabase connector is linked to a different account). Apply it
-once via the SQL Editor or `supabase db push`. It only replaces `fl_create` and adds a cleanup function
-and two indexes — no data changes, safe to run while the app is in use. Until it runs, the app works
-exactly as before (the new rate/capacity messages simply never appear).
+Marcel applied `20261026220000_p7_hardening.sql` to `wbvhgeqdixrcfeszsiob` via the SQL Editor on
+2026-10-26; the security advisor then showed exactly the 18 expected warnings above.
 
 ## Dev vs. prod
 
