@@ -10,8 +10,7 @@ import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "../cookbook/detail.js";
 import { navigate } from "../../router.js";
 import { generatePlan, planRecipeIds, mondayOf, DAYS, MEAL_CATEGORIES } from "./logic.js";
-import { aggregateIngredients } from "../shopping/logic.js";
-import { addItemsToList } from "../shopping/shopping.js";
+import { addRecipesToList } from "../shopping/shopping.js";
 import { BUILD } from "../../version.js";
 import { t } from "../../i18n.js";
 
@@ -162,15 +161,18 @@ export function renderPlanner(container) {
   container.querySelector("#shopBtn").onclick = async (e) => {
     if (!PLAN) { alert(t("planner.needPlan")); return; }
     const btn = e.currentTarget;
+    if (btn.disabled) return;
     btn.disabled = true;
-    const { getStaples } = await import("../../data/settings.js");
-    const staples = await getStaples();
-    // Einkaufsliste matcht gegen den deutschen Katalog → deutsche Rezepte aggregieren.
-    const recipes = planRecipeIds(PLAN).map((id) => getRecipeDe(id)).filter(Boolean);
-    const displayById = Object.fromEntries(recipes.map((x) => [x.id, getRecipe(x.id)]));
-    const { items, skipped } = aggregateIngredients(recipes, { staples, displayById }); // S3: Namen in UI-Sprache
-    await addItemsToList(items);
-    btn.disabled = false;
+    let res;
+    try {
+      // Einkaufsliste matcht gegen den deutschen Katalog → deutsche Rezepte aggregieren.
+      const recipes = planRecipeIds(PLAN).map((id) => getRecipeDe(id)).filter(Boolean);
+      const displayById = Object.fromEntries(recipes.map((x) => [x.id, getRecipe(x.id)])); // S3: Namen in UI-Sprache
+      res = await addRecipesToList(recipes, { displayById }); // Lager + Basics abgezogen (T6)
+    } finally {
+      btn.disabled = false;
+    }
+    const { items, skipped } = res;
     const msg = t("detail.addedToShopping", { n: items.length }) + (skipped ? t("detail.inStockSkipped", { n: skipped }) : "") + ".\n" + t("detail.switchToList");
     if (confirm(msg)) navigate("shopping");
   };

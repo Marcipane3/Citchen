@@ -61,6 +61,27 @@ export async function put(store, value) {
   return tx(db, store, "readwrite", (s) => s.put(value));
 }
 
+/**
+ * Atomar lesen + ändern + schreiben in EINER Transaktion (AR-10: kein anderer Schreiber dazwischen).
+ * fn(alterDatensatz | undefined) → neuer Datensatz (mit Schlüssel). Gibt den neuen Datensatz zurück.
+ */
+export async function update(store, key, fn) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(store, "readwrite");
+    const s = t.objectStore(store);
+    let next;
+    const req = s.get(key);
+    req.onsuccess = () => {
+      try { next = fn(req.result); } catch (e) { t.abort(); reject(e); return; }
+      s.put(next);
+    };
+    t.oncomplete = () => resolve(next);
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error);
+  });
+}
+
 export async function del(store, key) {
   const db = await openDB();
   return tx(db, store, "readwrite", (s) => s.delete(key));

@@ -10,7 +10,9 @@ import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { touch, newItemId, ensureItemMeta, adoptLegacy } from "./listMerge.js";
 import { CATALOG, SECTION_ORDER, sectionIcon } from "../../data/catalog.js";
-import { itemKey, itemLabel, formatListAsText } from "./logic.js";
+import { itemLabel, formatListAsText, mergeItems, aggregateIngredients, addOne, findSame, badgeOf } from "./logic.js";
+import { getStaples } from "../../data/settings.js";
+import { getInStock } from "../../data/lager.js";
 import { friendName } from "./friendMerge.js";
 import { BUILD } from "../../version.js";
 import { t, tn, getLang } from "../../i18n.js";
@@ -66,34 +68,36 @@ async function shareList(container) {
   } catch (_) { /* clipboard unavailable — nothing to do */ }
 }
 
-/** Artikel hinzufügen (v1-Verhalten: existiert er, +1 und wieder "offen"). */
+/**
+ * Artikel hinzufügen (v1-Verhalten: existiert er, +1 und wieder "offen"). Seit v2.15.3 (T5) zählt
+ * jede Zeile desselben Artikels — auch „2 Stück Ingwer“ aus einem Rezept → „3 Stück Ingwer“.
+ * Gibt die geänderte Zeile zurück (das Kachel-Badge zeigt genau sie, BH-06/UX-11).
+ */
 export function shopAdd(name, cat, icon) {
   name = (name || "").trim();
-  if (!name) return;
-  const key = itemKey(name, null);
-  const same = (x) => itemKey(x.nameDe || x.name, x.unit) === key || itemKey(x.name, x.unit) === key;
-  // Lebenden Artikel bevorzugen; sonst einen gelöschten wiederbeleben (gleiche id → Partner sieht es).
-  const it = ITEMS.find((x) => !x.deleted && same(x)) || ITEMS.find(same);
-  if (it && it.deleted) Object.assign(it, { deleted: false, done: false, qty: 1, amount: null, unit: null });
-  else if (it) { it.qty++; it.done = false; }
-  if (it) touch(it);
-  else ITEMS.push({
-    id: newItemId(),
-    name, cat: cat || "Sonstiges", icon: icon || "🛒",
-    qty: 1, done: false, amount: null, unit: null,
-    updated: new Date().toISOString(),
-    author: "local",
-    deleted: false,
-  });
+  if (!name) return null;
+  const row = addOne(ITEMS, { name, cat, icon }, { id: newItemId() });
+  save();
+  return row;
+}
+
+/** Aggregierte Artikel in die Liste mischen (eine Zeile pro Artikel, T5). */
+export async function addItemsToList(newItems) {
+  await load();
+  ITEMS = mergeItems(ITEMS, newItems);
   save();
 }
 
-/** Für detail.js / planner.js: aggregierte Artikel in die Liste mischen. */
-export async function addItemsToList(newItems) {
-  await load();
-  const { mergeItems } = await import("./logic.js");
-  ITEMS = mergeItems(ITEMS, newItems);
-  save();
+/**
+ * SI-06: Rezepte → Einkaufsliste, EIN Ablauf für Rezeptansicht und Wochenplan.
+ * recipes = deutsche (kanonische) Rezepte; displayById = dieselben in der UI-Sprache (S3).
+ * Lager (T6) und Basics werden abgezogen. → { items, skipped }
+ */
+export async function addRecipesToList(recipes, { displayById = {} } = {}) {
+  const [staples, inStock] = await Promise.all([getStaples(), getInStock()]);
+  const res = aggregateIngredients(recipes, { staples, inStock, displayById });
+  if (res.items.length) await addItemsToList(res.items);
+  return res;
 }
 
 export function renderShopping(container) {
@@ -418,11 +422,10 @@ function paintList(container) {
 }
 
 function catItemHTML(name, cat, icon) {
-  const low = name.toLowerCase();
-  const inList = live().find((x) => (x.nameDe || x.name).toLowerCase() === low);
+  const inList = findSame(live(), name); // dieselbe Regel wie shopAdd (T5) → Badge = die Zeile, die ein Tipp ändert
   return `<button class="cat-item" data-name="${esc(name)}" data-cat="${esc(cat)}" data-icon="${esc(icon || "🛒")}">
     <span class="ci-ic">${esc(icon || "🛒")}</span><span class="ci-nm">${esc(name)}</span>
-    ${inList ? `<span class="ci-badge">${esc(String(inList.qty))}</span>` : ""}
+    ${inList ? `<span class="ci-badge">${esc(badgeOf(inList))}</span>` : ""}
   </button>`;
 }
 
@@ -452,13 +455,11 @@ function paintCatalog(container) {
   // Artikel +1 (Badge in place, Sektion bleibt offen — v1-Verhalten)
   el.querySelectorAll(".cat-item").forEach((b) => {
     b.onclick = () => {
-      shopAdd(b.dataset.name, b.dataset.cat, b.dataset.icon);
-      const low = b.dataset.name.toLowerCase();
-      const it = live().find((x) => (x.nameDe || x.name).toLowerCase() === low);
+      const it = shopAdd(b.dataset.name, b.dataset.cat, b.dataset.icon);
       if (!it) return;
       let badge = b.querySelector(".ci-badge");
       if (!badge) { badge = document.createElement("span"); badge.className = "ci-badge"; b.appendChild(badge); }
-      badge.textContent = it.qty;
+      badge.textContent = badgeOf(it);
       b.classList.add("just-added");
       setTimeout(() => b.classList.remove("just-added"), 220);
       paintList(container);

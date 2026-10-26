@@ -7,7 +7,7 @@
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import { inspectList, sanitizeItem, ListRejected, LIST_VERSION } from "../src/data/listFile.js";
 import {
-  syncStep, ensureItemMeta, adoptLegacy, stableItemId, LEGACY_STAMP, sameItems, pruneCutoff,
+  syncStep, ensureItemMeta, adoptLegacy, stableItemId, LEGACY_STAMP, sameItems, pruneCutoff, mergeList, pruneTombstones,
 } from "../src/features/shopping/listMerge.js";
 
 const DAY = 86400000;
@@ -20,6 +20,12 @@ const live = (items, name) => items.filter((x) => !x.deleted && (!name || x.name
 /** So hat v2.10 Rezept-Zutaten nach Drive geschrieben: ohne id, ohne updated (git e5c0eef). */
 const LEGACY_INGWER = { name: "Ingwer", nameDe: "Ingwer", amount: 1, unit: "Stück", cat: "Obst & Gemüse", icon: "🫚", qty: 1, done: false, sources: ["r1749400081000"] };
 
+/** Der Merge-Schritt vor v2.15.2 (nur Union pro id + Aufräumen) — für die Gegenprobe. */
+function oldSyncStep(local, remote, now) {
+  const merged = pruneTombstones(mergeList(local, remote), now);
+  return { merged, prunedBefore: "", writeRemote: !sameItems(remote, merged) };
+}
+
 /**
  * Ein Gerät synct gegen die Datei — genau die Schritte von listSync.loadLocalList + itemMerge,
  * ohne Engine: laden (ensureItemMeta), Datei prüfen, mergen, ggf. zurückschreiben.
@@ -29,7 +35,7 @@ function deviceSync(dev, file, now, { fixed = true } = {}) {
   dev.items = fixed ? ensureItemMeta(adoptLegacy(dev.items), now) : ensureItemMeta(dev.items, now);
   const f = fixed ? inspectList(file) : { items: file.items, legacy: [], notes: [], prunedBefore: "" };
   const horizon = fixed && dev.syncedFile ? f.prunedBefore : "";
-  const step = syncStep(dev.items, f.items, now, { legacy: f.legacy, horizon });
+  const step = fixed ? syncStep(dev.items, f.items, now, { legacy: f.legacy, horizon }) : oldSyncStep(dev.items, f.items, now);
   const prunedBefore = step.prunedBefore > f.prunedBefore ? step.prunedBefore : f.prunedBefore;
   const write = step.writeRemote || f.notes.length > 0 || prunedBefore !== f.prunedBefore;
   dev.items = step.merged;

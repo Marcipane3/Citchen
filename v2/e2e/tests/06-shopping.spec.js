@@ -91,3 +91,57 @@ test("Rezept → Einkaufsliste: Zutaten zusammengefasst, Vorrat übersprungen, W
     .toEqual(before.map((x) => (x.amount ?? x.qty) * 2));
   expect(await shoppingNames(page)).toHaveLength(Number(added));
 });
+
+/* ---------- v2.15.3: ein Artikel = eine Zeile (T5), Lager schlägt 🛒 (T6) ---------- */
+
+const THAI = "Thai-Style Gemüsecurry";      // „1 Stück Ingwer 🛒“
+const RAMEN = "Asiatische Nudelsuppe (Ramen-Art)"; // „1 Stück Ingwer 🛒“
+const ingwerRows = (page) => page.locator("#shop-list .sl-item", { hasText: "Ingwer" });
+
+test("T5 / FR-01: Rezept + Kachel-Tipps + zweites Rezept → immer EINE Ingwer-Zeile; Badge zeigt genau sie; Doppel-Tipp verdoppelt nicht", async ({ device }) => {
+  const { page } = await device();
+  await openApp(page);
+  // BH-10: Doppel-Tipp auf „Zutaten auf die Liste“ fügt nur einmal hinzu.
+  const detail = await openRecipe(page, THAI);
+  await detail.locator(".add-ing-shop").dblclick();
+  await expect(page).toHaveURL(/#\/shopping$/);
+  await expect(ingwerRows(page)).toHaveCount(1);
+  await expect(ingwerRows(page).locator(".sl-name")).toHaveText("1 Stück Ingwer");
+
+  // Kachel „Ingwer“ (Gemüse) → zählt in DIESE Zeile; das Badge zeigt ihre Stückzahl (UX-11).
+  await page.locator('#shop-catalog .cat-head[data-sec="Gemüse"]').click();
+  const tile = page.locator('#shop-catalog .cat-item[data-name="Ingwer"]');
+  await expect(tile.locator(".ci-badge")).toHaveText("1");
+  await tile.click();
+  await expect(ingwerRows(page)).toHaveCount(1);
+  await expect(ingwerRows(page).locator(".sl-name")).toHaveText("2 Stück Ingwer");
+  await expect(tile.locator(".ci-badge")).toHaveText("2");
+  await tile.click();
+  await expect(tile.locator(".ci-badge")).toHaveText("3");
+
+  // Zweites Ingwer-Rezept → weiter eine Zeile.
+  await tab(page, "cookbook");
+  await (await openRecipe(page, RAMEN)).locator(".add-ing-shop").click();
+  await expect(page).toHaveURL(/#\/shopping$/);
+  await expect(ingwerRows(page)).toHaveCount(1);
+  await expect(ingwerRows(page).locator(".sl-name")).toHaveText("4 Stück Ingwer");
+  const stored = (await idb(page, "lists", "current")).items.filter((x) => !x.deleted && /Ingwer/.test(x.name));
+  expect(stored).toHaveLength(1);
+});
+
+test("T6: Ingwer im Kühlschrank (Lager) → Rezept mit „Ingwer 🛒“ setzt keinen Ingwer auf die Liste", async ({ device }) => {
+  const dev = await device();
+  const { page } = dev;
+  await openApp(page);
+  await tab(page, "lager");
+  await page.locator("#fridge-name").fill("Ingwer");
+  await page.locator("#fridge-add").click();
+  await expect(page.locator("#fridge-list .fi-name", { hasText: "Ingwer" })).toHaveCount(1);
+
+  await tab(page, "cookbook");
+  await (await openRecipe(page, THAI)).locator(".add-ing-shop").click();
+  await expect(page).toHaveURL(/#\/shopping$/);
+  await expect.poll(() => shoppingNames(page)).toEqual(expect.arrayContaining([expect.stringMatching(/Limette/)]));
+  await expect(ingwerRows(page)).toHaveCount(0);
+  expect(dev.dialogs.at(-1).message).toMatch(/im Vorrat übersprungen/);
+});

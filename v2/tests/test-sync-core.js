@@ -116,7 +116,12 @@ function listDevice(drive, user = "a") {
     locate: async () => { const id = await dv.findByName("einkaufsliste-" + user + ".json"); return id ? { fileId: id, meta: { ownFileId: id, linked: false } } : null; },
     rule: itemMerge({
       // readAll wie listSync.loadLocalList: fehlende Felder ergänzen (T4: Altbestand → stabile id).
-      store: { readAll: async () => { local.items = ensureItemMeta(adoptLegacy(local.items)); return structuredClone(local.items); }, write: async (items) => { local.items = structuredClone(items); } },
+      store: {
+        readAll: async () => { local.items = ensureItemMeta(adoptLegacy(local.items)); return structuredClone(local.items); },
+        write: async (items) => { local.items = structuredClone(items); },
+        // AR-10: wie listSync.mutateList — lesen + fn + schreiben ohne await dazwischen (atomar)
+        update: async (fn) => { local.items = structuredClone(fn(ensureItemMeta(adoptLegacy(structuredClone(local.items))))); return structuredClone(local.items); },
+      },
       onDirty: () => { dirtyCalls++; },
     }),
     online: () => true,

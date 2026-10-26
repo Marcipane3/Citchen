@@ -96,6 +96,7 @@ export function hasStructuredTipps(parsed) {
 const UNITS = [
   "kg", "g", "ml", "l", "EL", "TL", "Pck\\.?", "Päckchen", "Prise[n]?", "Dose[n]?",
   "Bund", "Zehe[n]?", "Stück", "Scheibe[n]?", "Tasse[n]?", "Becher", "Glas", "Würfel",
+  "cm", "Daumen", // v2.15.3 (TW-13): „2 cm Ingwer“ → Artikel „Ingwer“, nicht „cm Ingwer“
 ];
 const UNIT_RE = new RegExp(`^(${UNITS.join("|")})\\b\\.?`, "i");
 

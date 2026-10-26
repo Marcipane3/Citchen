@@ -6,7 +6,7 @@
 // Umgekehrt veröffentlicht die App die offenen Artikel als kompaktes Schaufenster ([{n,i,c,q}]).
 
 import { touch } from "./listMerge.js";
-import { itemKey, itemLabel } from "./logic.js";
+import { itemLabel, findSame, addAmount } from "./logic.js";
 import { ingMatchCat, SECTION_ORDER } from "../../data/catalog.js";
 
 const FRIEND = "friend";
@@ -25,9 +25,11 @@ export function friendName(author) {
 
 /**
  * Freundes-Vorschläge in die Liste mischen. Gibt eine NEUE Liste zurück (Eingabe bleibt unverändert).
- * - Steht der Artikel schon offen drauf → Menge +1 (wie shopAdd), sonst neuer Artikel mit Gang/Symbol.
+ * - Derselbe Artikel (findSame, T5 — dieselbe Regel wie Kachel und Rezept): offen → Menge +1;
+ *   nur gelöscht → wiederbelebt (gleiche id, „von Anna“); sonst neuer Artikel mit Gang/Symbol.
  * - `seen` = bereits übernommene Vorschlags-ids: macht ein erneutes Abholen vor dem Quittieren
  *   (Netzabbruch zwischen Speichern und fl_ack) harmlos — nichts wird doppelt gezählt.
+ * - DG-12: Gibt es die Zeile `fr-<id>` schon (auch gelöscht), war der Vorschlag schon da → übersprungen.
  */
 export function applyFriendItems(items = [], friends = [], { now = new Date().toISOString(), seen = [] } = {}) {
   const out = items.map((x) => ({ ...x }));
@@ -38,10 +40,14 @@ export function applyFriendItems(items = [], friends = [], { now = new Date().to
     seenSet.add(f.id);
     const name = String(f.name || "").replace(/\s+/g, " ").trim();
     if (!name) continue;
-    const key = itemKey(name, null);
-    const same = out.find((x) => !x.deleted && (itemKey(x.nameDe || x.name, x.unit) === key || itemKey(x.name, x.unit) === key));
-    if (same) {
-      same.qty = (same.qty || 1) + 1;
+    if (out.some((x) => x.id === "fr-" + f.id)) continue;
+    const same = findSame(out, name);
+    if (same && same.deleted) {
+      Object.assign(same, { deleted: false, done: false, qty: 1, amount: null, unit: null, author: friendAuthor(f.author) });
+      delete same.more;
+      touch(same, now);
+    } else if (same) {
+      addAmount(same, 1, null);
       same.done = false;
       touch(same, now);
     } else {

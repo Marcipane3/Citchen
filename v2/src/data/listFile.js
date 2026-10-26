@@ -54,6 +54,9 @@ export function sanitizeItem(raw) {
   if (raw.icon !== undefined && !(isStr(raw.icon) && raw.icon.length <= MAX_ICON)) fix.icon = undefined;
   if (raw.author !== undefined && !(isStr(raw.author) && raw.author.length <= MAX_SHORT)) fix.author = undefined;
   if (raw.sources !== undefined && !Array.isArray(raw.sources)) fix.sources = undefined;
+  // v2.15.3 (T5): weitere Mengen in anderer Einheit — [{amount: Zahl, unit: Text|null}]
+  if (raw.more !== undefined && !(Array.isArray(raw.more) && raw.more.length <= 10
+    && raw.more.every((p) => p && isNum(p.amount) && (p.unit === null || (isStr(p.unit) && p.unit.length <= MAX_SHORT))))) fix.more = undefined;
   if (!Object.keys(fix).length) return raw;
   const out = { ...raw, ...fix };
   for (const k of Object.keys(fix)) if (fix[k] === undefined) delete out[k];

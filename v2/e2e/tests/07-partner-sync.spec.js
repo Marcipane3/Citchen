@@ -209,3 +209,24 @@ test("T10 / DG-14: Partner-Datei in unbekanntem Format → Warnung, lokale Liste
   expect(drive.writes.length).toBe(writes);             // … und überschreibt die Datei trotzdem nicht
   expect(drive.read(file.id)).toEqual({ version: 2, entries: [{ name: "Milch" }] });
 });
+
+test("T5 / BH-08: Marcel und Partner tippen beide „Ingwer“ → nach dem Abgleich EINE Zeile (×2) auf beiden Handys", async ({ device, drive }) => {
+  const { A, B, file } = await linkPartners({ device, drive });
+  await expect.poll(() => liveNames(drive.read(file.id))).toEqual(["Brot", "Hafermilch"]);
+  await A.context().setOffline(true);
+  await B.context().setOffline(true);
+  await addItem(A, "Ingwer");
+  await addItem(B, "Ingwer");
+  await Promise.all([A.context().setOffline(false), B.context().setOffline(false)]);
+  await expect(async () => {
+    await refreshList(A);
+    await refreshList(B);
+    await refreshList(A);
+    expect(liveNames(drive.read(file.id))).toEqual(["Brot", "Hafermilch", "Ingwer"]);
+    for (const p of [A, B]) {
+      const rows = p.locator("#shop-list .sl-item", { hasText: "Ingwer" });
+      await expect(rows).toHaveCount(1, { timeout: 1000 });
+      await expect(rows.locator(".sl-qty")).toHaveText("2", { timeout: 1000 });
+    }
+  }).toPass({ timeout: 20_000 });
+});
