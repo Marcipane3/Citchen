@@ -64,6 +64,22 @@ export function applyFriendItems(items = [], friends = [], { now = new Date().to
   return { items: out, added, seen: [...seenSet] };
 }
 
+/**
+ * DG-12 (v2.15b): Vorschläge übernehmen UND die übernommenen ids im SELBEN Datensatz merken
+ * (`row.friendSeen` neben `row.items`). listSync schreibt das Ergebnis in einer IndexedDB-Transaktion —
+ * bricht die App danach ab, wird derselbe Vorschlag beim nächsten Abholen nicht noch einmal gezählt.
+ * Früher lagen Liste und `seen` in zwei Schreibvorgängen (Liste, dann kv „friendInbox“).
+ * row = { items, friendSeen? } · seenFallback = altes kv-`seen` (Umstieg) → { row, added, fresh }
+ * fresh = die Vorschläge, die jetzt neu übernommen wurden (für „Neu seit deinem letzten Besuch“).
+ */
+export function applyFriendBatch(row, pulled = [], { now = new Date().toISOString(), seenFallback = [] } = {}) {
+  const seen = Array.isArray(row.friendSeen) ? row.friendSeen : seenFallback;
+  const before = new Set(seen);
+  const r = applyFriendItems(row.items || [], pulled, { now, seen });
+  const fresh = pulled.filter((p) => p && p.id && !before.has(p.id) && String(p.name || "").trim());
+  return { row: { ...row, items: r.added ? r.items : row.items, friendSeen: trimSeen(r.seen) }, added: r.added, fresh };
+}
+
 /** Schaufenster für Freunde: nur offene Artikel, nach Supermarkt-Gang sortiert, kompakt. */
 export function snapshotOf(items = []) {
   const rank = (c) => { const i = SECTION_ORDER.indexOf(c); return i < 0 ? 99 : i; };

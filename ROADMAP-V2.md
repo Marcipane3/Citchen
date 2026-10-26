@@ -6,8 +6,8 @@
 > v3.0 → see **[ROADMAP-V3.md](ROADMAP-V3.md)**. What to do next → **[ROADMAP.md](ROADMAP.md)**.
 >
 > Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-10-26** (QA fleet findings of
-> 2026-10-12 placed as Epic T; v2.15.3 merged, v2.16b built) · Current build: **v2.16b** (`/v2`, 331 unit tests + 40
-> end-to-end tests in `v2/e2e/`; v2.15.3 merged with PR #13 on 2026-10-26).
+> 2026-10-12 placed as Epic T; v2.16b merged, v2.15b built) · Current build: **v2.15b** (`/v2`, 334 unit tests + 40
+> end-to-end tests in `v2/e2e/` + the Supabase test run `supabase/tests/run.sh`; v2.16b merged with PR #14 on 2026-10-26).
 
 ---
 
@@ -43,8 +43,8 @@ V3 slices in Q1 2027 if time is short (risk R19).
 | **v2.15.1** | 🔴 Hotfix: safe recipe sync | T1 · T2 · T3 · T11 (+ T12 core, T8 recipe tests) | Oct | ✅ merged 19 Oct (PR #11) | — |
 | **v2.15.2** | 🔴 Hotfix: shopping list data safety (FR-01 root cause) | T4 · T7 · T10 + their T8 tests | Oct | ✅ merged 26 Oct (PR #12) | — |
 | **v2.15.3** | Shopping list: one identity rule + Lager beats 🛒 (FR-01 duplicates) | T5 · T6 + their T8 tests | Oct/Nov | ✅ merged 26 Oct (PR #13) | ✅ Marcel: T5 yes, T6 yes (26 Oct) |
-| **v2.16b** | Shopping list clarity | T9 | Nov | ✅ built 26 Oct · deploy = merge | — |
-| **v2.15b** | Backend hardening | P7 (migrations in repo, advisor check, pause/backup plan) | Nov | planned | D10 for the final scope |
+| **v2.16b** | Shopping list clarity | T9 | Nov | ✅ merged 26 Oct (PR #14) | — |
+| **v2.15b** | Backend hardening | P7 (migrations in repo, advisor check, pause/backup plan) | Nov | ✅ built 26 Oct · deploy = merge **+ Marcel applies the migration on prod** | D10 only for V3's final scope |
 | — (Marcel) | ★ Sharing proof | P3 two-account test, P4 live friend test | Oct | open since v2.11 | Picker key + partner as test user |
 | **v2.16** | AI housekeeping | Q1 Sonnet 5.5 capture + model config · Q2 prompt caching · Q3 token measurement | early Nov | planned | — |
 | **v2.17** | Find recipes faster | F4 (all of a–f, incl. ingredient search) | mid Nov | planned | G7 ✅ answered |
@@ -106,7 +106,7 @@ phone tests.
 |---|------|---------------------|-----|-----|--------|
 | **T12** | ◐ **Three-way merge rule for recipes** *(QA AR-01)* — *core shipped with T1 in v2.15.1: a safe "read before write" needs a base anyway, so the per-recipe three-way rule IS the T1 fix (both-sides-offline test green). Left: reuse for the Supabase transport (V3 slice 1b).* | P1 shipped as one engine with file-level last-write-wins. The architect's point still holds: LWW plus a blind save can't keep two writers' edits. Since rules are now pluggable (`syncRules.js`), add a per-recipe three-way rule (each device compares against what it last saw on Drive) and use it for `rezepte.json`; same rule later serves the Supabase transport (V3 slice 1b). T1 is the minimal fix; T12 is the durable one. **Done:** two-device tests in `test-sync-core.js` where both sides edit different recipes offline → both edits survive. | P2 | M–L | before V3 slice 1b |
 
-**v2.16b — shopping list clarity** *(✅ built 26 Oct)*
+**v2.16b — shopping list clarity** *(✅ merged 26 Oct)*
 
 | # | Item | Detail & acceptance | Pri | Eff | Target |
 |---|------|---------------------|-----|-----|--------|
@@ -125,7 +125,7 @@ core, end-to-end tests."
 | **P4** | **Friends link live test** (I3) — *Marcel* | ✅ PR #8 merged 2026-10-04. Open the live app, create a link, a real friend adds an item from their phone. **Done:** item arrives with "von …" after reopening. Watch: Supabase free projects pause after ~7 days without traffic. | P1 | S | Oct |
 | **P5** | **"Move to the new app" helper** (US-04, risk R13) | Exports browser-only data (stock, fridge, profile, settings, **friends-link owner token**) before the domain switch; warns about unsynced edits; tells the user the AI key must be re-entered. **Done:** export on old address → import on new address restores everything except the key. | P1 | M | v2.21 |
 | **P6** | **v2 reads file format 4** (check C-27) — *D8 = English stored data, decided 2026-10-04* | A v2.x release that can read the new format **before** V3 writes it, so the 30-day fallback keeps working. Language-neutral category keys; German/Danish/Spanish become display translations. | P1 | M | v2.21 |
-| **P7** | **Backend hardening** (D9; check C-30) | I3 already runs on Supabase. Bring it to production standard on today's app: schema as migration files in the repo, dev/prod separation, row-level security + Supabase security advisor clean, secrets review, decision *free + keep-alive* vs *Pro $25/mo* (free pauses after 1 week, no backups), restore tested. From the QA fleet: `fl_create` is an open capacity sink — anyone can fill the 500-list cap (AR-12, add a rate limit / proof of origin); close the crash window between the local save and remembering `seen` (DG-12). **Done:** a fresh project can be rebuilt from the repo; ADR written. | P1 | M | v2.15b |
+| **P7** | ✅ **Backend hardening** (D9; check C-30) — *v2.15b: `supabase/tests/run.sh` rebuilds a fresh Postgres from `supabase/migrations/` only and tests all 9 RPCs as `anon` (no table access, RLS on, fixed `search_path`, exactly the `fl_*` functions executable) = schema restore proven; new migration `20261026220000_p7_hardening.sql` (AR-12: 30 new lists/hour, lazy clean-up of abandoned lists, cap 500 kept); DG-12: list + applied suggestion ids in one IndexedDB transaction (`friendSeen`); app names `rate`/`capacity` honestly; secrets scan clean; dev/prod: local test DB + optional dev project per device (`localStorage["koch.supabase"]`); **decision: Free + keep-alive** (`.github/workflows/supabase-keepalive.yml`), Pro when V3 slice 1b holds data Drive can't rebuild — `docs/v3/adr/ADR-D9-supabase-backend.md`, how-to `supabase/README.md`. **Left for Marcel:** apply the migration + run the security advisor on prod (this session's Supabase connector sees a different account).* | I3 already runs on Supabase. Bring it to production standard on today's app: schema as migration files in the repo, dev/prod separation, row-level security + Supabase security advisor clean, secrets review, decision *free + keep-alive* vs *Pro $25/mo* (free pauses after 1 week, no backups), restore tested. From the QA fleet: `fl_create` is an open capacity sink — anyone can fill the 500-list cap (AR-12, add a rate limit / proof of origin); close the crash window between the local save and remembering `seen` (DG-12). **Done:** a fresh project can be rebuilt from the repo; ADR written. | P1 | M | v2.15b |
 | **P8** | **English as the default interface** (D8a) | New users see English first; DE/DA/ES stay selectable; existing users keep their choice. Docs/Guide copy checked; remaining hardcoded German strings in UI paths moved into i18n (QA UX-06). **Done:** first-run e2e test in English. | P1 | S | v2.21 |
 
 ### Epic R — Ingredient model & recipe ownership *(Marcel's rethink, 2026-10-05; placed in v2.x by Marcel)*
@@ -263,6 +263,7 @@ Full detail lives in the git history, the in-app changelog (`v2/src/version.js`)
 | v2.15.2 (2026-10-19) | Epic T4 · T7 · T10 (+ their T8 tests): id-less legacy list items get a stable id and their copies collapse to one row (FR-01 main cause), tombstone pruning no longer loops and a long-offline device can't revive pruned deletes, `einkaufsliste.json` validated + escaped + documented |
 | v2.15.3 (2026-10-26) | Epic T5 · T6 (+ their T8 tests): one "same item?" rule (recipe, tile, free text, friends, partner sync → one row per item, other units in the same row), tile badge shows that row, Lager beats 🛒, two-in-one lines split, double-tap guard, atomic list writes (AR-10) — closes the FR-01 duplicates |
 | v2.16b (2026-10-26) | T9 shopping list clarity: origin on every row, "new since your last visit", undo snackbar for every list action, result sheet instead of `confirm()`, tile stays under the finger, ✕ away from + |
+| v2.15b (2026-10-26) | P7 backend hardening: schema rebuild proven by a local test run, AR-12 abuse brakes on `fl_create`, DG-12 atomic friend import, keep-alive, dev/prod switch, ADR D9 (Free + keep-alive now, Pro with V3 accounts) |
 
 **Architecture decisions worth remembering** (details in the linked files):
 - Sharing models (Epic I): couples = shared Drive file + Google Picker, no backend; friends without

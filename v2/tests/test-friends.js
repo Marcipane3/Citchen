@@ -4,7 +4,7 @@
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import {
   applyFriendItems, snapshotOf, isListed, inviteUrl, inviteFromHash,
-  friendAuthor, friendName, trimSeen,
+  friendAuthor, friendName, trimSeen, applyFriendBatch,
 } from "../src/features/shopping/friendMerge.js";
 import { syncStep } from "../src/features/shopping/listMerge.js";
 
@@ -104,4 +104,35 @@ test("I3: author-Kodierung + seen-Begrenzung", () => {
   const tr = trimSeen(seen);
   assertEqual(tr.length, 300);
   assertEqual(tr[299], "s349", "die neuesten bleiben");
+});
+
+/* ---------- DG-12 (v2.15b): Liste + „schon übernommen“ in EINEM Datensatz ---------- */
+
+test("DG-12: Vorschläge und ihre ids landen im selben Datensatz — erneutes Abholen zählt nichts doppelt", () => {
+  const row = { items: [own("a", "Hafermilch")] };
+  const pulled = [{ id: "u1", name: "Hafermilch", author: "Anna" }, { id: "u2", name: "Brot" }];
+  const first = applyFriendBatch(row, pulled, { now: NOW });
+  assertEqual(first.added, 2);
+  assertEqual(first.row.items.find((x) => x.id === "a").qty, 2, "+1 auf die vorhandene Zeile");
+  assert(first.row.friendSeen.includes("u1") && first.row.friendSeen.includes("u2"), "ids im selben Datensatz");
+  // Absturz vor fl_ack → derselbe Abruf kommt nochmal: nichts ändert sich.
+  const again = applyFriendBatch(first.row, pulled, { now: NOW });
+  assertEqual(again.added, 0);
+  assertEqual(again.row.items.find((x) => x.id === "a").qty, 2, "nicht doppelt gezählt (früher: 3)");
+  assertEqual(again.fresh.length, 0);
+});
+
+test("DG-12: Umstieg — ohne friendSeen gilt das alte kv-`seen`; leere Namen sind nicht „neu“", () => {
+  const row = { items: [] };
+  const out = applyFriendBatch(row, [{ id: "old", name: "Milch" }, { id: "u3", name: "  " }, { id: "u4", name: "Eier" }], { now: NOW, seenFallback: ["old"] });
+  assertEqual(out.added, 1, "nur Eier");
+  assertDeepEqual(out.fresh.map((x) => x.id), ["u4"]);
+  assert(out.row.friendSeen.includes("old") && out.row.friendSeen.includes("u3"), "alte + übersprungene ids bleiben gemerkt");
+});
+
+test("DG-12: friendSeen bleibt begrenzt (trimSeen, 300)", () => {
+  const seen = Array.from({ length: 300 }, (_, i) => "s" + i);
+  const out = applyFriendBatch({ items: [], friendSeen: seen }, [{ id: "neu", name: "Brot" }], { now: NOW });
+  assertEqual(out.row.friendSeen.length, 300);
+  assertEqual(out.row.friendSeen.at(-1), "neu");
 });

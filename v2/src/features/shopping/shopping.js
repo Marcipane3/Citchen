@@ -373,7 +373,8 @@ async function openFriendsSheet(container) {
   const nameIn = el.querySelector(".sl-fr-name");
   const busy = (b, fn) => async () => {
     b.disabled = true; msg.textContent = "";
-    try { await fn(); } catch (e) { msg.textContent = t("shopping.friends.failed"); }
+    // P7: Server-Bremsen (zu viele neue Links pro Stunde / Dienst voll) ehrlich benennen statt „offline?“
+    try { await fn(); } catch (e) { msg.textContent = t(e && (e.code === "rate" || e.code === "capacity") ? "shopping.friends.busy" : "shopping.friends.failed"); }
     finally { b.disabled = false; }
   };
   const reopen = () => { close(); paintSync(container); openFriendsSheet(container); };

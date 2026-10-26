@@ -1,6 +1,7 @@
 // friendInbox.js — I3: Freunde-Link (Supabase). Lokal-first wie listSync.js, nur ein zweiter Kanal:
-//  - abholen:  fl_pull → applyFriendItems() → listSync.applyExternal (→ IndexedDB → Drive → Partner)
-//              → erst DANACH fl_ack (Löschen auf dem Server). Abbruch dazwischen = harmlos (`seen`).
+//  - abholen:  fl_pull → listSync.applyFriendSuggestions (Artikel + `seen` in EINER Transaktion, DG-12;
+//              → IndexedDB → Drive → Partner) → erst DANACH fl_ack (Löschen auf dem Server).
+//              Abbruch an jeder Stelle = harmlos: was gespeichert ist, ist auch als gesehen gemerkt.
 //  - zeigen:   jede gespeicherte Liste → gebündelt fl_publish(snapshotOf(items)), nur bei Änderung.
 // Drive bleibt die Quelle der Wahrheit; Supabase hält nur offene Artikel + noch nicht abgeholte Vorschläge.
 // Das Besitzer-Token liegt nur hier (IndexedDB kv "friendInbox"); der Server kennt nur seinen Hash.
@@ -8,7 +9,7 @@
 import * as db from "./db.js";
 import * as listSync from "./listSync.js";
 import { rpc, randomToken } from "./supabase.js";
-import { applyFriendItems, snapshotOf, inviteUrl, trimSeen, friendAuthor } from "../features/shopping/friendMerge.js";
+import { snapshotOf, inviteUrl, friendAuthor } from "../features/shopping/friendMerge.js";
 
 const KEY = "friendInbox";   // { ownerToken, invite, ownerName, seen: [], published: "" }
 const PUBLISH_DELAY = 1500;  // ms — bündelt schnelle Taps wie listSync
@@ -89,19 +90,13 @@ async function doSync() {
     const pulled = await rpc("fl_pull", { p_owner_token: inbox.ownerToken }) || [];
     let added = 0;
     if (pulled.length) {
-      let seen = inbox.seen || [];
-      const news = [];
-      await listSync.applyExternal((items) => {
-        const r = applyFriendItems(items, pulled, { seen });
-        added = r.added; seen = r.seen;
-        // T9 (UX-15): jeder neue Vorschlag landet in „Neu seit deinem letzten Besuch“.
-        const fresh = new Set(seen.filter((id) => !(inbox.seen || []).includes(id)));
-        for (const p of pulled) if (fresh.has(p.id) && String(p.name || "").trim()) news.push({ name: String(p.name).trim().slice(0, 80), who: friendAuthor(p.author), at: new Date().toISOString() });
-        return r.added ? r.items : null;
-      });
-      if (news.length) await listSync.addNews(news);
-      // Erst lokal gespeichert, dann gemerkt, dann auf dem Server gelöscht.
-      await patchInbox({ seen: trimSeen(seen) });
+      // DG-12: Artikel + „schon übernommen“ atomar gespeichert, erst danach auf dem Server gelöscht.
+      const res = await listSync.applyFriendSuggestions(pulled, { seenFallback: inbox.seen || [] });
+      added = res.added;
+      // T9 (UX-15): jeder neue Vorschlag landet in „Neu seit deinem letzten Besuch“.
+      const at = new Date().toISOString();
+      if (res.fresh.length) await listSync.addNews(res.fresh.map((p) => ({ name: String(p.name).trim().slice(0, 80), who: friendAuthor(p.author), at })));
+      await patchInbox({ seen: res.seen }); // nur noch Spiegel fürs Abschalten/Umstieg; maßgeblich ist friendSeen
       await rpc("fl_ack", { p_owner_token: inbox.ownerToken, p_ids: pulled.map((x) => x.id) });
     }
     await publishNow();

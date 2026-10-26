@@ -1,0 +1,31 @@
+# P7 (v2.15b): Keep-alive für das Supabase-Projekt des Freunde-Links (Free-Plan pausiert nach 7 Tagen
+# ohne Aktivität). Zweimal pro Woche ein harmloser, lesender Aufruf: fl_view mit einem Link, den es nicht
+# gibt → Antwort `null`, es werden keine Daten gelesen oder geschrieben. Entscheidung + Begründung:
+# docs/v3/adr/ADR-D9-supabase-backend.md. Abschalten: diese Datei löschen (oder auf Pro wechseln).
+#
+# Hinweis: GitHub pausiert geplante Workflows in Repos ohne Aktivität nach 60 Tagen (Mail an den Besitzer)
+# — dann im Tab „Actions“ wieder aktivieren.
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: "17 6 * * 1,4"   # Montag + Donnerstag, 06:17 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      # Öffentlicher Publishable Key — steht ohnehin im App-Code (v2/src/data/supabase.js); kein Geheimnis.
+      SUPABASE_URL: https://wbvhgeqdixrcfeszsiob.supabase.co
+      SUPABASE_KEY: sb_publishable_uitJyQUSS0HSjEtYFIFSgQ_TS-r3Sbq
+    steps:
+      - name: Harmloser Aufruf (fl_view mit unbekanntem Link)
+        run: |
+          code=$(curl -sS -o body.txt -w '%{http_code}' -X POST "$SUPABASE_URL/rest/v1/rpc/fl_view" \
+            -H "apikey: $SUPABASE_KEY" -H "Content-Type: application/json" -d '{"p_invite":"keepalive"}')
+          echo "HTTP $code: $(cat body.txt)"
+          test "$code" = "200"
