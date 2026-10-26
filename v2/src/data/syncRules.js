@@ -117,7 +117,8 @@ export function recipeSync({ store, approveDrop = async () => false, onRetry = (
    ============================================================ */
 
 /**
- * store = { readAll() → items[] (inkl. Tombstones), write(items, now) }
+ * store = { readAll() → items[] (inkl. Tombstones), write(items, now),
+ *           update?(fn, now) → items — atomar lesen + fn + schreiben (AR-10; ohne: readAll + write) }
  * onMerged(items, { stillDirty }) — nach einem Abgleich, der lokal etwas geändert hat
  * onDirty() — Abgleich hat nicht alles untergebracht (lokal währenddessen getippt) → später nochmal.
  *
@@ -166,11 +167,14 @@ export function itemMerge({ store, onMerged = () => {}, onDirty = () => {} }) {
         apply: async (fileId) => {
           // Während des Roundtrips lokal getippt? → nochmal einmischen. Dieselben Regeln wie oben
           // (Horizont, Aufräumen), sonst bliebe die Liste ewig „dirty“ (T7 / AR-09: Push alle 1,2 s).
-          const latest = await store.readAll();
           const mergedIds = new Set(merged.map((it) => it.id));
-          const final = pruneTombstones(mergeList(merged, dropBeyondHorizon(latest, mergedIds, horizon)), now);
+          let latest = [];
+          const combine = (cur) => { latest = cur; return pruneTombstones(mergeList(merged, dropBeyondHorizon(cur, mergedIds, horizon)), now); };
+          let final;
+          if (store.update) final = await store.update(combine, now); // AR-10: atomar, kein Schreiber dazwischen
+          else final = combine(await store.readAll());
           const localChanged = !sameItems(local, final) || !sameItems(latest, final);
-          if (localChanged) await store.write(final, now);
+          if (!store.update && localChanged) await store.write(final, now);
           const stillDirty = !sameItems(final, merged);
           return {
             meta: { dirty: stillDirty, lastSync: now, syncedFile: fileId },

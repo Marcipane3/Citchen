@@ -1,7 +1,7 @@
 # 🍳 Koch — Roadmap index
 
 > Start here. This page says **what is next** and where everything else lives.
-> **Last updated: 2026-10-19** (v2.15.1 merged · v2.15.2 shopping list data safety built) · Live: **v2.15.1** (v2.15.2 goes live on merge)
+> **Last updated: 2026-10-26** (v2.15.2 merged · v2.15.3 one item = one row + Lager beats 🛒 built) · Live: **v2.15.2** (v2.15.3 goes live on merge)
 
 ## The two roadmaps
 
@@ -19,7 +19,7 @@ Background and reasoning for V3: [`docs/v3/`](docs/v3/README.md). New idea after
 
 | When | V2 line | V3 line |
 |------|---------|---------|
-| **Oct 2026** | ✅ v2.14 friends link live (4 Oct) · ✅ e2e tests (12 Oct) + v2.14.1 hotfix · ✅ **v2.15** one sync core (19 Oct) · ✅ **v2.15.1** safe recipe sync · ✅ **v2.15.2** list data safety (built) · **v2.15.3** list identity + Lager rules · two-account sharing proof | ✅ Decisions D8, A10, D9, A11, E6, G7 answered (4 Oct) · open: D10, C7 availability |
+| **Oct 2026** | ✅ v2.14 friends link live (4 Oct) · ✅ e2e tests (12 Oct) + v2.14.1 hotfix · ✅ **v2.15** one sync core (19 Oct) · ✅ **v2.15.1** safe recipe sync · ✅ **v2.15.2** list data safety · ✅ **v2.15.3** list identity + Lager rules (built) · two-account sharing proof | ✅ Decisions D8, A10, D9, A11, E6, G7 answered (4 Oct) · open: D10, C7 availability |
 | **Nov 2026** | **v2.15b** backend hardening · **v2.16** AI housekeeping · **v2.16b** shopping clarity · **v2.17** find recipes faster · **v2.18** export/import · ★ **R1 data-model spike** (ingredient model, format 4) | Long-lead: domain (Citchen), Play account, 12 testers |
 | **Dec 2026** | **v2.19** ingredient master + calories | Spikes (TWA, sign-in, photos, **backend + hosting**) · ADRs · V3 plan · **scope freeze 31 Dec** |
 | **Jan–Mar 2027** | **v2.19b** structured recipe editor + capture · **v2.20** assistant edits recipes + editable instructions · **v2.21** move helper + English format/UI (before the domain switch) · v2.22+ small wins if time | **v3.0-a1 … a9** = slices 1, **1b backend**, 2–7, 9 (slice 8 moved to v3.x) · closed test from slice 3 |
@@ -36,14 +36,14 @@ below every time an item is crossed off.
 
 | # | Item | Line | Owner | Why now | Effort | Unblocks |
 |---|------|------|-------|---------|--------|----------|
-| 1 | **Merge + check v2.15.1 + v2.15.2 live** (safe recipe sync + shopping list data safety) | V2 | Marcel | Live beats new; **P0/P1 fixes** (rule 1). On the phone: build line shows v2.15.2 · ask project-Claude to add a test recipe to `rezepte.json` while the app stays open → tap ♥ → the test recipe is still there · Einkauf: tap 🔄 three times → the Ingwer rows collapse to **one** and stay one; delete it → stays deleted | 15 min | requirement #3 trustworthy again · FR-01 closed (main cause) |
+| 1 | **Merge + check v2.15.3 live** (one item = one row, Lager beats 🛒; includes v2.15.1/v2.15.2) | V2 | Marcel | Live beats new (rule 1). On the phone: build line shows v2.15.3 · Einkauf: tap 🔄 → one Ingwer row · a recipe with Ingwer → list, then tap the Ingwer tile → the same row counts up, the tile number matches · put Ingwer in the Kühlschrank → Thai curry → list has no Ingwer | 15 min | FR-01 closed |
 | 2 | **Live friend test** (V2 P4) — PR #8 merged 2026-10-04 | V2 | Marcel | The backend piece should be proven with a real friend before it is hardened (P7). Now unblocked: the list code it writes into is fixed (v2.15.2) | 15 min | P7, closes I3 |
 | 3 | **Two-account sharing proof** (V2 P3): Picker API key, partner as test user, run the test in `v2/docs/SHARING.md` | V2 | Marcel (Claude guides) | **Last open V3 gate item** (P1 ✅, P2 ✅). The e2e suite proves the flow with fake accounts; this is the real-phone proof — now on a clean list | ~45 min | V3 gate, US-06 |
-| 4 | **v2.15.3 — one "same item?" rule + Lager beats 🛒** (V2 T5 · T6) | V2 | Claude — **after your two yes/no answers below** | The remaining FR-01 duplicates ("Ingwer" / "2 Stück Ingwer" / tile) and the Lager being ignored for 82 of 105 recipes. Blocked only by T5/T6 (rule 3) | M | v2.16b |
-| 5 | **v2.16b — shopping list clarity** (V2 T9) | V2 | Claude | Next list item after the identity rule; proposed in the QA fleet run | S–M | — |
+| 4 | **v2.16b — shopping list clarity** (V2 T9) | V2 | Claude | Next list item after the identity rule: show why an item is on the list, undo for every list action, "+1 Ingwer → 3" feedback. **Live check on a phone first** (UX-12) | S–M | — |
+| 5 | **v2.15b — backend hardening** (V2 P7) | V2 | Claude | After the live friend test (#2): migrations in the repo, advisor check, pause/backup plan | S–M | V3 slice 1b |
 
 **Waiting on Marcel — from the QA fleet (2026-10-12), each a yes/no:**
-**FR-01 device check** *(optional now — v2.15.2 repairs it either way)*: before updating, open `einkaufsliste.json` in Drive — is there an item without `"id"`? · **T5** a catalog-tile tap merges into an existing same-name row ("Ingwer" + "2 Stück Ingwer" → one row) (recommended: yes) · **T6** an item marked in stock in the Lager is skipped even when the recipe line has 🛒 (recommended: yes). *Settled by v2.15.1 without a decision:* T3 (fixed for every UI language) · T12 (the safe save needed the three-way rule anyway).
+*All answered:* T5 ✅ yes and T6 ✅ yes (26 Oct, built in v2.15.3) · T3 and T12 settled by v2.15.1 without a decision.
 
 **Waiting on Marcel — 5-minute answers that unblock the queue** (details in `ROADMAP-V3.md` §6):
 **D10** timing: accounts + recipe sharing in v3.0 or first in v3.x (recommended: v3.x) · **D11** sharing = send/invite, not public (recommended) · **R1** sign-off on the ingredient/unit spec (Nov) · **L1 nutrition** now resolved by R2, please confirm ·

@@ -13,7 +13,7 @@ import * as db from "./db.js";
 import * as drive from "./drive.js";
 import { createSyncEngine } from "./syncCore.js";
 import { itemMerge } from "./syncRules.js";
-import { ensureItemMeta, adoptLegacy, countOpen } from "../features/shopping/listMerge.js";
+import { ensureItemMeta, adoptLegacy, countOpen, mergeList, sameItems } from "../features/shopping/listMerge.js";
 
 const META_KEY = "listMeta";           // { fileId, ownFileId, linked, dirty, lastSync, syncedFile }
 const LIST_FILE_NAME = "einkaufsliste.json";
@@ -48,6 +48,19 @@ async function loadLocalList() {
   return items;
 }
 
+/** Gespeicherte Liste eines IndexedDB-Datensatzes, mit Sync-Feldern (wie loadLocalList, ohne Schreiben). */
+const itemsOf = (row, now) => ensureItemMeta(adoptLegacy(row && Array.isArray(row.items) ? row.items : []), now);
+
+/**
+ * AR-10: EIN Weg, die Liste zu ändern — atomar in IndexedDB (lesen + mischen + schreiben in einer
+ * Transaktion). So überschreiben sich Antippen, Partner-Abgleich und Freunde-Import nie gegenseitig.
+ * fn(aktuelleArtikel) → neue Artikel. Gibt die gespeicherten Artikel zurück.
+ */
+async function mutateList(fn, now = new Date().toISOString()) {
+  const row = await db.update("lists", LIST_DB_ID, (cur) => ({ id: LIST_DB_ID, items: fn(itemsOf(cur, now)), updated: now }));
+  return row.items;
+}
+
 /** Aktuelle lokale Liste (inkl. Tombstones) — für das Freunde-Schaufenster. */
 export function getList() { return loadLocalList(); }
 
@@ -67,6 +80,7 @@ const engine = createSyncEngine({
     store: {
       readAll: loadLocalList,
       write: (items, now) => db.put("lists", { id: LIST_DB_ID, items, updated: now }),
+      update: (fn, now) => mutateList(fn, now), // AR-10: Abgleich mischt atomar ein
     },
     onMerged: (items) => { for (const fn of changeListeners) fn(items); emitCount(items); emitSaved(items); },
     onDirty: () => engine.schedule(PUSH_DELAY),
@@ -89,14 +103,20 @@ export function syncListWithDrive() {
 /**
  * Liste speichern: IndexedDB sofort, Drive-Abgleich gebündelt im Hintergrund.
  * Bleibt dirty, bis ein Sync durchläuft (offline → beim nächsten Online-Sync).
+ * AR-10: gespeichert wird per Merge (neuestes `updated` pro Artikel), nicht als Überschreiben —
+ * hat ein Abgleich inzwischen etwas eingemischt, das die Ansicht noch nicht kannte, bleibt es,
+ * und die Ansicht bekommt den gemischten Stand über onChange. Gibt die gespeicherten Artikel zurück.
  */
 export async function saveList(items) {
   const now = new Date().toISOString();
-  await db.put("lists", { id: LIST_DB_ID, items: ensureItemMeta(items, now), updated: now });
-  emitCount(items);
-  emitSaved(items);
+  const mine = ensureItemMeta(items, now);
+  const saved = await mutateList((current) => mergeList(current, mine), now);
+  emitCount(saved);
+  emitSaved(saved);
+  if (!sameItems(saved, mine)) for (const fn of changeListeners) fn(saved);
   await engine.patchMeta({ dirty: true });
   if (drive.isSignedIn() && engine.isOnline()) engine.schedule(PUSH_DELAY);
+  return saved;
 }
 
 /**
@@ -108,9 +128,9 @@ export async function applyExternal(fn) {
   const items = await loadLocalList();
   const next = fn(items);
   if (!next) return items;
-  await saveList(next);
-  for (const l of changeListeners) l(next);
-  return next;
+  const saved = await saveList(next);
+  for (const l of changeListeners) l(saved);
+  return saved;
 }
 
 /** Mit der geteilten Liste eines Partners verbinden (fileId kommt aus dem Google Picker). */

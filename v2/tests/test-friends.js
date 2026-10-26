@@ -40,11 +40,15 @@ test("I3: erneutes Abholen vor fl_ack (seen) zählt nichts doppelt", () => {
   assertEqual(again.items.filter((x) => x.name === "Eier").length, 1);
 });
 
-test("I3: leere Namen und gelöschte Artikel — Tombstone wird nicht hochgezählt", () => {
-  const { items, added } = applyFriendItems([own("a", "Feta", { deleted: true })], [{ id: "u1", name: "   " }, { id: "u2", name: "Feta" }], { now: NOW });
+test("I3 / T5: leere Namen übersprungen; gelöschter Artikel wird wiederbelebt (gleiche id, wie eine Kachel), nicht verdoppelt", () => {
+  const { items, added } = applyFriendItems([own("a", "Feta", { deleted: true, qty: 4 })], [{ id: "u1", name: "   " }, { id: "u2", name: "Feta", author: "Anna" }], { now: NOW });
   assertEqual(added, 1);
-  assertEqual(items.filter((x) => !x.deleted && x.name === "Feta").length, 1, "Feta muss als neuer offener Artikel kommen");
-  assertEqual(items.find((x) => x.id === "a").deleted, true);
+  assertEqual(items.length, 1, "keine zweite Feta-Zeile neben dem Tombstone");
+  const feta = items[0];
+  assertEqual(feta.id, "a");
+  assertEqual(feta.deleted, false);
+  assertEqual(feta.qty, 1, "frisch wiederbelebt: 1, nicht die alte Menge + 1");
+  assertEqual(feta.author, "friend:Anna", "zeigt „von Anna“");
 });
 
 test("I3: Freundes-Artikel erreicht den Partner über den normalen Drive-Merge", () => {

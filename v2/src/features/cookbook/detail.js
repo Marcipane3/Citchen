@@ -149,16 +149,19 @@ export function openDetail(id) {
   // Zutaten auf die Einkaufsliste (P5.8) — aggregiert, Vorrat abgezogen
   const addIngBtn = el.querySelector(".add-ing-shop");
   if (addIngBtn) addIngBtn.onclick = async () => {
-    const [{ aggregateIngredients }, { addItemsToList }, { getStaples }] = await Promise.all([
-      import("../shopping/logic.js"),
-      import("../shopping/shopping.js"),
-      import("../../data/settings.js"),
-    ]);
-    // Einkaufsliste matcht gegen den deutschen Katalog → deutsches Rezept aggregieren;
-    // angezeigt wird der Artikelname in der UI-Sprache (S3).
-    const { items, skipped } = aggregateIngredients([getRecipeDe(r.id) || r], { staples: await getStaples(), displayById: { [r.id]: r } });
+    if (addIngBtn.disabled) return;          // BH-10: Doppel-Tipp würde alle Mengen verdoppeln
+    addIngBtn.disabled = true;
+    let res;
+    try {
+      const { addRecipesToList } = await import("../shopping/shopping.js");
+      // Einkaufsliste matcht gegen den deutschen Katalog → deutsches Rezept aggregieren;
+      // angezeigt wird der Artikelname in der UI-Sprache (S3). Lager wird abgezogen (T6).
+      res = await addRecipesToList([getRecipeDe(r.id) || r], { displayById: { [r.id]: r } });
+    } finally {
+      addIngBtn.disabled = false;
+    }
+    const { items, skipped } = res;
     if (!items.length) { alert(skipped ? t("detail.allInStock") : t("detail.nothingToAdd")); return; }
-    await addItemsToList(items);
     const msg = t("detail.addedToShopping", { n: items.length }) + (skipped ? t("detail.inStockSkipped", { n: skipped }) : "") + ".\n" + t("detail.switchToList");
     if (confirm(msg)) { closeAllSheets(); navigate("shopping"); }
   };

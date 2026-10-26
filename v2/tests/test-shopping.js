@@ -76,10 +76,11 @@ test("aggregateIngredients: Portions-Faktor skaliert Mengen", () => {
   assertEqual(items[0].amount, 400);
 });
 
-test("aggregateIngredients: unterschiedliche Einheiten bleiben getrennt", () => {
+test("aggregateIngredients: unterschiedliche Einheiten → EINE Zeile mit beiden Mengen (T5, seit v2.15.3)", () => {
   const a = { id: "a", name: "A", category: "Pasta & Nudeln", ingredients: ["200g Joghurt 🛒", "2 EL Joghurt 🛒"] };
   const { items } = aggregateIngredients([a]);
-  assertEqual(items.length, 2);
+  assertEqual(items.length, 1);
+  assertEqual(itemLabel(items[0]), "200g + 2 EL Joghurt");
 });
 
 test("aggregateIngredients: Rezept ohne Marker nutzt Staples-Fallback", () => {

@@ -226,6 +226,7 @@ Google-Freigabe in **dieselbe** Datei. Claude muss sie normalerweise nicht anfas
       "name": "Hafermilch",                  // Pflicht (Text, ≤ 200 Zeichen)
       "nameDe": "Hafermilch",                // optional: deutscher Schlüssel, wenn `name` übersetzt ist
       "qty": 1, "amount": null, "unit": null, // Menge: `amount` + `unit` ODER `qty`
+      "more": [{ "amount": 2, "unit": "EL" }], // optional (v2.15.3): weitere Mengen in anderer Einheit
       "cat": "Milch & Eier", "icon": "🥛",   // Gang (≤ 80 Zeichen) + EIN Emoji (≤ 16 Zeichen)
       "done": false, "deleted": false,       // gelöscht = Tombstone, NICHT aus der Liste entfernen
       "updated": "2026-10-19T10:00:00.000Z", // bei JEDER Änderung neu stempeln — neuester gewinnt
@@ -236,6 +237,12 @@ Google-Freigabe in **dieselbe** Datei. Claude muss sie normalerweise nicht anfas
 
 - **Zusammenführen:** pro Artikel-`id`; der Artikel mit dem späteren `updated` gewinnt. Löschen =
   `deleted: true` + neues `updated` (sonst taucht der Artikel beim nächsten Abgleich wieder auf).
+- **Ein Artikel = eine Zeile (seit v2.15.3):** „derselbe Artikel“ heißt gleicher Name ohne
+  Zubereitungs-Zusatz und Klammer („Ingwer, gerieben“ = „Ingwer (ca. 3 cm)“ = „Ingwer“), Einheit egal,
+  Einzahl = Mehrzahl bei Katalog-Artikeln. Wer etwas hinzufügt, erhöht die vorhandene offene Zeile
+  (`amount`/`qty`, andere Einheiten in `more`), statt eine neue anzulegen. Stehen nach einem Abgleich
+  doch zwei offene Zeilen desselben Artikels drin (zwei Geräte), macht die App eine daraus: die mit der
+  kleineren `id` bleibt, Mengen werden summiert, die andere wird Tombstone.
 - **Aufräumen:** Tombstones älter als 30 Tage entfernt die App und trägt die Grenze als
   `prunedBefore` ein. Ein Gerät, das diese Datei schon kennt, verwirft danach lokale Artikel, die in
   der Datei fehlen und älter als `prunedBefore` sind (sie waren gelöscht) — so holt ein Gerät nach

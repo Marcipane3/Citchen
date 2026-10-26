@@ -1,5 +1,6 @@
 // listMerge.js — Item-level last-writer-wins merge für einkaufsliste.json.
-// Reine Funktionen — kein I/O, keine Imports. Wird von listSync.js bei JEDEM Sync aufgerufen.
+// Reine Funktionen — kein I/O. Wird von syncRules.itemMerge bei JEDEM Sync aufgerufen.
+// Seit v2.15.3 (T5): danach werden offene Zeilen desselben Artikels zusammengefasst (foldSameItems).
 // Merge-Regel: Union aller Items, nach id indiziert; das Item mit dem späteren `updated`-ISO-String gewinnt.
 // Gelöschte Items behalten deleted:true als Tombstone — im Ergebnis enthalten, damit die Löschung
 // an Partner propagiert wird. Die Anzeige filtert: items.filter(x => !x.deleted)
@@ -15,6 +16,8 @@ export function mergeList(local = [], remote = []) {
   }
   return [...byId.values()];
 }
+
+import { sameKey, mergeQuantity } from "./logic.js";
 
 /** Kollisionsfreie Item-ID (WR-02: Date.now() allein kollidiert bei schnellen Adds). */
 export function newItemId() {
@@ -91,6 +94,35 @@ export function collapseLegacyCopies(items = [], legacy = [], now = new Date().t
   return out;
 }
 
+/**
+ * T5 / BH-08: Zwei Geräte (oder Partner) fügen denselben Artikel unabhängig hinzu → zwei ids, die der
+ * Merge pro id nie zusammenführt. Danach: offene Zeilen mit gleichem Schlüssel (sameKey) und gleichem
+ * Häkchen-Stand werden EINE — die mit der kleinsten id bleibt (deterministisch: jedes Gerät wählt
+ * dieselbe), Mengen werden summiert, die anderen werden Tombstones (erreichen so den Partner).
+ */
+export function foldSameItems(items = [], now = new Date().toISOString()) {
+  const groups = new Map();
+  for (const it of items) {
+    if (it.deleted) continue;
+    const k = sameKey(it.nameDe || it.name) + (it.done ? "|done" : "|open");
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(it);
+  }
+  let out = items;
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const [first, ...rest] = [...group].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const keep = { ...first, updated: now };
+    for (const o of rest) {
+      mergeQuantity(keep, o);
+      if (Array.isArray(o.sources)) keep.sources = [...new Set([...(keep.sources || []), ...o.sources])];
+    }
+    const drop = new Set(rest.map((o) => o.id));
+    out = out.map((it) => (it.id === keep.id ? keep : drop.has(it.id) ? { ...it, deleted: true, updated: now } : it));
+  }
+  return out;
+}
+
 /* ============================================================
    Tombstones aufräumen (T7: AR-09, DG-13, BH-11)
    ============================================================ */
@@ -129,12 +161,14 @@ export function sameItems(a = [], b = []) {
  * Kein Schreiben, wenn sich nichts geändert hat → zwei Syncs hintereinander sind stabil (CR-02).
  * opts.legacy  — Altbestands-Artikel der Datei (T4): deren Kopien werden zusammengefasst.
  * opts.horizon — `prunedBefore` der Datei (T7): lokale Artikel jenseits davon gelten als gelöscht.
+ * Danach (T5) werden doppelte offene Zeilen desselben Artikels zusammengefasst (foldSameItems).
  * → prunedBefore: neuer Horizont für die Datei (rückt vor, sobald hier etwas aufgeräumt wurde).
  */
 export function syncStep(local = [], remote = [], now = new Date().toISOString(), { legacy = [], horizon = "" } = {}) {
   const remoteIds = new Set(remote.map((it) => it.id));
   let merged = mergeList(dropBeyondHorizon(local, remoteIds, horizon), remote);
   if (legacy.length) merged = collapseLegacyCopies(merged, legacy, now);
+  merged = foldSameItems(merged, now);
   const kept = pruneTombstones(merged, now);
   const cutoff = pruneCutoff(now);
   const prunedBefore = kept.length < merged.length && cutoff > (horizon || "") ? cutoff : (horizon || "");
