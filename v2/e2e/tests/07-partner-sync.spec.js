@@ -230,3 +230,26 @@ test("T5 / BH-08: Marcel und Partner tippen beide „Ingwer“ → nach dem Abgl
     }
   }).toPass({ timeout: 20_000 });
 });
+
+test("T9 / UX-15: Neues vom Partner → „Neu seit deinem letzten Besuch“ + „von anderem Gerät“ an der Zeile; weg nach dem Verlassen", async ({ device, drive }) => {
+  const { A, B, file } = await linkPartners({ device, drive });
+  await expect.poll(() => liveNames(drive.read(file.id))).toEqual(["Brot", "Hafermilch"]);
+  await addItem(B, "Bananen");
+  await expect.poll(() => liveNames(drive.read(file.id))).toContain("Bananen");
+
+  // Marcel ist gerade im Kochbuch; beim Öffnen der Liste gleicht sie ab und zeigt, was neu ist.
+  await A.locator('nav.tabbar .tab[data-go="cookbook"]').click();
+  await A.locator('nav.tabbar .tab[data-go="shopping"]').click();
+  const news = A.locator("#shop-news .sl-news");
+  await expect(news).toContainText("Neu seit deinem letzten Besuch");
+  await expect(news).toContainText("Bananen");
+  await expect(news).toContainText("Brot");
+  await expect(A.locator("#shop-list .sl-item", { hasText: "Bananen" }).locator(".sl-origin")).toHaveText("von anderem Gerät");
+  await expect(A.locator("#shop-list .sl-item", { hasText: "Hafermilch" }).locator(".sl-origin")).toHaveCount(0); // eigener Artikel
+
+  // Gesehen: Tab verlassen und wiederkommen → kein Hinweis mehr.
+  await A.locator('nav.tabbar .tab[data-go="cookbook"]').click();
+  await A.locator('nav.tabbar .tab[data-go="shopping"]').click();
+  await refreshList(A);
+  await expect(A.locator("#shop-news .sl-news")).toHaveCount(0);
+});

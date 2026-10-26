@@ -99,6 +99,19 @@ export async function addItem(page, name) {
   await expect(page.locator("#shop-list .sl-name", { hasText: name })).toHaveCount(1);
 }
 
+/** v2.16b (T9): Ergebnis-Blatt nach „Zutaten auf die Liste“ / „Einkaufsliste erstellen“. */
+export async function addedSheet(page) {
+  const s = page.locator(".overlay .sheet").filter({ has: page.locator(".as-tolist") });
+  await expect(s).toBeVisible();
+  return s;
+}
+
+/** … und darin „Zur Liste“ → Einkaufsliste. */
+export async function goToList(page) {
+  await (await addedSheet(page)).locator(".as-tolist").click();
+  await expect(page).toHaveURL(/#\/shopping$/);
+}
+
 /** 🔄 antippen und warten, bis der Abgleich durch ist. */
 export async function refreshList(page) {
   const btn = page.locator("#shop-sync .sl-refresh");
