@@ -81,5 +81,6 @@ back to system fonts.
   Currently none. (The first one — linking the partner list while a push was in flight lost the
   link — was fixed by the P1 sync core in v2.15 and is now a normal regression test in
   `07-partner-sync`.)
-- Not covered yet: the friends link (I3, Supabase), the AI assistant chat, Lager photo scan,
+- Not covered yet: the friends link (I3, Supabase) in the browser — its server side is tested by
+  `bash supabase/tests/run.sh` (v2.15b) and its merge logic by `v2/tests/test-friends.js`; the AI assistant chat, Lager photo scan,
   swipe match. Add them the same way (fake the endpoint, drive the UI).

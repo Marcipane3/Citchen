@@ -14,6 +14,7 @@ import * as drive from "./drive.js";
 import { createSyncEngine } from "./syncCore.js";
 import { itemMerge } from "./syncRules.js";
 import { ensureItemMeta, adoptLegacy, countOpen, mergeList, sameItems } from "../features/shopping/listMerge.js";
+import { applyFriendBatch } from "../features/shopping/friendMerge.js";
 
 const META_KEY = "listMeta";           // { fileId, ownFileId, linked, dirty, lastSync, syncedFile }
 const LIST_FILE_NAME = "einkaufsliste.json";
@@ -71,7 +72,7 @@ async function loadLocalList() {
   const row = await db.get("lists", LIST_DB_ID);
   const raw = row && Array.isArray(row.items) ? row.items : [];
   const items = ensureItemMeta(adoptLegacy(raw));
-  if (items.some((it, i) => it !== raw[i])) await db.put("lists", { id: LIST_DB_ID, items, updated: new Date().toISOString() });
+  if (items.some((it, i) => it !== raw[i])) await db.put("lists", { ...(row || {}), id: LIST_DB_ID, items, updated: new Date().toISOString() });
   return items;
 }
 
@@ -84,7 +85,8 @@ const itemsOf = (row, now) => ensureItemMeta(adoptLegacy(row && Array.isArray(ro
  * fn(aktuelleArtikel) → neue Artikel. Gibt die gespeicherten Artikel zurück.
  */
 async function mutateList(fn, now = new Date().toISOString()) {
-  const row = await db.update("lists", LIST_DB_ID, (cur) => ({ id: LIST_DB_ID, items: fn(itemsOf(cur, now)), updated: now }));
+  // Andere Felder des Datensatzes (z. B. friendSeen, DG-12) bleiben erhalten.
+  const row = await db.update("lists", LIST_DB_ID, (cur) => ({ ...(cur || {}), id: LIST_DB_ID, items: fn(itemsOf(cur, now)), updated: now }));
   return row.items;
 }
 
@@ -129,7 +131,7 @@ const engine = createSyncEngine({
   rule: itemMerge({
     store: {
       readAll: loadLocalList,
-      write: (items, now) => db.put("lists", { id: LIST_DB_ID, items, updated: now }),
+      write: (items, now) => mutateList(() => items, now),
       update: (fn, now) => mutateList(fn, now), // AR-10: Abgleich mischt atomar ein
     },
     onMerged: (items, { before = [] } = {}) => {
@@ -175,17 +177,29 @@ export async function saveList(items) {
 }
 
 /**
- * I3: Änderung von außen (Freundes-Artikel) auf die lokale Liste anwenden. `fn(items)` gibt die
- * neue Liste zurück (oder null = nichts zu tun). Gespeichert wird wie jede Änderung über saveList
- * → Drive → Partner; offene Ansichten bekommen onChange.
+ * I3 + DG-12 (v2.15b): Freundes-Vorschläge übernehmen — Artikel und „schon übernommen“-ids in EINER
+ * IndexedDB-Transaktion (friendMerge.applyFriendBatch). Danach wie jede Änderung: Badge, Schaufenster,
+ * offene Ansicht, Drive-Abgleich. seenFallback = altes `seen` aus dem kv (nur beim ersten Mal nach dem Update).
+ * → { added, fresh, seen }
  */
-export async function applyExternal(fn) {
-  const items = await loadLocalList();
-  const next = fn(items);
-  if (!next) return items;
-  const saved = await saveList(next);
-  for (const l of changeListeners) l(saved);
-  return saved;
+export async function applyFriendSuggestions(pulled, { seenFallback = [] } = {}) {
+  const now = new Date().toISOString();
+  const dev = await deviceId().catch(() => "");
+  let out = null;
+  const row = await db.update("lists", LIST_DB_ID, (cur) => {
+    const items = itemsOf(cur, now);
+    out = applyFriendBatch({ ...(cur || {}), items }, pulled, { now, seenFallback });
+    const next = out.added ? stampBy(ensureItemMeta(out.row.items, now), items, dev) : items;
+    return { ...out.row, id: LIST_DB_ID, items: next, updated: now };
+  });
+  if (out.added) {
+    emitCount(row.items);
+    emitSaved(row.items);
+    for (const fn of changeListeners) fn(row.items);
+    await engine.patchMeta({ dirty: true });
+    if (drive.isSignedIn() && engine.isOnline()) engine.schedule(PUSH_DELAY);
+  }
+  return { added: out.added, fresh: out.fresh, seen: out.row.friendSeen };
 }
 
 /** Mit der geteilten Liste eines Partners verbinden (fileId kommt aus dem Google Picker). */
