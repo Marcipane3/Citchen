@@ -25,6 +25,7 @@ import "./test-recipe-merge.js";
 import "./test-list-file.js";
 import "./test-shopping-identity.js";
 import "./test-shopping-ux.js";
+import "./test-ai-usage.js";
 import { run } from "./runner.js";
 
 const { fail } = await run();

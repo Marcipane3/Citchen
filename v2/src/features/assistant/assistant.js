@@ -130,7 +130,8 @@ async function ask(container, displayText, apiPrompt) {
     const system = buildSystemPrompt({ recipes: state.recipes, staples, fridge, profile, lang: getLang() });
     history.push({ role: "user", content: apiPrompt });
     if (history.length > 12) history = history.slice(-12); // Verlauf begrenzen
-    const { text } = await complete({ system, messages: history });
+    // Q2: System-Prompt (Profil + Vorrat + Kochbuch) bleibt im Gespräch gleich → aus dem Cache.
+    const { text } = await complete({ system, messages: history, cacheSystem: true, action: "assistant" });
     history.push({ role: "assistant", content: text });
     chatLog.push({ who: "ai", html: renderAnswer(text) });
   } catch (e) {

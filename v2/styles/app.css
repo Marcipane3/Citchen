@@ -318,6 +318,12 @@ label.check input { width: auto; }
 .set-note { font-size: 13px; color: var(--muted-strong); line-height: 1.55; margin-bottom: 8px; }
 .set-card label.check { margin-top: 8px; }
 .set-card code { background: var(--badge-bg); border-radius: 6px; padding: 1px 5px; }
+/* v2.16 (Q3): KI-Verbrauch */
+.usage-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 6px; }
+.usage-table th, .usage-table td { padding: 5px 4px; border-bottom: 1px solid var(--line-soft); text-align: left; vertical-align: top; }
+.usage-table th { font-weight: 600; color: var(--muted-strong); }
+.usage-table .n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.usage-table tfoot td { font-weight: 600; border-bottom: none; }
 
 /* ---------- Sprachauswahl ---------- */
 .lang-overlay { align-items: center; }

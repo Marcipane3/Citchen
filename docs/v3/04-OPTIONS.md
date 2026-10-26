@@ -145,7 +145,8 @@ Consequences:
 - All model calls stay behind `ai/client.js`, so a proxy can be added later without touching features.
 
 Estimated AI cost per active user stays as in the report: ~$0.65/month typical, ~$2.35 heavy
-(until check C-10 measures real usage).
+(until check C-10 measures real usage — the measuring is in the app since v2.16; the numbers follow
+after a few weeks of use).
 
 ---
 

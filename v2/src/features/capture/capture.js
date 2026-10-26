@@ -5,8 +5,7 @@
 // C3: Koch-Profil + Vorrat fließen in die Prompts (KI-Ideen nach Profil, 🛒-Marker).
 
 import * as gate from "../../ai/gate.js";
-import { VISION_MODEL } from "../../ai/client.js";
-import { AiError } from "../../ai/client.js";
+import { VISION_MODEL, AiError } from "../../ai/client.js";
 import { parseCapture, draftFromInput, parseBulk, CaptureDisabledError, CaptureParseError } from "./parse.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { addRecipe } from "../../store.js";

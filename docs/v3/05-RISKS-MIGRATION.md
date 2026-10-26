@@ -14,7 +14,7 @@ Likelihood (L) and impact (I) on a 1–3 scale. Score = L × I. Review at every 
 | R6 | Partner, friends or strangers cannot sign in: OAuth Testing mode caps at 100 users and shows a warning screen | 2 | 2 | 4 | Add test users now; production verification before the public listing (C-8) | Marcel |
 | R7 | AI cost runaway (only if a shared key is introduced) | 1 | 3 | 3 | BYOK default; proxy with per-user caps; budget alert | Claude |
 | R8 | Stale service-worker cache ships a broken mix of old/new files | 2 | 2 | 4 | Generated precache list; CACHE bump test; "update available" prompt | Claude |
-| R9 | Model deprecation breaks capture | 2 | 2 | 4 | Model IDs in one config; capture eval on 10 samples per model change | Claude |
+| R9 | Model deprecation breaks capture | 2 | 2 | 4 | Model IDs in one config; capture eval on 10 samples per model change — *config built in v2.16 (`v2/src/ai/models.js`, guarded by a unit test)* | Claude |
 | R10 | Privacy regression via a third-party script | 1 | 3 | 3 | Zero-dependency rule written down as a security invariant; review in PRs | Claude |
 | R11 | Apple rejects an iOS wrapper (guideline 4.2) | 3 | 1 | 3 | Do not build one on Path A; PWA on iOS | Marcel |
 | R12 | Closed-testing requirement delays the Play launch (12 Android testers, 14 days in a row) | 1 | 2 | 2 | Marcel confirms 12+ Android testers are available; write the list in November; start the closed test as soon as the TWA exists (slice 3) | Marcel |

@@ -32,9 +32,11 @@ AI calls go directly from your browser to the Anthropic API.
 - Vanilla JS + Web Components, **native ES modules, no bundler / no build step**
 - PWA: installable, offline-capable (service worker + IndexedDB)
 - Data: IndexedDB (recipes/plans/lists/settings); small flags in `localStorage`
-- AI: Anthropic API direct from the browser — `claude-sonnet-4-6` for vision (photo/fridge scan,
-  URL import via the `web_fetch` server tool), `claude-haiku-4-5` (default) / `claude-sonnet-4-6`
-  for text generation. Model picker in Settings.
+- AI: Anthropic API direct from the browser. **All model IDs and prices live in
+  `src/ai/models.js`** (v2.16): `claude-sonnet-5-5` for capture (photo, URL import via the
+  `web_fetch` server tool) and the fridge scan, `claude-haiku-4-5` (default) / `claude-sonnet-4-6`
+  for text generation (model picker in Settings). The assistant's system prompt is prompt-cached;
+  every call's `usage` is logged on the device (`src/ai/usage.js`, Settings → KI → Verbrauch).
 - Schema: flat v3 (`SCHEMA.md`) — string ingredients, single `tips` string, 16 fixed categories;
   fully compatible with v1 so both apps share the same Drive file.
 

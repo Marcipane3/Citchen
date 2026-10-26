@@ -25,7 +25,7 @@ test("gate: ohne Key kein Premium; mit Key Premium; Entfernen sperrt wieder", ()
   assertEqual(gate.getKey(), "");
 });
 
-test("gate: Modell-Default haiku, Wechsel nur auf bekannte IDs", () => {
+test("gate: Modell-Default haiku, Wechsel nur auf bekannte IDs (IDs aus models.js)", () => {
   assertEqual(gate.getModel(), "claude-haiku-4-5");
   gate.setModel("claude-sonnet-4-6");
   assertEqual(gate.getModel(), "claude-sonnet-4-6");

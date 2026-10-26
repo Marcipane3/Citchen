@@ -3,7 +3,7 @@
 // Vorhandene Artikel werden von der Einkaufsliste automatisch abgezogen.
 
 import * as gate from "../../ai/gate.js";
-import { complete, visionMessage, blobToBase64, VISION_MODEL, AiError } from "../../ai/client.js";
+import { complete, visionMessage, blobToBase64, AiError } from "../../ai/client.js";
 import { extractJson } from "../../ai/parse.js";
 import { compressImage, esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { BUILD } from "../../version.js";
@@ -219,7 +219,7 @@ async function analyzeScan(container, files, btn) {
   try {
     const b64s = [];
     for (const f of files) b64s.push(await blobToBase64(await compressImage(f, 1568, 0.8)));
-    const { text } = await complete({ messages: [visionMessage(b64s, FRIDGE_PROMPT)], model: VISION_MODEL, maxTokens: 1000 });
+    const { text } = await complete({ messages: [visionMessage(b64s, FRIDGE_PROMPT)], task: "fridge", action: "fridge.scan" });
     const json = extractJson(text);
     const items = (json && Array.isArray(json.items) ? json.items : [])
       .map((it) => ({ name: String(it.name || "").trim(), menge: String(it.menge || "").trim() }))

@@ -1,7 +1,7 @@
 # 🍳 Koch — Roadmap index
 
 > Start here. This page says **what is next** and where everything else lives.
-> **Last updated: 2026-10-26** (v2.16b merged · v2.15b backend hardening built) · Live: **v2.16b** (v2.15b goes live on merge; its database migration needs one manual step)
+> **Last updated: 2026-10-26** (v2.15b merged · v2.16 AI housekeeping built) · Live: **v2.15b** (its database migration still needs one manual step; v2.16 goes live on merge)
 
 ## The two roadmaps
 
@@ -19,8 +19,8 @@ Background and reasoning for V3: [`docs/v3/`](docs/v3/README.md). New idea after
 
 | When | V2 line | V3 line |
 |------|---------|---------|
-| **Oct 2026** | ✅ v2.14 friends link live (4 Oct) · ✅ e2e tests (12 Oct) + v2.14.1 hotfix · ✅ **v2.15** one sync core (19 Oct) · ✅ **v2.15.1** safe recipe sync · ✅ **v2.15.2** list data safety · ✅ **v2.15.3** list identity + Lager rules · ✅ **v2.16b** shopping list clarity (pulled forward from Nov) · ✅ **v2.15b** backend hardening (built, pulled forward from Nov) · two-account sharing proof | ✅ Decisions D8, A10, D9, A11, E6, G7 answered (4 Oct) · open: D10, C7 availability |
-| **Nov 2026** | **v2.16** AI housekeeping · **v2.17** find recipes faster · **v2.18** export/import · ★ **R1 data-model spike** (ingredient model, format 4) | Long-lead: domain (Citchen), Play account, 12 testers |
+| **Oct 2026** | ✅ v2.14 friends link live (4 Oct) · ✅ e2e tests (12 Oct) + v2.14.1 hotfix · ✅ **v2.15** one sync core (19 Oct) · ✅ **v2.15.1** safe recipe sync · ✅ **v2.15.2** list data safety · ✅ **v2.15.3** list identity + Lager rules · ✅ **v2.16b** shopping list clarity (pulled forward from Nov) · ✅ **v2.15b** backend hardening (pulled forward from Nov) · ✅ **v2.16** AI housekeeping (built, pulled forward from Nov) · two-account sharing proof | ✅ Decisions D8, A10, D9, A11, E6, G7 answered (4 Oct) · open: D10, C7 availability |
+| **Nov 2026** | **v2.17** find recipes faster · **v2.18** export/import · ★ **R1 data-model spike** (ingredient model, format 4) | Long-lead: domain (Citchen), Play account, 12 testers |
 | **Dec 2026** | **v2.19** ingredient master + calories | Spikes (TWA, sign-in, photos, **backend + hosting**) · ADRs · V3 plan · **scope freeze 31 Dec** |
 | **Jan–Mar 2027** | **v2.19b** structured recipe editor + capture · **v2.20** assistant edits recipes + editable instructions · **v2.21** move helper + English format/UI (before the domain switch) · v2.22+ small wins if time | **v3.0-a1 … a9** = slices 1, **1b backend**, 2–7, 9 (slice 8 moved to v3.x) · closed test from slice 3 |
 | **Apr 2027** | Fixes only | **v3.0 launch, target 30 Apr** |
@@ -36,14 +36,16 @@ below every time an item is crossed off.
 
 | # | Item | Line | Owner | Why now | Effort | Unblocks |
 |---|------|------|-------|---------|--------|----------|
-| 1 | **Merge v2.15b + apply its migration on prod** (backend hardening; includes the v2.16b checks) | V2 | Marcel (Claude guides) | Live beats new (rule 1). Supabase dashboard → SQL Editor → run `supabase/migrations/20261026220000_p7_hardening.sql` → Advisors → Security: only "SECURITY DEFINER executable by anon" may remain · GitHub → Actions → "Supabase keep-alive" → *Run workflow* once (green = keep-alive works) · phone: build line v2.15b, friends link still works · v2.16b checks: Thai curry → result sheet → rows say „aus Thai-Style Gemüsecurry“, ✕ + „Rückgängig“, tiles stay under your finger | 20 min | P7 closed · FR-01 closed |
+| 1 | **Merge v2.16 + finish the v2.15b steps + device checks** | V2 | Marcel (Claude guides) | Live beats new (rule 1). **v2.15b:** ✅ migration applied on prod + ✅ advisors checked (26 Oct: the 18 expected `fl_*` warnings, nothing else) · GitHub → Actions → "Supabase keep-alive" → *Run workflow* once (green = keep-alive works) · friends link still works. **v2.16:** build line v2.16 · capture check (Q1): 10 real recipes — ~6 photos (book page, handwritten, screenshot) + ~4 URLs; each draft complete and faithful? · ask the assistant twice → Settings → KI → „Verbrauch“ shows both calls (and „aus Cache“ > 0 % if the cookbook is big enough). **v2.16b:** Thai curry → result sheet → rows say „aus Thai-Style Gemüsecurry“, ✕ + „Rückgängig“, tiles stay under your finger | 40 min | P7, Q1 closed · FR-01 closed |
 | 2 | **Live friend test** (V2 P4) — PR #8 merged 2026-10-04 | V2 | Marcel | The backend piece should be proven with a real friend before it is hardened (P7). Now unblocked: the list code it writes into is fixed (v2.15.2) | 15 min | P7, closes I3 |
 | 3 | **Two-account sharing proof** (V2 P3): Picker API key, partner as test user, run the test in `v2/docs/SHARING.md` | V2 | Marcel (Claude guides) | **Last open V3 gate item** (P1 ✅, P2 ✅). The e2e suite proves the flow with fake accounts; this is the real-phone proof — now on a clean list | ~45 min | V3 gate, US-06 |
-| 4 | **v2.16 — AI housekeeping** (V2 Q1–Q3) | V2 | Claude | Capture on the current model + model config, prompt caching, token measurement — cheaper and faster AI before the bigger v2.17+ features | S–M | v2.19b capture |
-| 5 | **v2.17 — find recipes faster** (V2 F4 a–f, incl. ingredient search) | V2 | Claude | G7 answered; the cookbook has 105+ recipes and grows with capture | M | — |
+| 4 | **v2.17 — find recipes faster** (V2 F4 a–f, incl. ingredient search) | V2 | Claude | G7 answered; the cookbook has 105+ recipes and grows with capture | M | — |
+| 5 | **v2.18 — recipe export / import** (V2 G2) | V2 | Claude | Next in the version plan; a portable file is also the safety net before format 4 (R1) | S–M | R1 spike |
 
 **Waiting on Marcel — from the QA fleet (2026-10-12), each a yes/no:**
 *All answered:* T5 ✅ yes and T6 ✅ yes (26 Oct, built in v2.15.3) · T3 and T12 settled by v2.15.1 without a decision.
+
+**Waiting on Marcel — from v2.16, a yes/no:** **Q5** move the chat to the 5.5 generation? Haiku 5.5 is ~10× cheaper than today's Haiku 4.5 default and caches from 512 tokens (so v2.16's prompt caching hits for every cookbook size); Sonnet 5.5 would replace Sonnet 4.6 as the stronger option. Recommended: yes, after the v2.16 usage numbers are in (details: `ROADMAP-V2.md` Q5).
 
 **Waiting on Marcel — 5-minute answers that unblock the queue** (details in `ROADMAP-V3.md` §6):
 **D10** timing: accounts + recipe sharing in v3.0 or first in v3.x (recommended: v3.x) · **D11** sharing = send/invite, not public (recommended) · **R1** sign-off on the ingredient/unit spec (Nov) · **L1 nutrition** now resolved by R2, please confirm ·
