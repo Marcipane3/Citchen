@@ -1,0 +1,63 @@
+# CI for Citchen — runs on every PR and on pushes to next/main.
+# Make `unit`, `e2e` and `policy` (policy.yml) required status checks on main + next (Settings → Rules → Rulesets).
+# Add `supabase` as required once it has been green on the runner.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, next]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Unit tests
+        run: node v2/tests/run.js
+      - name: Language snapshots
+        run: node v2/tools/check-snapshots.mjs
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: v2/e2e/package-lock.json
+      - run: npm --prefix v2/e2e ci
+      - run: npx --prefix v2/e2e playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: npm --prefix v2/e2e test
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            v2/e2e/test-results
+            v2/e2e/playwright-report
+          retention-days: 7
+
+  supabase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Migrations + RPC tests on a throwaway Postgres
+        run: bash supabase/tests/run.sh

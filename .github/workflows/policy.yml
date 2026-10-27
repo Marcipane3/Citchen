@@ -1,0 +1,61 @@
+# Policy for Citchen — enforces the pipeline's rules independently of any prompt.
+# Own workflow (not in ci.yml) because it must also re-run when a label or the base branch changes,
+# and those events shouldn't re-run the slow unit/e2e jobs. Required status check name: `policy`.
+name: Policy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check branch flow and protected paths
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          # All agents act under Marcel's GitHub identity, so the author can't tell agent from human.
+          # Branch name OR the agent label marks an agent PR — renaming the branch doesn't escape the rules.
+          AGENT_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'claude-build') }}
+        run: |
+          set -euo pipefail
+          fail=0
+          # 1) Production only from next or hotfix/*
+          if [ "$BASE" = "main" ] && [ "$HEAD_REF" != "next" ] && [[ "$HEAD_REF" != hotfix/* ]]; then
+            echo "::error::PRs into main must come from 'next' or 'hotfix/*' (got '$HEAD_REF')."; fail=1
+          fi
+          feature=false; agent=false
+          if [[ "$HEAD_REF" == build/* || "$AGENT_LABEL" == "true" ]]; then feature=true; agent=true; fi
+          if [[ "$HEAD_REF" == release-bump/* ]]; then agent=true; fi
+          if [ "$agent" = true ]; then
+            changed=$(git diff --name-only "origin/$BASE...HEAD")
+            # 2) Agent branches must not touch protected paths
+            hits=$(echo "$changed" | grep -E '^(supabase/|\.github/|\.claude/|CLAUDE\.md$)' || true)
+            if [ -n "$hits" ]; then
+              echo "::error::Agent branch touches protected paths (Marcel reviews these interactively):"
+              echo "$hits"; fail=1
+            fi
+            if [ "$feature" = true ]; then
+              # 3) Feature PRs must not bump the release (release-bump/* does that)
+              if git diff "origin/$BASE...HEAD" -- v2/src/version.js v2/sw.js | grep -E '^\+.*(BUILD =|APP_VERSION =|const CACHE =)'; then
+                echo "::error::Feature PRs must not change BUILD / APP_VERSION / CACHE — release-prep does that."; fail=1
+              fi
+              # 4) …nor the roadmaps (release-prep applies the update rule once per release)
+              if echo "$changed" | grep -qE '^ROADMAP'; then
+                echo "::error::Feature PRs must not edit ROADMAP*.md — release-prep does that."; fail=1
+              fi
+            fi
+          fi
+          exit $fail

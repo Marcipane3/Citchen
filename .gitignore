@@ -13,9 +13,16 @@ v2/tools/.translation-cache.json
 Thumbs.db
 .vscode/
 
-# Claude Code: keep local settings private, but DO track the reusable QA agent definitions
+# Claude Code: keep local settings private, but DO track what every session (incl. cloud runs) needs:
+# QA agents, pipeline skills, the guard hook and the shared project settings
 .claude/*
 !.claude/agents/
+!.claude/skills/
+!.claude/hooks/
+!.claude/settings.json
+
+# Lokale Kopie der echten Rezeptdaten — das Repo ist öffentlich und Pages liefert die Wurzel aus
+/rezepte.json
 
 # E2E-Tests (v2/e2e): Abhängigkeiten + Ergebnisse lokal
 v2/e2e/node_modules/
