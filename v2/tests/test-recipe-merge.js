@@ -124,10 +124,16 @@ test("inspectRemote: ergänzt v1-Defaults wie loadCollection (rating, favorite �
   assertEqual(collection.recipes[0].favorite, false);
 });
 
-test("suspiciousDrop: einzelne Löschungen nie; viele auf einmal schon", () => {
+test("suspiciousDrop: ab 5 Rezepten oder ab 20 % fragen (Marcel 2026-10-26)", () => {
+  assert(!suspiciousDrop(0, 105));
   assert(!suspiciousDrop(1, 105));
-  assert(!suspiciousDrop(3, 10));
-  assert(!suspiciousDrop(20, 105));
+  assert(!suspiciousDrop(4, 105));
+  assert(suspiciousDrop(5, 105));           // früher erst ab 22 von 105
+  assert(suspiciousDrop(20, 105));
   assert(suspiciousDrop(65, 105));          // Probe aus DG-03: 105 → 40
   assert(suspiciousDrop(105, 105));
+  assert(!suspiciousDrop(1, 10));           // 10 %
+  assert(suspiciousDrop(2, 10));            // 20 %
+  assert(suspiciousDrop(3, 10));
+  assert(!suspiciousDrop(0, 0));
 });

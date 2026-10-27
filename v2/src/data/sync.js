@@ -42,6 +42,18 @@ export async function fetchLangRecipes(lang) {
   }
 }
 
+/** Der mitgelieferte deutsche Snapshot (Originale der Übersetzungen) — null, wenn nicht ladbar. */
+export async function fetchBaseRecipesDe() {
+  try {
+    const res = await fetch(SNAPSHOT_URL);
+    if (!res.ok) return null;
+    return loadCollection(await res.json()).collection.recipes;
+  } catch (e) {
+    console.warn("Basis-Snapshot nicht ladbar:", e);
+    return null;
+  }
+}
+
 const engine = createSyncEngine({
   name: "rezepte",
   metaKey: META_KEY,

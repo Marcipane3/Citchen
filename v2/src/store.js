@@ -42,7 +42,8 @@ export function setRecipes(recipes, meta) {
  */
 export async function applyLanguageOverlay(lang) {
   const langRecipes = await sync.fetchLangRecipes(lang);
-  langMap = langRecipes ? buildLangMap(langRecipes) : new Map();
+  // Mit den deutschen Originalen: im Deutschen bearbeitete Felder zeigen die Bearbeitung, nicht die alte Übersetzung.
+  langMap = langRecipes ? buildLangMap(langRecipes, await sync.fetchBaseRecipesDe()) : new Map();
   recomputeView();
   emit();
 }

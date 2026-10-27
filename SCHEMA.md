@@ -185,8 +185,8 @@ den Stand, auf den sie sich zuletzt mit Drive geeinigt hat. Abgeglichen wird **p
    App geändert → App-Stand · **beide** geändert → **pro Feld** zusammengeführt (hat dasselbe Feld
    auf beiden Seiten einen anderen Wert, gewinnt die App).
 3. **Neue Rezepte** beider Seiten bleiben. **Gelöscht** wird nur, was die andere Seite unverändert
-   gelassen hat (Bearbeiten schlägt Löschen). Fehlen auf Drive auf einmal viele Rezepte (mehr als 3
-   **und** mehr als 20 %), **fragt** die App, bevor sie lokal etwas löscht.
+   gelassen hat (Bearbeiten schlägt Löschen). Fehlen auf Drive auf einmal viele Rezepte (ab 5
+   **oder** ab 20 %), **fragt** die App, bevor sie lokal etwas löscht.
 4. `updated` entscheidet **nicht** mehr, wer gewinnt — trotzdem bei jedem Schreiben im obigen
    Format setzen (ältere App-Stände und v1 lesen es noch).
 

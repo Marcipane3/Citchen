@@ -1,9 +1,10 @@
 // version.js — sichtbarer Build-Stempel (Deploy-Kontrolle) + App-Version & Changelog.
-export const BUILD = "2026-10-26-v2.16.1";
-export const APP_VERSION = "2.16.1";
+export const BUILD = "2026-10-27-v2.16.2";
+export const APP_VERSION = "2.16.2";
 
 // Changelog (neueste zuerst) — im Guide angezeigt.
 export const CHANGELOG = [
+  { v: "v2.16.2", txt: "Zwei Feinheiten beim Rezept-Abgleich: Würde Google Drive auf einen Schlag 5 oder mehr Rezepte löschen (oder ein Fünftel deiner Sammlung), fragt die App jetzt vorher — bisher erst ab gut 20 Rezepten. Und wenn du ein Basis-Rezept in Englisch, Dänisch oder Spanisch bearbeitest, siehst du deine Änderung danach auch in dieser Sprache; vorher zeigte die App weiter die alte Übersetzung, als wäre nichts gespeichert." },
   { v: "v2.16.1", txt: "Updates zuverlässiger (unter der Haube): Eine neue App-Version kommt jetzt immer als Ganzes an — die App lädt nicht mehr einzelne Dateien im Hintergrund nach. Vorher konnte bei schlechtem Netz oder schnellem Neustart kurz ein Mix aus alter und neuer Version laufen, und ein Rest des alten Speichers blieb liegen. Wie bisher: Nach einem Update siehst du die neue Version spätestens beim zweiten Öffnen der App. Sonst ändert sich nichts." },
   { v: "v2.16", txt: "KI aufgeräumt: Rezepte aus Fotos und Links (und der Kühlschrank-Scan) liest jetzt das neuere, günstigere Modell Sonnet 5.5. Gespräche mit dem Assistenten werden billiger, weil dein Koch-Profil, Vorrat und Kochbuch nicht bei jeder Nachricht neu bezahlt werden müssen (Prompt-Cache — greift, sobald dein Kochbuch groß genug ist). Neu unter Einstellungen → KI: „Verbrauch (dieses Gerät)“ zeigt pro Aktion, wie viele Tokens sie wirklich braucht und was das ungefähr kostet; mit „Als JSON kopieren“ kannst du die Zahlen weitergeben. Gespeichert werden nur Zahlen, keine Inhalte, und nur auf diesem Gerät. Lehnt die KI eine Anfrage ab, sagt die App das jetzt klar." },
   { v: "v2.15b", txt: "Freunde-Link stabiler und sicherer (unter der Haube): Vorschläge von Freunden werden jetzt zusammen mit dem Vermerk „schon übernommen“ gespeichert — selbst wenn die App genau in diesem Moment geschlossen wird, zählt kein Vorschlag doppelt. Der Server ist gegen Missbrauch gebremst (höchstens 30 neue Freunde-Links pro Stunde, verlassene Links werden nach einer Weile aufgeräumt); sollte die Bremse einmal greifen, sagt dir die App das, statt „bist du online?“ zu fragen. Sonst ändert sich nichts." },

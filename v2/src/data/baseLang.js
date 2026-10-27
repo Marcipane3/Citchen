@@ -30,21 +30,36 @@ export function overlayTranslation(base, tr) {
   return out;
 }
 
-/** Baut eine id→{name,ingredients,steps,tips}-Map aus Sprach-Snapshot-Rezepten. */
-export function buildLangMap(langRecipes) {
+/**
+ * Baut eine id→{name,ingredients,steps,tips}-Map aus Sprach-Snapshot-Rezepten.
+ * deRecipes (optional, der deutsche Snapshot): merkt pro Eintrag das deutsche Original, aus dem
+ * die Übersetzung entstand — localizeRecipes überdeckt dann nur Felder, die noch so lauten.
+ */
+export function buildLangMap(langRecipes, deRecipes = null) {
+  const de = new Map((deRecipes || []).filter((r) => r && r.id).map((r) => [r.id, r]));
   const map = new Map();
   for (const r of langRecipes || []) {
     if (!r || !r.id) continue;
-    map.set(r.id, { name: r.name, ingredients: r.ingredients, steps: r.steps, tips: r.tips });
+    const entry = { name: r.name, ingredients: r.ingredients, steps: r.steps, tips: r.tips };
+    const o = de.get(r.id);
+    if (o) entry.de = { name: o.name, ingredients: o.ingredients, steps: o.steps, tips: o.tips };
+    map.set(r.id, entry);
   }
   return map;
 }
 
 /**
+ * Feld seit dem Snapshot bearbeitet (in der App, von Projekt-Claude …)? Dann zeigt die alte
+ * Übersetzung nicht mehr den Inhalt — das gespeicherte (deutsche) Feld bleibt sichtbar.
+ */
+const edited = (tr, r, f) => !!tr.de && JSON.stringify(r[f] ?? null) !== JSON.stringify(tr.de[f] ?? null);
+
+/**
  * ANZEIGE-Overlay: liefert eine neue Rezeptliste, in der Basis-Rezepte (id in der
  * Map) ihre vier Inhaltsfelder aus der Zielsprache zeigen — Nutzer-Status,
  * category und alle übrigen Felder bleiben aus dem (deutschen) Original. Rezepte
- * ohne Map-Eintrag (selbst hinzugefügt) bleiben unverändert.
+ * ohne Map-Eintrag (selbst hinzugefügt) bleiben unverändert. Ein Feld, das seit dem
+ * Snapshot bearbeitet wurde (Eintrag kennt sein deutsches Original), bleibt wie gespeichert.
  * Mutiert NICHTS und schreibt NICHTS zurück.
  */
 export function localizeRecipes(recipes, langMap) {
@@ -53,10 +68,10 @@ export function localizeRecipes(recipes, langMap) {
     const tr = langMap.get(r.id);
     if (!tr) return r;
     const out = { ...r };
-    if (typeof tr.name === "string" && tr.name.trim()) out.name = tr.name;
-    if (Array.isArray(tr.ingredients) && tr.ingredients.length) out.ingredients = tr.ingredients.slice();
-    if (Array.isArray(tr.steps) && tr.steps.length) out.steps = tr.steps.slice();
-    if (typeof tr.tips === "string") out.tips = tr.tips;
+    if (typeof tr.name === "string" && tr.name.trim() && !edited(tr, r, "name")) out.name = tr.name;
+    if (Array.isArray(tr.ingredients) && tr.ingredients.length && !edited(tr, r, "ingredients")) out.ingredients = tr.ingredients.slice();
+    if (Array.isArray(tr.steps) && tr.steps.length && !edited(tr, r, "steps")) out.steps = tr.steps.slice();
+    if (typeof tr.tips === "string" && !edited(tr, r, "tips")) out.tips = tr.tips;
     return out;
   });
 }

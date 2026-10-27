@@ -1,7 +1,7 @@
 // Flow 2 — Sprachwechsel: UI + Basis-Rezepte wechseln sofort (ohne Reload), gespeichert bleibt
 // IMMER kanonisches Deutsch (Drive-Datei wird mit v1 und Projekt-Claude geteilt).
 import { test, expect, snapshot } from "../support/fixtures.js";
-import { openApp, menu, tab, card, idb, sheet } from "../support/app.js";
+import { openApp, menu, tab, card, idb, sheet, fillForm } from "../support/app.js";
 
 test("Sprachwechsel DE → ES → DE: Oberfläche und Basis-Rezepte übersetzt, Daten bleiben deutsch", async ({ device }) => {
   const dev = await device();
@@ -64,4 +64,28 @@ test("Sprachwechsel DE → ES → DE: Oberfläche und Basis-Rezepte übersetzt, 
   await tab(page, "cookbook");
   await expect(page.locator(".app-header h1")).toHaveText("Mein Kochbuch");
   await expect(card(page, de.name).locator(".card-heart")).toHaveText("♥");
+});
+
+test("v2.16.2: in der spanischen Oberfläche bearbeitete Schritte sind danach sichtbar, unveränderte Felder bleiben übersetzt", async ({ device }) => {
+  const { page } = await device();
+  const de = snapshot().recipes.find((r) => r.id === "r01");
+  const es = snapshot("es").recipes.find((r) => r.id === "r01");
+  const newSteps = [...de.steps.slice(0, -1), "E2E: alles 20 Min köcheln lassen."];
+
+  await openApp(page);
+  await menu(page, "settings");
+  await page.locator('[data-setlang="es"]').click();
+  await tab(page, "cookbook");
+  await page.locator("#search").fill(es.name);
+  await card(page, es.name).click();
+  await (await sheet(page)).locator(".edit").click();
+  const form = await sheet(page);
+  await fillForm(form, { steps: newSteps });
+  await form.locator(".save-btn").click();
+
+  // Nach dem Speichern öffnet die Rezeptansicht wieder: Name weiter spanisch, Schritte = die Bearbeitung.
+  const detail = await sheet(page);
+  await expect(detail.locator(".detail-name")).toHaveText(es.name);
+  await expect(detail).toContainText("E2E: alles 20 Min köcheln lassen.");
+  expect((await idb(page, "recipes", "r01")).steps).toEqual(newSteps);
 });
