@@ -103,3 +103,15 @@ Part of every release's definition of done (Claude Code does this; the release-c
 | [`qa/FIELD-REPORTS.md`](qa/FIELD-REPORTS.md) | What you saw on a real device (`FR-NN`); the QA fleet root-causes these first |
 | `.planning/ROADMAP.md` | Working file of the planning tool for the finished shared-list phase (v2.10). Not a product roadmap. |
 | `SCHEMA.md` | The `rezepte.json` contract |
+
+---
+
+## QA audit findings *(automated audit 2026-10-27 — proposed, not yet ranked into the queue)*
+
+Status of every item: **proposed**. Audit run: unit suite 358/358 green, e2e 46/46 green, no lint / type-check / build step exists in the repo (so none was run). Evidence is from `main` @ `7550c35`.
+
+| ID | Title | Severity | Evidence | Acceptance criteria |
+|----|-------|----------|----------|---------------------|
+| **QA-01** | **No CI runs the test suites on PRs or `main`** — status: proposed | medium | `.github/workflows/` holds only `supabase-keepalive.yml`; `node v2/tests/run.js` (358 tests) and `npm --prefix v2/e2e test` (46 tests) run only on a developer machine. The last 10 merges to `main` (`git log --since="7 days ago"`) each relied on the author's local run. | A workflow triggers on `pull_request` and `push` to `main`, runs `node v2/tests/run.js` and the Playwright suite, and fails the check on any test failure. Proven by one PR that deliberately breaks a test showing a red check (then reverted). |
+| **QA-02** | **Sort "last cooked" ranks non-German month names as "month 0"** — status: proposed | low | `v2/src/features/cookbook/filter.js` `cookedMonthKey`: probe `cookedMonthKey("May 2026")`, `"mayo 2026"`, `"maj 2026"`, `"Mär 2026"`, `"Okt. 2026"` all return `202600` (year only), so those recipes sort below any recipe from an earlier year's full month. The app always writes German (`detail.js` `toLocaleDateString("de-DE")`), but `SCHEMA.md` lets project-Claude / v1 / imports write `lastCooked` as free text. | `cookedMonthKey` returns the right `YYYYMM` for English, Spanish and Danish month names and for 3-letter / dotted German abbreviations ("Mär 2026", "Okt. 2026"); new cases in `v2/tests/test-filter.js`; `SCHEMA.md` states the accepted formats for `lastCooked`. |
+| **QA-03** | **Roadmap index is stale after the v2.16.2 / v2.17 merges** — status: proposed | low | `ROADMAP.md` header ("PRs open", "Live: v2.15b") and queue item #1 ("Merge PR #18 … and the v2.17 PR"); `git log` shows PR #18 (`9f073e6`) and PR #19 (`7550c35`) already merged, and `ROADMAP-V2.md` version-plan rows still say "deploy = merge". | Header, "at a glance" table, queue item #1 and the `ROADMAP-V2.md` version-plan rows state what is actually merged and live; per the update rule in this file, the queue is refilled to 5. |
