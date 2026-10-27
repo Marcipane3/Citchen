@@ -1,3 +1,6 @@
+> **Superseded 2026-10-27:** the guard pass now runs inside the weekly `/release-prep` routine and the
+> proposers inside the monthly `/propose` digest — see `docs/process/AGENT-PIPELINE.md`. Kept for the reasoning.
+
 # 🌙 Koch dev routine — the "nightly guard pass"
 
 A scheduled routine tuned for **maximum signal per token**. It does *not* re-audit the whole app every

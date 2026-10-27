@@ -1,0 +1,46 @@
+name: Work item
+description: One buildable item (feature, bug, chore, spike). Must meet the Definition of Ready before status:ready.
+title: "[<roadmap ID>] <short title>"
+labels: ["status:proposed"]
+body:
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: One or two sentences + roadmap reference (file and row ID).
+      placeholder: "Recipes need a portable file before format 4 (R1). → ROADMAP-V2.md, Epic G, G2.1"
+    validations: { required: true }
+  - type: textarea
+    id: ac
+    attributes:
+      label: Acceptance criteria
+      description: A checklist. Each item testable, ideally naming the test file.
+      placeholder: |
+        - [ ] `parseImportFile('{}')` returns an error and no recipes (test-recipe-import.js)
+        - [ ] An id clash never overwrites an existing recipe (test-recipe-import.js)
+    validations: { required: true }
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Files or areas likely to change; tests to add.
+    validations: { required: true }
+  - type: textarea
+    id: tests
+    attributes:
+      label: Test plan
+      description: Unit tests, e2e specs, and what Marcel checks on the phone at release.
+  - type: input
+    id: deps
+    attributes:
+      label: Depends on
+      placeholder: "#12, #13 (or: none)"
+  - type: textarea
+    id: out
+    attributes:
+      label: Out of scope
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Decisions
+      description: Answers from Marcel (date + answer). Filled in by the refiner.

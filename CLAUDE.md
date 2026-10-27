@@ -1,152 +1,73 @@
-# 🍳 Rezept-App — Projektkontext & Auftrag für Claude Code
+# Citchen (Koch) — project guide for Claude
 
-> Diese Datei ist die Anleitung für Claude Code. Lies sie zuerst vollständig.
-> Sie wurde von Claude (im Kochbuch-Projekt) für Marcel erstellt als Übergabe.
+Read this first, every session. It is short on purpose; details live in the files it points to.
+If this file and the code disagree, the code wins. Note the drift in your final message.
 
----
+## What this is
+A personal cooking PWA ("Koch v2", becoming **Citchen** in V3) for Marcel, his partner and friends.
+Live at `https://marcipane3.github.io/Citchen/v2/`. The root `index.html` is the legacy v1 app; leave
+it alone unless asked.
+Plans: `ROADMAP.md` (what's next, index) → `ROADMAP-V2.md` (v2.x line) · `ROADMAP-V3.md` (V3 line) ·
+`docs/v3/` (decisions, ADRs). Data contract: `SCHEMA.md`.
 
-## Was das hier ist
+## Stack (no build step, by design)
+- Vanilla JS ES modules in `v2/src/`. No framework, no bundler, no npm for the app, no third-party scripts.
+- Local-first: IndexedDB (`data/db.js`), cache-first service worker (`v2/sw.js`, `CACHE` + `SHELL`).
+- Sync: Google Drive, scope `drive.file`: `rezepte.json` (recipes) and `einkaufsliste.json` (shopping
+  list), through one engine (`data/syncCore.js` + `syncRules.js`; config in `sync.js` / `listSync.js`).
+- Supabase: friends inbox only, token-checked RPCs, no table access (`data/friendInbox.js`,
+  `supabase/migrations/`).
+- AI: Anthropic API from the browser with the user's own key (BYOK). Model IDs live **only** in
+  `v2/src/ai/models.js` (a test enforces this).
+- i18n: DE/EN/ES/DA in `v2/src/i18n.js`. Stored data is canonical German; translations are display only.
 
-Eine **lokal-first Progressive Web App (PWA)** als persönliches digitales Kochbuch.
-Sie ersetzt eine bisherige Markdown-Datei (`REZEPT-DATENBANK.md`) und einen
-Chat-Artifact-Prototyp durch eine echte, installierbare App mit Homescreen-Icon.
+## Map
+`v2/src/app.js` (boot) · `router.js` · `store.js` · `data/` (persistence, sync, schema, merge) ·
+`features/<area>/` (cookbook, cooking, shopping, planner, lager, capture, assistant, settings, …) ·
+`ai/` · `ui/` · `v2/tests/` (unit, `run.js` lists every file) · `v2/e2e/` (Playwright) ·
+`supabase/` (migrations + tests) · `qa/` (QA fleet) · `.claude/agents/` (the `koch-*` reviewers) ·
+`.claude/skills/` (pipeline roles).
+Ignore unless asked: `00_`–`05_*.md`, `Projektwissen1.md`, `files.zip`, `.planning/` (old tools and handoffs).
 
-**Nutzer:** 1 Person (Marcel), Kochlevel Anfänger–Mittelstufe, Standort Kopenhagen.
-Kocht hauptsächlich vegetarisch, ~4 Portionen, Wochentags schnell / Wochenende aufwendig.
-
----
-
-## Die Anforderungen (vom Nutzer priorisiert)
-
-1. **Kostenlos / kein Abo** — kein bezahlter Server, kein SaaS.
-2. **Von mehreren Geräten synchron** — Handy + evtl. Laptop sehen dieselben Daten.
-3. **Claude soll die Daten per API updaten können** — d.h. die im Claude-Projekt
-   laufende Instanz kann Rezepte hinzufügen/ändern, ohne dass der Nutzer copy-pastet.
-4. **Homescreen-Icon wie echte App** — PWA, „Zum Startbildschirm hinzufügen".
-
-Setup-Bereitschaft: **hoch** („Egal, ich hab Claude Code & Zeit"). Terminal/OAuth ok.
-
----
-
-## Architektur-Entscheidung (begründet)
-
-**Google Drive ist das Backend.** Keine eigene Server-Infrastruktur.
-
-```
-   [Handy: PWA mit Icon]          [Claude im Projekt]
-            │                              │
-            └──────────┐      ┌────────────┘
-                       ▼      ▼
-              [Google Drive: rezepte.json]
-                  (single source of truth)
+## Commands
+```bash
+node v2/tests/run.js                         # unit, offline, ~seconds — must stay green
+node v2/tools/check-snapshots.mjs            # language snapshots valid
+npm --prefix v2/e2e ci && npm --prefix v2/e2e test   # Playwright e2e (Chromium preinstalled in cloud)
+bash supabase/tests/run.sh                   # migrations on a throwaway Postgres (needs Postgres ≥ 15)
+python -m http.server 8011 --directory v2    # run the app locally
 ```
 
-Warum:
-- Nutzer hat bereits Google Drive (und Microsoft Family als Alternative).
-- Drive-API ist kostenlos, kein Hosting nötig für die Daten.
-- Claude hat im Projekt Google-Drive-Zugriff → kann dieselbe `rezepte.json`
-  lesen/schreiben. Das erfüllt Anforderung #3 ohne eigenes Backend.
-- Mehrgeräte-Sync (#2) ergibt sich automatisch, da alle dieselbe Datei nutzen.
+## Rules that are never broken
+1. `rezepte.json` stays flat-v3 per `SCHEMA.md`; **additive fields only**. A format change is `risk:needs-human`.
+2. Canonical German in stored data; `category` stays the German enum (`test-canonical.js`).
+3. Shopping list: every edit calls `touch()`; deletes are tombstones.
+4. Everything rendered from files or users goes through `esc()`. No `innerHTML` with raw data.
+5. Every new `v2/src/**/*.js` module is added to `SHELL` in `v2/sw.js` (`test-sw-shell.js`).
+6. New UI text in all four languages, with curly inner quotes.
+7. No secrets in the repo. The Supabase publishable key is public by design; nothing else is.
+8. Never call production Drive, Supabase or Anthropic from tests or scripts.
+9. A test that fails is a bug to fix, never a test to skip or delete.
 
-**Microsoft 365 / OneDrive** wäre technisch genauso möglich (Graph API). Google Drive
-gewählt, weil der Nutzer beides hat und Google Identity Services im Browser am
-reibungslosesten ist. → Falls der Nutzer lieber OneDrive will: Graph-API-Variante
-anbieten, Konzept bleibt identisch (eine JSON-Datei in der Cloud).
+## Definition of Done (a PR into `next`)
+- Each acceptance criterion of the issue is proven by a named test that fails without the change.
+- Unit + e2e (+ supabase if touched) green locally and in CI.
+- Rules above hold; diff stays inside the issue's scope; no debris (logs, temp files, commented code).
+- **Not** in feature PRs: `BUILD`/`APP_VERSION`/`CHANGELOG` (`v2/src/version.js`), `CACHE` (`v2/sw.js`),
+  any `ROADMAP*.md`. Release-prep does those once per release.
 
----
+## How work flows (details: `docs/process/AGENT-PIPELINE.md`)
+- Work queue = GitHub Issues with `status:*` labels; versions = milestones. Roadmaps are the plan, not the queue.
+- Branches: `build/<issue>-<slug>` → PR into **`next`** (integration). `next` → **`main`** only through a
+  weekly release PR that Marcel merges. `main` = production (GitHub Pages). Never push to `main` or `next`.
+- Pipeline roles are skills: `/refine`, `/build-next`, `/review-pr`, `/release-prep`, `/propose` (monthly).
+  While a `release` PR into `main` is open, nothing is merged into `next` (release freeze).
+- **GitHub from Claude Code: REST only.** `gh api repos/Marcipane3/Citchen/...`. `gh pr list`,
+  `gh issue list` and Projects use GraphQL and fail in cloud sessions.
+- Agent PRs never touch `supabase/`, `.github/`, `.claude/`, `CLAUDE.md` (`.github/workflows/policy.yml` enforces it).
+  Those changes happen with Marcel in an interactive session.
 
-## Tech-Stack (bewusst minimal)
-
-- **Single-File `index.html`** — HTML + CSS + Vanilla JS in einer Datei.
-  Kein Build, kein npm, kein Framework-Overhead. Maximal wartbar, sofort lauffähig.
-- **Google Identity Services (GIS)** + **Google Drive API v3** fürs Auth & File-I/O.
-- **PWA**: `manifest.json` + Service Worker (`sw.js`) für Icon & Offline-Cache.
-- **Datenformat**: eine `rezepte.json` in einem App-Ordner auf Drive.
-
-Bewusst KEIN React/Vite/Bundler — Begründung: Single-User-App, kein Build-Schritt
-heißt der Nutzer (und Claude) können die Datei jederzeit direkt editieren.
-
----
-
-## ⚠️ DEINE AUFGABEN, Claude Code (in Reihenfolge)
-
-### 1. Hosting beraten (WICHTIG — Nutzer hat hier um Beratung gebeten)
-Der Nutzer ist unentschieden beim Hosting. Berate ihn aktiv. Optionen:
-- **GitHub Pages**: kostenlos, echte HTTPS-URL (Pflicht für PWA-Icon & OAuth-Redirect),
-  minimaler Aufwand. → Empfehlung, wenn er ein GitHub-Konto hat/anlegen mag.
-- **Lokal testen zuerst** (`python3 -m http.server`): gut zum Ausprobieren, aber
-  OAuth braucht später eine echte Domain & PWA-Install braucht HTTPS.
-- Kläre: Hat er GitHub? Mag er eine öffentliche oder private Repo? (PWA braucht HTTPS;
-  GitHub Pages liefert das gratis.)
-Triff danach mit ihm eine Entscheidung und richte es ein.
-
-### 2. Google Cloud OAuth einrichten (führe ihn Schritt für Schritt)
-Das ist der fummeligste Teil. Anleitung in `SETUP-GOOGLE.md` (liegt bei) — gehe sie
-mit ihm durch:
-- Projekt in Google Cloud Console anlegen
-- Google Drive API aktivieren
-- OAuth-Consent-Screen (Test-Modus reicht für Einzelnutzer)
-- OAuth-Client-ID (Typ: Web) erzeugen, autorisierte JS-Origin = die Hosting-URL
-- Client-ID in `index.html` (Konstante `GOOGLE_CLIENT_ID`) eintragen
-Scope: `https://www.googleapis.com/auth/drive.file` (nur von der App erstellte Dateien
-— minimaler, datenschutzfreundlicher Scope).
-
-### 3. Code finalisieren & deployen
-- `index.html`, `manifest.json`, `sw.js`, Icons sind als Startgerüst beigelegt.
-- Trage die Client-ID ein, passe die Hosting-URL an.
-- Erzeuge echte App-Icons (192px, 512px) — Platzhalter liegen bei.
-- Deploye gemäß Hosting-Entscheidung, teste „Zum Startbildschirm hinzufügen".
-
-### 4. Claudes Daten-Zugriff einrichten (Anforderung #3)
-Damit die Claude-Projekt-Instanz Rezepte schreiben kann:
-- Die `rezepte.json` muss in einem Drive-Ordner liegen, auf den der Nutzer Claude
-  Zugriff gegeben hat (über den Google-Drive-Connector im Claude-Projekt).
-- Dokumentiere den **Dateipfad/Namen** und das **JSON-Schema** (s.u.) so, dass die
-  Projekt-Instanz die Datei findet, parst, ergänzt und zurückschreibt.
-- Lege eine `SCHEMA.md` an (Vorlage beigelegt) — das ist der Vertrag zwischen App
-  und Claude. Beide müssen sich exakt an dieses Schema halten.
-
----
-
-## Datenmodell (`rezepte.json`)
-
-```json
-{
-  "version": 1,
-  "updated": "2026-05-31T12:00:00Z",
-  "recipes": [
-    {
-      "id": "r01",
-      "name": "Süßkartoffel-Curry mit Kichererbsen",
-      "category": "Vegetarische Hauptgerichte",
-      "time": "35 Min",
-      "servings": "~4",
-      "lastCooked": "Mai 2026",
-      "ingredients": ["2 Süßkartoffeln, gewürfelt", "..."],
-      "steps": ["Reis aufsetzen.", "..."],
-      "tips": "Joghurt drüber = frischer."
-    }
-  ]
-}
-```
-
-Die 16 festen Kategorien stehen in `SCHEMA.md`. Beim Schreiben: `updated` aktualisieren,
-`id` eindeutig vergeben (z.B. `r` + Timestamp).
-
----
-
-## Migration der Bestandsdaten
-
-Es gibt bereits **1 Rezept** (Süßkartoffel-Curry), beigelegt als `rezepte.seed.json`.
-Diese Datei beim ersten Setup als initiale `rezepte.json` nach Drive hochladen.
-
----
-
-## Definition of Done
-
-- [ ] App auf HTTPS-URL erreichbar, „Zum Startbildschirm" funktioniert (Icon erscheint)
-- [ ] Login mit Google funktioniert, `rezepte.json` wird in Drive erstellt
-- [ ] Rezept in der App hinzufügen → erscheint nach Reload auf zweitem Gerät
-- [ ] Süßkartoffel-Curry (seed) ist drin
-- [ ] `SCHEMA.md` dokumentiert, sodass Claude im Projekt die Datei updaten kann
-- [ ] README erklärt dem Nutzer den Alltagsablauf (Rezept hinzufügen, Claude bitten)
+## Working with Marcel
+- Marcel is an industrial engineer, not a full-time developer. Explain trade-offs in plain words and recommend one option.
+- He writes German or English; answer in his language. Code comments may be German; docs are English.
+- Device checks are his scarce resource. Bundle them into the release checklist, 2–3 h max per release.
