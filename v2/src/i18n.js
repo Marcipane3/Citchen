@@ -160,7 +160,7 @@ export const DICT = {
     sync: { confirmDrop: "Auf Google Drive fehlen {n} von {total} Rezepten. Ist die Datei beschädigt? OK = Löschen übernehmen · Abbrechen = lokale Rezepte behalten." },
     form: {
       apply: "Übernehmen",
-      editsOriginal: "Du bearbeitest das deutsche Original — die Rezeptdatei ist deutsch, Übersetzungen werden nur angezeigt.",
+      editsOriginal: "Du bearbeitest das deutsche Original — die Rezeptdatei ist deutsch, Übersetzungen werden nur angezeigt. Was du änderst, siehst du danach auch in deiner Sprache.",
       newRecipe: "Neues Rezept", editRecipe: "Rezept bearbeiten", reviewDraft: "Rezept-Entwurf prüfen",
       name: "Name", namePlaceholder: "z.B. Linsensuppe", category: "Kategorie",
       time: "Zeit", servings: "Portionen", effort: "Aufwand", difficulty: "Schwierigkeit",
@@ -418,7 +418,7 @@ export const DICT = {
     sync: { confirmDrop: "{n} of {total} recipes are missing on Google Drive. Is the file damaged? OK = apply the deletions · Cancel = keep your local recipes." },
     form: {
       apply: "Apply",
-      editsOriginal: "You are editing the German original — the recipe file is German; translations are only shown.",
+      editsOriginal: "You are editing the German original — the recipe file is German; translations are only shown. What you change is shown as you wrote it afterwards.",
       newRecipe: "New recipe", editRecipe: "Edit recipe", reviewDraft: "Review recipe draft",
       name: "Name", namePlaceholder: "e.g. Lentil soup", category: "Category",
       time: "Time", servings: "Servings", effort: "Effort", difficulty: "Difficulty",
@@ -676,7 +676,7 @@ export const DICT = {
     sync: { confirmDrop: "Faltan {n} de {total} recetas en Google Drive. ¿Está dañado el archivo? Aceptar = aplicar las eliminaciones · Cancelar = conservar tus recetas locales." },
     form: {
       apply: "Aplicar",
-      editsOriginal: "Estás editando el original en alemán — el archivo de recetas es alemán; las traducciones solo se muestran.",
+      editsOriginal: "Estás editando el original en alemán — el archivo de recetas es alemán; las traducciones solo se muestran. Lo que cambies se mostrará después tal como lo escribiste.",
       newRecipe: "Nueva receta", editRecipe: "Editar receta", reviewDraft: "Revisar borrador",
       name: "Nombre", namePlaceholder: "p. ej. Sopa de lentejas", category: "Categoría",
       time: "Tiempo", servings: "Raciones", effort: "Esfuerzo", difficulty: "Dificultad",
@@ -934,7 +934,7 @@ export const DICT = {
     sync: { confirmDrop: "{n} af {total} opskrifter mangler på Google Drive. Er filen beskadiget? OK = anvend sletningerne · Annuller = behold dine lokale opskrifter." },
     form: {
       apply: "Anvend",
-      editsOriginal: "Du redigerer den tyske original — opskriftsfilen er på tysk; oversættelser vises kun.",
+      editsOriginal: "Du redigerer den tyske original — opskriftsfilen er på tysk; oversættelser vises kun. Det, du ændrer, vises bagefter, som du skrev det.",
       newRecipe: "Ny opskrift", editRecipe: "Rediger opskrift", reviewDraft: "Tjek opskriftsudkast",
       name: "Navn", namePlaceholder: "f.eks. Linsesuppe", category: "Kategori",
       time: "Tid", servings: "Portioner", effort: "Indsats", difficulty: "Sværhedsgrad",

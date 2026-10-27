@@ -134,8 +134,9 @@ export function mergeRecipes({ base, local, remote, prefer = "remote" }) {
 
 /**
  * T2: Würde der Merge auffällig viele Rezepte lokal löschen (Drive-Datei verstümmelt?), muss
- * vorher gefragt werden. Schwelle: mehr als 3 und mehr als 20 % der Basis.
+ * vorher gefragt werden. Schwelle (Marcel 2026-10-26): ab 5 Rezepten ODER ab 20 % der Basis —
+ * bei 105 Rezepten fragt die App also schon ab 5, nicht erst ab 22.
  */
 export function suspiciousDrop(removedCount, baseCount) {
-  return removedCount > 3 && removedCount > baseCount * 0.2;
+  return removedCount >= 5 || (baseCount > 0 && removedCount > 0 && removedCount / baseCount >= 0.2);
 }

@@ -210,6 +210,11 @@ test("Kern: ohne Anmeldung kein Netzzugriff; Listen-Status = local", async () =>
    ============================================================ */
 
 const BASE3 = [recipe("r1", "Curry"), recipe("r2", "Dal"), recipe("r3", "Pasta")];
+// 17 weitere Rezepte („~…“, sortieren ans Ende): eine einzelne Löschung bleibt unter der Rückfrage-
+// Schwelle (≥ 5 oder ≥ 20 %, v2.16.2) — bei nur drei Rezepten wäre eine Löschung schon 33 %.
+const PAD = Array.from({ length: 17 }, (_, i) => recipe("p" + i, "~Polster " + i));
+const BASE20 = [...BASE3, ...PAD];
+const own = (names) => names.filter((n) => !n.startsWith("~"));
 
 test("Rezepte: Erstlauf legt GENAU eine Datei an; zweites Gerät übernimmt sie statt ein Duplikat anzulegen", async () => {
   const drive = fakeDrive();
@@ -278,17 +283,18 @@ test("T1: dasselbe Feld auf beiden Seiten geändert → die lokale Änderung gew
 
 test("T1: Löschen kommt an; Bearbeiten schlägt Löschen", async () => {
   const drive = fakeDrive();
-  const A = recipeDevice(drive, { recipes: BASE3 });
-  const B = recipeDevice(drive, { recipes: BASE3 });
+  const A = recipeDevice(drive, { recipes: BASE20 });
+  const B = recipeDevice(drive, { recipes: BASE20 });
   await A.engine.sync(); await B.engine.sync();
   await B.save((l) => l.filter((r) => r.id !== "r3"));          // B löscht Pasta
   await A.engine.sync();
-  assertDeepEqual(A.names(), ["Curry", "Dal"], "Löschung kommt bei A an");
+  assertDeepEqual(own(A.names()), ["Curry", "Dal"], "Löschung kommt bei A an");
+  assertEqual(A.asked.length, 0, "1 von 20 → keine Rückfrage");
   // A bearbeitet Dal offline, während B Dal löscht → Dal bleibt (mit A's Änderung).
   await A.save(edit("r2", { name: "Dal (A)" }), { online: false });
   await B.save((l) => l.filter((r) => r.id !== "r2"));
   await A.engine.sync();
-  assertDeepEqual(driveNames(drive), ["Curry", "Dal (A)"]);
+  assertDeepEqual(own(driveNames(drive)), ["Curry", "Dal (A)"]);
 });
 
 test("T1: unverändert → kein Schreibzugriff", async () => {
@@ -333,12 +339,12 @@ test("T1: zwei schnelle Speichervorgänge → beide auf Drive, Meta sauber", asy
 
 test("T1 / Umstieg von v2.15: ohne gespeicherte Basis, sauber → lokaler Stand gilt als Basis, Claudes Rezept kommt dazu", async () => {
   const drive = fakeDrive();
-  const A = recipeDevice(drive, { recipes: BASE3 });
+  const A = recipeDevice(drive, { recipes: BASE20 });
   await A.engine.sync();
-  const B = recipeDevice(drive, { recipes: BASE3, base: null, meta: { ...(await A.meta()), source: "drive", dirty: false } });
+  const B = recipeDevice(drive, { recipes: BASE20, base: null, meta: { ...(await A.meta()), source: "drive", dirty: false } });
   externalWrite(drive, (j) => ({ ...j, recipes: [recipe("rC", "Claude"), ...j.recipes.filter((r) => r.id !== "r3")] }));
   await B.engine.sync();
-  assertDeepEqual(B.names(), ["Claude", "Curry", "Dal"], "neu übernommen, gelöschtes Pasta gelöscht");
+  assertDeepEqual(own(B.names()), ["Claude", "Curry", "Dal"], "neu übernommen, gelöschtes Pasta gelöscht");
 });
 
 test("T1 / Umstieg: ohne Basis UND ungespeicherte lokale Änderung → nichts geht verloren (Vereinigung)", async () => {
@@ -430,6 +436,29 @@ test("T2: … Ja = Löschung übernommen, vorher eine lokale Sicherung", async (
   await A.engine.sync();
   assertEqual(A.local.recipes.length, 8);
   assertEqual(A.local.backup.length, 20, "Sicherung des vorherigen Stands");
+});
+
+test("T2: Drive löscht 5 von 105 → schon das fragt (≥ 5, Marcel 2026-10-26; vorher erst ab 22)", async () => {
+  const drive = fakeDrive();
+  const many = Array.from({ length: 105 }, (_, i) => recipe("r" + i, "Rezept " + i));
+  const A = recipeDevice(drive, { recipes: many, approve: false });
+  await A.engine.sync();
+  externalWrite(drive, (j) => ({ ...j, recipes: j.recipes.slice(5) }));
+  const origWarn = console.warn; console.warn = () => {};
+  try { await A.engine.sync(); } finally { console.warn = origWarn; }
+  assertDeepEqual(A.asked, [{ count: 5, total: 105 }]);
+  assertEqual(A.local.recipes.length, 105);
+});
+
+test("T2: Drive löscht 4 von 105 → keine Rückfrage", async () => {
+  const drive = fakeDrive();
+  const many = Array.from({ length: 105 }, (_, i) => recipe("r" + i, "Rezept " + i));
+  const A = recipeDevice(drive, { recipes: many });
+  await A.engine.sync();
+  externalWrite(drive, (j) => ({ ...j, recipes: j.recipes.slice(4) }));
+  await A.engine.sync();
+  assertEqual(A.asked.length, 0);
+  assertEqual(A.local.recipes.length, 101);
 });
 
 test("T2: ein einzelnes gelöschtes Rezept braucht keine Rückfrage", async () => {

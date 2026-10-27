@@ -1,7 +1,7 @@
 # 🍳 Koch — Roadmap index
 
 > Start here. This page says **what is next** and where everything else lives.
-> **Last updated: 2026-10-26** (v2.15b merged · v2.16 AI housekeeping built) · Live: **v2.15b** (its database migration still needs one manual step; v2.16 goes live on merge)
+> **Last updated: 2026-10-27** (v2.15b merged · v2.16 AI housekeeping built · v2.16.2 sync follow-ups built, PR open) · Live: **v2.15b** (its database migration still needs one manual step; v2.16 goes live on merge)
 
 ## The two roadmaps
 

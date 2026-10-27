@@ -67,6 +67,27 @@ test("localizeRecipes: Basis-Rezepte (id in Map) lokalisiert, Nutzer-Rezepte unb
   assertEqual(localizeRecipes(input, buildLangMap([])), input);
 });
 
+test("localizeRecipes mit deutschen Originalen: unveränderte Felder übersetzt, bearbeitete Felder bleiben sichtbar", () => {
+  const langSnap = [{ id: "r01", ...TR }];
+  const map = buildLangMap(langSnap, [BASE]);
+  // Unverändert gegenüber dem Snapshot → alles übersetzt (wie bisher).
+  const plain = localizeRecipes([BASE], map)[0];
+  assertDeepEqual([plain.name, plain.steps[0], plain.tips], [TR.name, TR.steps[0], TR.tips]);
+  // Im Deutschen bearbeitet (App-Formular oder Projekt-Claude) → dieses Feld zeigt die Bearbeitung.
+  const edited = { ...BASE, steps: ["Reis aufsetzen.", "Alles 20 Min köcheln."], tips: "" };
+  const out = localizeRecipes([edited], map)[0];
+  assertDeepEqual(out.steps, edited.steps, "bearbeitete Schritte nicht von der alten Übersetzung verdeckt");
+  assertEqual(out.tips, "", "auch ein geleertes Feld bleibt leer");
+  assertEqual(out.name, TR.name, "Name unverändert → weiter übersetzt");
+  assertDeepEqual(out.ingredients, TR.ingredients);
+});
+
+test("buildLangMap ohne deutsche Originale (Snapshot nicht ladbar) → Verhalten wie bisher", () => {
+  const map = buildLangMap([{ id: "r01", ...TR }]);
+  const edited = { ...BASE, steps: ["anders"] };
+  assertDeepEqual(localizeRecipes([edited], map)[0].steps, TR.steps);
+});
+
 test("checkTranslation: erkennt Längen- und Marker-Abweichungen, sauber bei Treffer", () => {
   assertEqual(checkTranslation(BASE, TR).length, 0, "saubere Übersetzung → keine Warnung");
   assert(checkTranslation(BASE, { ...TR, steps: ["nur einer"] }).some((w) => w.includes("Schritt")));
