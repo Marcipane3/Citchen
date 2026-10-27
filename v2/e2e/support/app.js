@@ -116,7 +116,11 @@ export async function goToList(page) {
 export async function refreshList(page) {
   const btn = page.locator("#shop-sync .sl-refresh");
   await expect(btn).toBeEnabled();
+  // Erst warten, bis der Abgleich wirklich bei Drive anfragt: sonst ist „nicht mehr Synchronisiere“
+  // schon VOR dem Start erfüllt, und auf langsamen CI-Runnern prüft der Test die alte Liste.
+  const started = page.waitForRequest((r) => r.url().startsWith("https://www.googleapis.com/"));
   await btn.click();
+  await started;
   await expect(page.locator("#shop-sync")).not.toContainText("Synchronisiere");
   await expect(page.locator("#shop-sync .sl-refresh")).toBeEnabled();
 }

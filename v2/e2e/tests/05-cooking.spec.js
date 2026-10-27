@@ -1,7 +1,7 @@
 // Flow 5 — Kochmodus: Vollbild ohne Tab-Leiste, Portionen skalieren, Schritte abhaken
 // (überlebt Neustart), Schritt-für-Schritt-Ansicht, Timer läuft ab.
 import { test, expect, snapshot } from "../support/fixtures.js";
-import { openApp, openRecipe } from "../support/app.js";
+import { openApp, openRecipe, idb } from "../support/app.js";
 
 const R = snapshot().recipes.find((r) => r.id === "r01"); // Süßkartoffel-Curry, ~4 Portionen, 7 Schritte
 
@@ -29,6 +29,12 @@ test("Kochmodus: aus dem Rezept öffnen, skalieren, abhaken, Seitenansicht, schl
   await page.locator('.cook-step[data-step="0"] .cook-text').click();
   await page.locator('.cook-ing[data-ing="0"]').click();
   await expect(page.locator('.cook-step[data-step="0"]')).toHaveClass(/done/);
+  await expect(page.locator('.cook-ing[data-ing="0"]')).toHaveClass(/done/);
+  // Erst neu laden, wenn beide Haken in IndexedDB stehen (das Speichern ist asynchron).
+  await expect.poll(async () => {
+    const p = (await idb(page, "kv", "progress:r01"))?.value;
+    return !!(p && p.steps[0] && p.ings[0]);
+  }).toBe(true);
   await page.reload();
   await expect(page.locator('.cook-step[data-step="0"]')).toHaveClass(/done/);
   await expect(page.locator('.cook-ing[data-ing="0"]')).toHaveClass(/done/);
