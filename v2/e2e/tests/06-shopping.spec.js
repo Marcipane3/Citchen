@@ -51,6 +51,8 @@ test("Einkaufsliste: hinzufügen, Menge, abhaken, aufräumen, Rückgängig, Neus
 
   // Sortierung A–Z bleibt nach Neustart, Liste auch
   await page.locator('.sl-sortbtn[data-sort="alpha"]').click();
+  // erst neu starten, wenn die Wahl gespeichert ist (kvSet läuft im Hintergrund; unter Last sonst verloren)
+  await expect.poll(async () => (await idb(page, "kv", "shopSort"))?.value).toBe("alpha");
   await page.reload();
   await expect(row(page, "Karotten").locator(".sl-qty")).toHaveText("2");
   await expect(page.locator('.sl-sortbtn[data-sort="alpha"]')).toHaveClass(/\bon\b/);
@@ -201,7 +203,8 @@ test("T9 / UX-12: Kachel-Tipp lässt die Kachel unter dem Finger — die wachsen
     const before = (await t.boundingBox()).y;
     await t.click();                                      // neue Zeile + evtl. neue Gang-Überschrift oben
     await expect(row(page, name)).toHaveCount(1);
-    await expect(t).not.toHaveClass(/just-added/); // die 220-ms-Tipp-Animation (scale) ist vorbei
+    await expect(t).not.toHaveClass(/just-added/); // die 220-ms-Tipp-Animation (scale) ist vorbei …
+    await expect(t).toHaveCSS("transform", "none"); // … und auch das Zurückskalieren (transition .12s) — sonst ~2,5 px
     expect(Math.abs((await t.boundingBox()).y - before)).toBeLessThanOrEqual(2); // ohne Ausgleich: ~60 px
   }
 });

@@ -52,4 +52,6 @@ in [`e2e/README.md`](e2e/README.md).
 
 ## Deploy
 Push to `main`; GitHub Pages serves `/v2` automatically. Bump `CACHE` in `sw.js` and `BUILD`
-in `src/version.js` on each release so installed clients update on the next load.
+in `src/version.js` on each release so installed clients update on the next load. Since v2.16.1 the
+service worker no longer refreshes files in the background — a release that leaves `sw.js`
+unchanged never reaches installed clients (e2e `10-update` fails on a missing bump).
