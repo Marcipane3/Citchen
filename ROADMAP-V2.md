@@ -6,7 +6,7 @@
 > v3.0 → see **[ROADMAP-V3.md](ROADMAP-V3.md)**. What to do next → **[ROADMAP.md](ROADMAP.md)**.
 >
 > Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-10-27** (QA fleet findings of
-> 2026-10-12 placed as Epic T; v2.15b merged, v2.16 built, v2.16.1 update fix, v2.16.2 sync tweaks) · Current build: **v2.16.2** (`/v2`, 352 unit tests + 43
+> 2026-10-12 placed as Epic T; v2.15b merged, v2.16 built, v2.16.1 update fix, v2.16.2 sync tweaks, v2.17 find recipes) · Current build: **v2.17** (`/v2`, 358 unit tests + 46
 > end-to-end tests in `v2/e2e/` + the Supabase test run `supabase/tests/run.sh`; v2.15b merged with PR #15 on 2026-10-26).
 
 ---
@@ -47,7 +47,8 @@ V3 slices in Q1 2027 if time is short (risk R19).
 | **v2.15b** | Backend hardening | P7 (migrations in repo, advisor check, pause/backup plan) | Nov | ✅ merged 26 Oct (PR #15) · ✅ migration applied on prod + advisors clean (18 expected warnings), 26 Oct | D10 only for V3's final scope |
 | — (Marcel) | ★ Sharing proof | P3 two-account test, P4 live friend test | Oct | open since v2.11 | Picker key + partner as test user |
 | **v2.16** | AI housekeeping | Q1 Sonnet 5.5 capture + model config · Q2 prompt caching · Q3 token measurement | early Nov | ✅ built 26 Oct (pulled forward) · deploy = merge **+ Marcel's capture check on 10 real photos/URLs** | — |
-| **v2.17** | Find recipes faster | F4 (all of a–f, incl. ingredient search) | mid Nov | planned | G7 ✅ answered |
+| **v2.17** | Find recipes faster | F4 (b) (c) (d time) (e) — lean cut, Marcel 2026-10-27 | mid Nov | ✅ built 27 Oct · deploy = merge | — |
+| **v2.17b** | Photo grid | F4 (a) | with V3 default photos (slice 7) or once own photos exist | later | photos |
 | **v2.18** | Recipe export / import | G2 | late Nov | planned | — |
 | — (no release) | ★ Data-model spike | R1 ingredient model + unit spec + format-4 design (shared with P6, P7, D10) | Nov, before format 4 is frozen | proposed | — |
 | **v2.19** | Ingredient master + calories | R2 → R3 → L2 → L3 (L1 resolved by R2, proposed) | Dec | planned (grows to L; split if needed) | R1 |
@@ -159,7 +160,7 @@ Risk: this is the biggest data change before V3. Cut order if time runs out: R5 
 
 | # | Item | Detail & acceptance | Pri | Eff | Target |
 |---|------|---------------------|-----|-----|--------|
-| **F4** | **Easier recipe finding** (US-17, G7 ✅ all wanted) | (a) photo grid · (b) sort by recently cooked / most cooked / newest · (c) favourites first (filter or pre-sort) · (d) filter chips: vegetarian, time, category · (e) search always visible at the top, **also over ingredients** · (f) "to try" list. Photo grid ships with a fallback tile for recipes without a photo; it gets better with V3 default photos (slice 7). If v2.17 is too big: (b)(c)(d)(e) first, (a)(f) as v2.17b. | P1 | M–L | v2.17 |
+| **F4** | **Easier recipe finding** (US-17, G7 ✅ all wanted) | (a) photo grid · (b) sort by recently cooked / most cooked / newest · (c) favourites first (filter or pre-sort) · (d) filter chips: vegetarian, time, category · (e) search always visible at the top, **also over ingredients** · (f) "to try" list. Photo grid ships with a fallback tile for recipes without a photo; it gets better with V3 default photos (slice 7). If v2.17 is too big: (b)(c)(d)(e) first, (a)(f) as v2.17b. **v2.17 (27 Oct, Marcel's cut):** (b)+(c) sort menu ✅ · (d) time chips ≤ 15/30/60 ✅, category chips existed, **vegetarian skipped** (only 2 of 105 base recipes have fish; revisit with R2) · (e) search was already sticky + over ingredients; now multi-word, also tips, accent/ß-insensitive ✅ · (f) „🆕 Probieren“ chip already existed ✅ · **(a) photo grid → v2.17b** (no recipe has a photo yet). „Last cooked“ stays month-level (no `cookedAt` field). | P1 | M–L | v2.17 ✅ · (a) v2.17b |
 | F1 | **Generate many dishes to taste** *(proposed: close as done)* | Already covered by C1 bulk "✨ KI-Ideen" + C3 profile-aware generation (v2.13): one ask → many drafts → batch review → save. Close unless Marcel wants more. | — | — | — |
 
 ### Epic G — Recipe file & sharing recipes
@@ -268,6 +269,7 @@ Full detail lives in the git history, the in-app changelog (`v2/src/version.js`)
 | v2.16 (2026-10-26) | AI housekeeping: Q1 one model config + capture/fridge scan on Sonnet 5.5 (capture check by Marcel left) · Q2 assistant prompt caching · Q3 local per-action token log + usage view in Settings |
 | v2.16.1 (2026-10-26) | Atomic app updates: the service worker reads only its own cache and no longer refreshes assets piecemeal in the background (could mix old and new modules, and re-created the old cache after the update — e2e 10 flaked under load); stray old caches swept on the next open; e2e 10 also runs the update from the current worker |
 | v2.16.2 (2026-10-27) | Two follow-ups to v2.15.1, per Marcel's 2026-10-26 answers: mass-delete prompt now at **≥ 5 recipes or ≥ 20 %** (was > 3 and > 20 %, i.e. from 22 of 105) · translation overlay no longer hides fields edited in German (`buildLangMap(lang, de)` keeps the snapshot originals; edited fields show as stored) · tests: threshold cases in `test-recipe-merge.js`/`test-sync-core.js`, overlay cases in `test-baselang.js`, e2e 02 edit-in-Spanish-stays-visible |
+| v2.17 (2026-10-27) | F4 lean cut: sort menu in the search field (newest · last cooked · most cooked · ♥ first · A–Z; remembered per device in `kochv2_sort`, first open = newest), multi-word search over name/ingredients/tips/cuisine ignoring accents and ß, time chips ≤ 15 / ≤ 30 / ≤ 60 (a chip only appears if it adds something), shorter search placeholder · `filter.js` `sortRecipes` / `cookedMonthKey` / `searchNorm` · tests: `test-filter.js` (+6), e2e `13-find-recipes.spec.js` |
 
 **Architecture decisions worth remembering** (details in the linked files):
 - Sharing models (Epic I): couples = shared Drive file + Google Picker, no backend; friends without

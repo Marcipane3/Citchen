@@ -18,7 +18,7 @@
 //     Überbleibsel.
 // Jetzt: lesen nur aus CACHE, schreiben nur solange CACHE existiert und innerhalb des Events.
 
-const CACHE = "koch-v2.16.2-1";
+const CACHE = "koch-v2.17-1";
 
 // Bewusst NICHT im SHELL: add.html (Freundes-Seite des I3-Freunde-Links). Sie wird von Freunden
 // ohne App geöffnet und braucht ohnehin Netz (Supabase); wird sie hier im Scope geladen, landet sie
