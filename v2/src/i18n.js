@@ -122,13 +122,15 @@ export const DICT = {
     cookbook: {
       title: "Mein Kochbuch", count_one: "{n} Rezept", count_other: "{n} Rezepte",
       toggleFav: "Favorit umschalten",
-      searchPlaceholder: "Suchen nach Name oder Zutat…",
+      searchPlaceholder: "Name, Zutat, Tipp…",
       cuisineAll: "Küche: alle", seasonAll: "Saison: alle",
       emptyFav: "Noch keine Favoriten.<br>Öffne ein Rezept und tippe auf ♥.",
       emptyNone: "Keine Rezepte gefunden.<br>Filter anpassen oder mit + ein neues anlegen.",
       newRecipe: "Neues Rezept",
       moreFilters: "Mehr Filter", cuisineLabel: "Küche", seasonLabel: "Saison",
       filterAnd: "UND", filterOr: "ODER",
+      sortLabel: "Sortieren",
+      sort: { newest: "Neueste zuerst", lastCooked: "Zuletzt gekocht", mostCooked: "Am häufigsten gekocht", fav: "♥ zuerst", az: "A–Z" },
       filterModeHint: "UND = alle Filter · ODER = irgendeiner",
       clearFilters: "Filter zurücksetzen",
       matchCount_one: "{n} Treffer", matchCount_other: "{n} Treffer",
@@ -136,6 +138,7 @@ export const DICT = {
     chip: {
       all: "Alle", fav: "♥ Favoriten", alltag: "⚡ Alltag", besonders: "✨ Besonders",
       mealprep: "🍱 Meal-Prep", totry: "🆕 Probieren", quick: "⏱ ≤ 30 Min",
+      t15: "⏱ ≤ 15 Min", t60: "⏱ ≤ 60 Min",
     },
     badge: { alltag: "⚡ Alltag", besonders: "✨ Besonders", mealprep: "🍱 Meal-Prep", totry: "🆕 Zu probieren" },
     detail: {
@@ -380,13 +383,15 @@ export const DICT = {
     cookbook: {
       title: "My Cookbook", count_one: "{n} recipe", count_other: "{n} recipes",
       toggleFav: "Toggle favourite",
-      searchPlaceholder: "Search by name or ingredient…",
+      searchPlaceholder: "Name, ingredient, tip…",
       cuisineAll: "Cuisine: all", seasonAll: "Season: all",
       emptyFav: "No favorites yet.<br>Open a recipe and tap ♥.",
       emptyNone: "No recipes found.<br>Adjust filters or add one with +.",
       newRecipe: "New recipe",
       moreFilters: "More filters", cuisineLabel: "Cuisine", seasonLabel: "Season",
       filterAnd: "AND", filterOr: "OR",
+      sortLabel: "Sort",
+      sort: { newest: "Newest first", lastCooked: "Recently cooked", mostCooked: "Most cooked", fav: "♥ first", az: "A–Z" },
       filterModeHint: "AND = all filters · OR = any of them",
       clearFilters: "Reset filters",
       matchCount_one: "{n} match", matchCount_other: "{n} matches",
@@ -394,6 +399,7 @@ export const DICT = {
     chip: {
       all: "All", fav: "♥ Favorites", alltag: "⚡ Everyday", besonders: "✨ Special",
       mealprep: "🍱 Meal prep", totry: "🆕 To try", quick: "⏱ ≤ 30 min",
+      t15: "⏱ ≤ 15 min", t60: "⏱ ≤ 60 min",
     },
     badge: { alltag: "⚡ Everyday", besonders: "✨ Special", mealprep: "🍱 Meal prep", totry: "🆕 To try" },
     detail: {
@@ -638,13 +644,15 @@ export const DICT = {
     cookbook: {
       title: "Mi recetario", count_one: "{n} receta", count_other: "{n} recetas",
       toggleFav: "Marcar favorito",
-      searchPlaceholder: "Buscar por nombre o ingrediente…",
+      searchPlaceholder: "Nombre, ingrediente…",
       cuisineAll: "Cocina: todas", seasonAll: "Temporada: todas",
       emptyFav: "Aún no hay favoritos.<br>Abre una receta y toca ♥.",
       emptyNone: "No se encontraron recetas.<br>Ajusta filtros o añade una con +.",
       newRecipe: "Nueva receta",
       moreFilters: "Más filtros", cuisineLabel: "Cocina", seasonLabel: "Temporada",
       filterAnd: "Y", filterOr: "O",
+      sortLabel: "Ordenar",
+      sort: { newest: "Más nuevas", lastCooked: "Cocinadas hace poco", mostCooked: "Más cocinadas", fav: "♥ primero", az: "A–Z" },
       filterModeHint: "Y = todos los filtros · O = cualquiera",
       clearFilters: "Restablecer filtros",
       matchCount_one: "{n} resultado", matchCount_other: "{n} resultados",
@@ -652,6 +660,7 @@ export const DICT = {
     chip: {
       all: "Todas", fav: "♥ Favoritos", alltag: "⚡ Diario", besonders: "✨ Especial",
       mealprep: "🍱 Meal prep", totry: "🆕 Probar", quick: "⏱ ≤ 30 min",
+      t15: "⏱ ≤ 15 min", t60: "⏱ ≤ 60 min",
     },
     badge: { alltag: "⚡ Diario", besonders: "✨ Especial", mealprep: "🍱 Meal prep", totry: "🆕 Probar" },
     detail: {
@@ -896,13 +905,15 @@ export const DICT = {
     cookbook: {
       title: "Min kogebog", count_one: "{n} opskrift", count_other: "{n} opskrifter",
       toggleFav: "Skift favorit",
-      searchPlaceholder: "Søg efter navn eller ingrediens…",
+      searchPlaceholder: "Navn, ingrediens, tip…",
       cuisineAll: "Køkken: alle", seasonAll: "Sæson: alle",
       emptyFav: "Ingen favoritter endnu.<br>Åbn en opskrift og tryk på ♥.",
       emptyNone: "Ingen opskrifter fundet.<br>Justér filtre eller tilføj en med +.",
       newRecipe: "Ny opskrift",
       moreFilters: "Flere filtre", cuisineLabel: "Køkken", seasonLabel: "Sæson",
       filterAnd: "OG", filterOr: "ELLER",
+      sortLabel: "Sortér",
+      sort: { newest: "Nyeste først", lastCooked: "Senest lavet", mostCooked: "Oftest lavet", fav: "♥ først", az: "A–Å" },
       filterModeHint: "OG = alle filtre · ELLER = et af dem",
       clearFilters: "Nulstil filtre",
       matchCount_one: "{n} resultat", matchCount_other: "{n} resultater",
@@ -910,6 +921,7 @@ export const DICT = {
     chip: {
       all: "Alle", fav: "♥ Favoritter", alltag: "⚡ Hverdag", besonders: "✨ Særlig",
       mealprep: "🍱 Meal prep", totry: "🆕 Prøv", quick: "⏱ ≤ 30 min",
+      t15: "⏱ ≤ 15 min", t60: "⏱ ≤ 60 min",
     },
     badge: { alltag: "⚡ Hverdag", besonders: "✨ Særlig", mealprep: "🍱 Meal prep", totry: "🆕 Prøv" },
     detail: {
@@ -1137,7 +1149,7 @@ export const DICT = {
    MONATS-ÜBERSETZUNG — tLastCooked() parst "Mai 2026" → Zielsprache.
    DE-Namen entsprechen toLocaleDateString("de-DE", {month:"long"}).
    ============================================================ */
-const DE_MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+export const DE_MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 const MONTH_DICT = {
   en: ["January","February","March","April","May","June","July","August","September","October","November","December"],
   es: ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"],

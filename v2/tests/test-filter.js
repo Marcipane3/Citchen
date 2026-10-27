@@ -1,6 +1,9 @@
 // Tests: filter.js — Suche & Filter (pur, gegen echte Daten) + export.js.
 import { test, assert, assertEqual } from "./runner.js";
-import { availableChips, chipLabel, filterRecipes, distinctValues, isSpecialChip, activeFilterCount } from "../src/features/cookbook/filter.js";
+import {
+  availableChips, chipLabel, filterRecipes, distinctValues, isSpecialChip, activeFilterCount,
+  sortRecipes, cookedMonthKey, searchNorm, SORTS,
+} from "../src/features/cookbook/filter.js";
 import { exportMarkdown } from "../src/features/cookbook/export.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -38,8 +41,9 @@ test("Chips: Alle + Favoriten + vorhandene Spezials + benutzte Kategorien", () =
   assert(chips.includes("__mealprep") && chips.includes("__totry"));
   assert(chips.includes("__quick"), "≤30-Min-Chip muss bei echten Daten erscheinen");
   assert(chips.includes("Pasta & Nudeln"));
-  // 16 benutzte Kategorien + Alle + fav + 5 Spezials
-  assertEqual(chips.length, 2 + 5 + 16);
+  // 16 benutzte Kategorien + Alle + fav + 4 Spezials + 3 Zeit-Chips (≤ 15 / 30 / 60, v2.17)
+  assert(chips.includes("__t15") && chips.includes("__t60"), "Zeit-Chips ≤ 15 und ≤ 60 bei echten Daten");
+  assertEqual(chips.length, 2 + 4 + 3 + 16);
 });
 
 test("Chips: Spezial-Chips fehlen, wenn Daten sie nicht hergeben", () => {
@@ -141,7 +145,8 @@ test("Multi-Küche: (Italienisch ODER Asiatisch) als ODER innerhalb der Küche-F
 test("query bleibt immer UND — auch im ODER-Modus", () => {
   const hits = filterRecipes(R, { chips: ["Pasta & Nudeln", "__quick"], mode: "or", query: "pasta" });
   assert(hits.length > 0);
-  assert(hits.every((r) => (r.name + " " + (r.ingredients || []).join(" ")).toLowerCase().includes("pasta")));
+  // Seit v2.17 durchsucht die Suche auch Tipps und Küche.
+  assert(hits.every((r) => [r.name, ...(r.ingredients || []), r.tips, r.cuisine].join(" ").toLowerCase().includes("pasta")));
 });
 
 test("activeFilterCount zählt belegte Facetten-Werte", () => {
@@ -169,4 +174,79 @@ test("exportMarkdown: leere Kategorien tauchen nicht auf", () => {
   const md = exportMarkdown([{ id: "a", name: "Nur Pasta", category: "Pasta & Nudeln" }]);
   assert(md.includes("## Pasta & Nudeln"));
   assert(!md.includes("## Frühstück & Brunch"));
+});
+
+/* ---------- v2.17 (F4): Suche, Zeit-Chips, Sortierung ---------- */
+
+const mk = (id, extra = {}) => ({ id, name: "Rezept " + id, category: "Vegetarische Hauptgerichte", ingredients: [], steps: [], tips: "", ...extra });
+
+test("Suche (F4): mehrere Wörter müssen alle vorkommen, egal in welchem Feld und welcher Reihenfolge", () => {
+  const list = [
+    mk("a", { name: "Linsensuppe", ingredients: ["200 g Spinat"] }),
+    mk("b", { name: "Spinat-Lasagne" }),
+    mk("c", { name: "Dal", tips: "Swap: Linsen statt Erbsen, dazu Spinat." }),
+  ];
+  const ids = (q) => filterRecipes(list, { query: q }).map((r) => r.id);
+  assertEqual(ids("linsen spinat").join(), "a,c", "Name + Zutat bzw. Tipps");
+  assertEqual(ids("spinat linsen").join(), "a,c", "Reihenfolge egal");
+  assertEqual(ids("  spinat   ").join(), "a,b,c", "Leerzeichen egal");
+  assertEqual(ids("lasagne linsen").join(), "", "ein Wort fehlt → kein Treffer");
+});
+
+test("Suche (F4): Umlaute, Akzente und ß stören nicht", () => {
+  assertEqual(searchNorm("Süßkartoffel"), "susskartoffel");
+  assertEqual(searchNorm("Crème brûlée"), "creme brulee");
+  const list = [mk("a", { name: "Süßkartoffel-Curry" }), mk("b", { name: "Crème brûlée" })];
+  assertEqual(filterRecipes(list, { query: "susskartoffel" }).map((r) => r.id).join(), "a");
+  assertEqual(filterRecipes(list, { query: "süßkart" }).map((r) => r.id).join(), "a");
+  assertEqual(filterRecipes(list, { query: "creme" }).map((r) => r.id).join(), "b");
+});
+
+test("Zeit-Chips (F4): ≤ 15 / ≤ 30 / ≤ 60 filtern nach Gesamtzeit; ein Chip ohne Mehrwert fehlt", () => {
+  const list = [mk("a", { time: "10 Min" }), mk("b", { time: "25 Min" }), mk("c", { time: "50 Min" }), mk("d", { time: "2 Std" })];
+  const ids = (chip) => filterRecipes(list, { chips: [chip] }).map((r) => r.id).join();
+  assertEqual(ids("__t15"), "a");
+  assertEqual(ids("__quick"), "a,b");
+  assertEqual(ids("__t60"), "a,b,c");
+  assert(isSpecialChip("__t15") && isSpecialChip("__t60"));
+  // Alle Rezepte ≤ 15 → ≤ 30 und ≤ 60 zeigen dasselbe und erscheinen nicht.
+  const fast = availableChips([mk("a", { time: "10 Min" }), mk("b", { time: "12 Min" })]);
+  assert(fast.includes("__t15") && !fast.includes("__quick") && !fast.includes("__t60"));
+});
+
+test("cookedMonthKey: „Mai 2026“ und Varianten → JJJJMM, leer/unbekannt → 0", () => {
+  assertEqual(cookedMonthKey("Mai 2026"), 202605);
+  assertEqual(cookedMonthKey("Oktober 2026"), 202610);
+  assertEqual(cookedMonthKey("März 2025"), 202503);
+  assertEqual(cookedMonthKey("06/2026"), 202606);
+  assertEqual(cookedMonthKey("2026-06-14"), 202606);
+  assertEqual(cookedMonthKey("2026"), 202600);
+  assertEqual(cookedMonthKey(""), 0);
+  assertEqual(cookedMonthKey(undefined), 0);
+  assertEqual(cookedMonthKey("irgendwann"), 0);
+});
+
+test("sortRecipes (F4): alle Sortierungen, Gleichstand → neueste zuerst, Eingabe unverändert", () => {
+  const list = [
+    mk("r01", { name: "Curry", lastCooked: "Mai 2026", cookedCount: 3 }),
+    mk("r1749000000000", { name: "Bohnen", favorite: true }),
+    mk("r1750000000000", { name: "Apfelkuchen", lastCooked: "Oktober 2026", cookedCount: 1 }),
+    mk("r1751000000000", { name: "Dal", lastCooked: "Mai 2026", cookedCount: 5 }),
+  ];
+  const names = (sort) => sortRecipes(list, sort).map((r) => r.name).join(",");
+  assertEqual(SORTS[0], "newest", "Standard beim ersten Öffnen");
+  assertEqual(names("newest"), "Dal,Apfelkuchen,Bohnen,Curry", "nach Anlegezeit der id, r01 zuletzt");
+  assertEqual(names("lastCooked"), "Apfelkuchen,Dal,Curry,Bohnen", "Monat, dann wie oft; nie gekocht ans Ende");
+  assertEqual(names("mostCooked"), "Dal,Curry,Apfelkuchen,Bohnen");
+  assertEqual(names("fav"), "Bohnen,Dal,Apfelkuchen,Curry", "♥ zuerst, sonst neueste");
+  assertEqual(names("az"), "Apfelkuchen,Bohnen,Curry,Dal");
+  assertEqual(names("quatsch"), names("newest"), "unbekannt → Standard");
+  assertEqual(list[0].name, "Curry", "Eingabe nicht umsortiert");
+});
+
+test("sortRecipes (F4): echte Daten — neueste zuerst ist die Umkehr der Basis-Reihenfolge", () => {
+  const sorted = sortRecipes(R, "newest");
+  assertEqual(sorted.length, R.length);
+  assertEqual(sorted[0].id, R[R.length - 1].id);
+  assertEqual(sorted[sorted.length - 1].id, "r01");
 });

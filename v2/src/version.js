@@ -1,9 +1,10 @@
 // version.js — sichtbarer Build-Stempel (Deploy-Kontrolle) + App-Version & Changelog.
-export const BUILD = "2026-10-27-v2.16.2";
-export const APP_VERSION = "2.16.2";
+export const BUILD = "2026-10-27-v2.17";
+export const APP_VERSION = "2.17";
 
 // Changelog (neueste zuerst) — im Guide angezeigt.
 export const CHANGELOG = [
+  { v: "v2.17", txt: "Rezepte schneller finden: Rechts im Suchfeld sortierst du jetzt — neueste zuerst, zuletzt gekocht, am häufigsten gekocht, Favoriten zuerst oder A–Z. Die App merkt sich deine Wahl. Die Suche versteht mehrere Wörter („linsen spinat“ findet Rezepte mit beidem), sucht auch in den Tipps und stolpert nicht mehr über Umlaute und ß („susskartoffel“ findet die Süßkartoffel). Neben „≤ 30 Min“ gibt es jetzt auch „≤ 15 Min“ und „≤ 60 Min“." },
   { v: "v2.16.2", txt: "Zwei Feinheiten beim Rezept-Abgleich: Würde Google Drive auf einen Schlag 5 oder mehr Rezepte löschen (oder ein Fünftel deiner Sammlung), fragt die App jetzt vorher — bisher erst ab gut 20 Rezepten. Und wenn du ein Basis-Rezept in Englisch, Dänisch oder Spanisch bearbeitest, siehst du deine Änderung danach auch in dieser Sprache; vorher zeigte die App weiter die alte Übersetzung, als wäre nichts gespeichert." },
   { v: "v2.16.1", txt: "Updates zuverlässiger (unter der Haube): Eine neue App-Version kommt jetzt immer als Ganzes an — die App lädt nicht mehr einzelne Dateien im Hintergrund nach. Vorher konnte bei schlechtem Netz oder schnellem Neustart kurz ein Mix aus alter und neuer Version laufen, und ein Rest des alten Speichers blieb liegen. Wie bisher: Nach einem Update siehst du die neue Version spätestens beim zweiten Öffnen der App. Sonst ändert sich nichts." },
   { v: "v2.16", txt: "KI aufgeräumt: Rezepte aus Fotos und Links (und der Kühlschrank-Scan) liest jetzt das neuere, günstigere Modell Sonnet 5.5. Gespräche mit dem Assistenten werden billiger, weil dein Koch-Profil, Vorrat und Kochbuch nicht bei jeder Nachricht neu bezahlt werden müssen (Prompt-Cache — greift, sobald dein Kochbuch groß genug ist). Neu unter Einstellungen → KI: „Verbrauch (dieses Gerät)“ zeigt pro Aktion, wie viele Tokens sie wirklich braucht und was das ungefähr kostet; mit „Als JSON kopieren“ kannst du die Zahlen weitergeben. Gespeichert werden nur Zahlen, keine Inhalte, und nur auf diesem Gerät. Lehnt die KI eine Anfrage ab, sagt die App das jetzt klar." },

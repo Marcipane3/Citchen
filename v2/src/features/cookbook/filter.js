@@ -1,16 +1,23 @@
-// filter.js — PURE Such-/Filterlogik des Kochbuchs (unit-getestet, kein DOM).
+// filter.js — PURE Such-/Filter-/Sortierlogik des Kochbuchs (unit-getestet, kein DOM).
 // v1-Parität: Suche über Name ODER Zutaten; Spezial-Chips ♥/⚡/✨/🍱/🆕;
-// Kategorie-Chips nur für benutzte Kategorien. v2-Erweiterung: Zeit-Filter (≤30),
+// Kategorie-Chips nur für benutzte Kategorien. v2-Erweiterung: Zeit-Filter,
 // Küche- und Saison-Filter über dieselbe Chip-Mechanik.
+// v2.17 (F4): Suche mit mehreren Wörtern (alle müssen vorkommen) auch über Tipps, ohne Akzent-
+// und ß-Unterschiede · Zeit-Chips ≤ 15 / ≤ 30 / ≤ 60 · sortRecipes (neueste, zuletzt/oft gekocht, ♥, A–Z).
 
 import { CATEGORIES } from "../../data/schema.js";
 import { getTotalMinutes } from "../../data/derive.js";
-import { t, tCat } from "../../i18n.js";
+import { t, tCat, DE_MONTHS } from "../../i18n.js";
 
 const SPECIAL_KEYS = {
   "__fav": "chip.fav", "__alltag": "chip.alltag", "__besonders": "chip.besonders",
-  "__mealprep": "chip.mealprep", "__totry": "chip.totry", "__quick": "chip.quick",
+  "__mealprep": "chip.mealprep", "__totry": "chip.totry",
+  "__t15": "chip.t15", "__quick": "chip.quick", "__t60": "chip.t60",
 };
+
+/** Zeit-Chips → Höchstdauer in Minuten (`__quick` = ≤ 30 bleibt der alte Schlüssel). */
+const TIME_CHIPS = { "__t15": 15, "__quick": 30, "__t60": 60 };
+const withinMinutes = (r, max) => { const m = getTotalMinutes(r); return m !== null && m <= max; };
 
 /** Ist der Chip ein Spezial-Chip (♥/⚡/✨/🍱/🆕/≤30) statt einer Kategorie? */
 export function isSpecialChip(chip) {
@@ -24,7 +31,12 @@ export function availableChips(recipes) {
   if (recipes.some((r) => r.effort === "besonders")) chips.push("__besonders");
   if (recipes.some((r) => r.mealPrep)) chips.push("__mealprep");
   if (recipes.some((r) => r.toTry)) chips.push("__totry");
-  if (recipes.some((r) => { const m = getTotalMinutes(r); return m !== null && m <= 30; })) chips.push("__quick");
+  // Ein Zeit-Chip erscheint nur, wenn er etwas anderes zeigt als der kürzere davor.
+  let shown = -1;
+  for (const [chip, max] of Object.entries(TIME_CHIPS)) {
+    const n = recipes.filter((r) => withinMinutes(r, max)).length;
+    if (n > 0 && n !== shown) { chips.push(chip); shown = n; }
+  }
   for (const c of CATEGORIES) if (recipes.some((r) => r.category === c)) chips.push(c);
   return chips;
 }
@@ -44,16 +56,22 @@ function matchesChip(r, chip) {
     case "__besonders": return r.effort === "besonders";
     case "__mealprep": return !!r.mealPrep;
     case "__totry": return !!r.toTry;
-    case "__quick": { const m = getTotalMinutes(r); return m !== null && m <= 30; }
+    case "__t15": case "__quick": case "__t60": return withinMinutes(r, TIME_CHIPS[chip]);
     default: return r.category === chip;
   }
 }
 
+/** Für die Suche vergleichbar machen: klein, ohne Akzente, ß → ss („Süß“ und „suss“ finden dasselbe). */
+export function searchNorm(s) {
+  return String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/ß/g, "ss");
+}
+
+/** Jedes Wort der Suche muss in Name, Zutaten, Tipps oder Küche vorkommen (Reihenfolge egal). */
 function matchesQuery(r, q) {
-  if (!q) return true;
-  const needle = q.toLowerCase();
-  if ((r.name || "").toLowerCase().includes(needle)) return true;
-  return (r.ingredients || []).join(" ").toLowerCase().includes(needle);
+  const words = searchNorm(q).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = searchNorm([r.name, ...(r.ingredients || []), r.tips, r.cuisine].filter(Boolean).join(" | "));
+  return words.every((w) => hay.includes(w));
 }
 
 /**
@@ -110,4 +128,44 @@ export function activeFilterCount(opts = {}) {
 /** Vorhandene Küchen/Saisons für Filter-Dropdowns. */
 export function distinctValues(recipes, field) {
   return [...new Set(recipes.map((r) => r[field]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de"));
+}
+
+/* ---------- v2.17 (F4): Sortieren ---------- */
+
+/** Sortier-Schlüssel in Menü-Reihenfolge; der erste ist der Standard beim ersten Öffnen. */
+export const SORTS = Object.freeze(["newest", "lastCooked", "mostCooked", "fav", "az"]);
+
+/**
+ * „Zuletzt gekocht“ wird als Monat gespeichert („Mai 2026“, geschrieben von „Heute gekocht“).
+ * → vergleichbare Zahl JJJJMM; auch „06/2026“ oder „2026-06“; unbekannt/leer → 0 (= nie gekocht).
+ */
+export function cookedMonthKey(v) {
+  if (!v || typeof v !== "string") return 0;
+  const iso = /(\d{4})-(\d{1,2})/.exec(v);
+  if (iso) return +iso[1] * 100 + +iso[2];
+  const num = /(\d{1,2})[./](\d{4})/.exec(v);
+  if (num) return +num[2] * 100 + +num[1];
+  const y = /(\d{4})/.exec(v);
+  if (!y) return 0;
+  const m = DE_MONTHS.findIndex((name) => v.includes(name));
+  return +y[1] * 100 + (m >= 0 ? m + 1 : 0);
+}
+
+/** Anlegezeit aus der id („r“ + Millisekunden); Basis-ids wie „r01“ → 0. */
+const idTime = (id) => { const m = /^r(\d{10,})$/.exec(id || ""); return m ? +m[1] : 0; };
+
+/** Neue sortierte Liste (stabil; Gleichstand → neueste zuerst, dann bisherige Reihenfolge). */
+export function sortRecipes(recipes, sort = "newest") {
+  const pos = new Map(recipes.map((r, i) => [r.id, i]));
+  const newest = (a, b) => idTime(b.id) - idTime(a.id) || pos.get(a.id) - pos.get(b.id);
+  const cooked = (r) => cookedMonthKey(r.lastCooked);
+  const count = (r) => r.cookedCount || 0;
+  const cmp = {
+    newest,
+    lastCooked: (a, b) => cooked(b) - cooked(a) || count(b) - count(a) || newest(a, b),
+    mostCooked: (a, b) => count(b) - count(a) || cooked(b) - cooked(a) || newest(a, b),
+    fav: (a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) || newest(a, b),
+    az: (a, b) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }) || newest(a, b),
+  }[sort] || newest;
+  return [...recipes].sort(cmp);
 }

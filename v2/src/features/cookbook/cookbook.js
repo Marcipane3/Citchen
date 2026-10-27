@@ -1,4 +1,4 @@
-// cookbook.js — Hauptansicht: Suche, Mehrfach-Filter (F2), Rezeptkarten.
+// cookbook.js — Hauptansicht: Suche, Mehrfach-Filter (F2), Sortierung (F4, v2.17), Rezeptkarten.
 // v1-Parität: P3.1–P3.6 (siehe V1_FEATURE_INVENTORY.md).
 // F2: Chips sind mehrfach wählbar (ODER innerhalb einer Facette), Facetten werden
 // per UND/ODER-Schalter verknüpft; Küche/Saison im ausklappbaren „Mehr Filter“-Panel.
@@ -8,7 +8,7 @@ import * as sync from "../../data/sync.js";
 import * as drive from "../../data/drive.js";
 import { updateRecipe } from "../../store.js";
 import { esc, starsMini, metaBadges, hydrateHeroes, appHeader, wireHeader } from "../../ui/helpers.js";
-import { availableChips, chipLabel, filterRecipes, distinctValues, activeFilterCount } from "./filter.js";
+import { availableChips, chipLabel, filterRecipes, distinctValues, activeFilterCount, sortRecipes, SORTS } from "./filter.js";
 import { openDetail } from "./detail.js";
 import { openForm } from "./form.js";
 import { BUILD } from "../../version.js";
@@ -21,6 +21,17 @@ let activeCuisines = [];
 let activeSeasons = [];
 let filterMode = "and";   // "and" | "or" — wie die Facetten verknüpft werden
 let moreOpen = false;
+
+// F4: Sortierung pro Gerät merken (Marcel 2026-10-27: „letzte Wahl merken“, beim ersten Mal neueste zuerst).
+const SORT_KEY = "kochv2_sort";
+function loadSort() {
+  try { const v = localStorage.getItem(SORT_KEY); return SORTS.includes(v) ? v : SORTS[0]; } catch (e) { return SORTS[0]; }
+}
+let sortKey = loadSort();
+function saveSort(v) {
+  sortKey = v;
+  try { localStorage.setItem(SORT_KEY, v); } catch (e) { /* privater Modus: gilt nur für diese Sitzung */ }
+}
 
 function filterOpts() {
   return { query, chips: activeChips, cuisines: activeCuisines, seasons: activeSeasons, mode: filterMode };
@@ -47,7 +58,7 @@ function cardHTML(r) {
 function paintCards(container) {
   const el = container.querySelector("#cards");
   if (!el) return;
-  const filtered = filterRecipes(state.recipes, filterOpts());
+  const filtered = sortRecipes(filterRecipes(state.recipes, filterOpts()), sortKey);
   el.innerHTML = filtered.length === 0
     ? `<p class="empty">${activeChips.includes("__fav") ? t("cookbook.emptyFav") : t("cookbook.emptyNone")}</p>`
     : filtered.map(cardHTML).join("");
@@ -171,6 +182,9 @@ export function renderCookbook(container) {
       <div class="search-wrap">
         <span>🔍</span>
         <input id="search" placeholder="${t("cookbook.searchPlaceholder")}" value="${esc(query)}" />
+        <select id="sortSel" class="sort-sel" aria-label="${esc(t("cookbook.sortLabel"))}" title="${esc(t("cookbook.sortLabel"))}">
+          ${SORTS.map((k) => `<option value="${k}" ${k === sortKey ? "selected" : ""}>${esc(t("cookbook.sort." + k))}</option>`).join("")}
+        </select>
       </div>
       <div id="filterControls">${controlsHTML()}</div>`,
     })}
@@ -184,6 +198,8 @@ export function renderCookbook(container) {
 
   const search = container.querySelector("#search");
   search.oninput = () => { query = search.value; refreshControls(container); };
+  const sortSel = container.querySelector("#sortSel");
+  sortSel.onchange = () => { saveSort(sortSel.value); paintCards(container); };
   wireHeader(container, "cookbook");
   container.querySelector("#addBtn").title = t("cookbook.newRecipe");
   container.querySelector("#addBtn").onclick = () => openForm();
