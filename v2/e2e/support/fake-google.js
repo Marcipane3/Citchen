@@ -97,6 +97,8 @@ export class FakeDrive {
   }
   /** Inhalt als JSON. */
   read(id) { return JSON.parse(this.files.get(id).content); }
+  /** Datei an der App vorbei ändern (wie Projekt-Claude oder v1). data = Objekt oder roher Text. */
+  write(id, data) { this.files.get(id).content = typeof data === "string" ? data : JSON.stringify(data, null, 2); }
   /** Besitzer gibt die Datei in Drive für einen anderen Nutzer frei (wie „Freigeben“ in Drive). */
   share(id, user) { this.files.get(id).sharedWith.add(user); }
 

@@ -1,6 +1,5 @@
-// Flow 8 — Rezepte über Google Drive (rezepte.json, file-level last-write-wins + decideSync).
-// Zwei Geräte DESSELBEN Kontos. Diese Tests halten das heutige Verhalten fest, damit der
-// Sync-Kern-Umbau (P1) es nicht unbemerkt ändert.
+// Flow 8 — Rezepte über Google Drive (rezepte.json, seit v2.15.1 Drei-Wege-Merge pro Rezept/Feld).
+// Zwei Geräte DESSELBEN Kontos — und Projekt-Claude, das die Datei direkt in Drive ändert.
 import { test, expect, snapshot } from "../support/fixtures.js";
 import { openApp, tab, card, sheet, fillForm, openRecipe, signIn, syncRecipes, idb } from "../support/app.js";
 
@@ -58,7 +57,7 @@ test("Erstlauf legt rezepte.json an; Rezept auf Gerät 1 → nach Neustart auf G
   await expect(card(one, "E2E Gerät-1-Rezept")).toHaveCount(0);
 });
 
-test("Offline geändert, Drive inzwischen neuer → Konflikt: lokale Änderung bleibt, Drive wird nicht überschrieben", async ({ device, drive }) => {
+test("Offline geändert, Drive inzwischen neuer (anderes Rezept) → beide Änderungen bleiben (v2.15.1, früher Konflikt)", async ({ device, drive }) => {
   const one = (await device()).page;
   const two = (await device()).page;
   await openApp(one); await signIn(one);
@@ -78,17 +77,18 @@ test("Offline geändert, Drive inzwischen neuer → Konflikt: lokale Änderung b
   await card(two, r2.name).locator(".card-heart").click();
   await expect.poll(() => drive.read(file.id).recipes.find((r) => r.id === r2.id).favorite).toBe(true);
 
-  // Gerät 1 wieder online, Sync → Konflikt (K2): nichts wird still überschrieben.
+  // Gerät 1 wieder online, Sync → pro Rezept zusammengeführt: beide Favoriten bleiben.
   await one.context().setOffline(false);
-  expect(await syncRecipes(one)).toBe("☁️ Verbunden · Konflikt — lokale Änderung behalten, Sync ausstehend");
+  expect(await syncRecipes(one)).toBe("☁️ Verbunden · Synchronisiert ✓");
   expect((await idb(one, "recipes", r1.id)).favorite).toBe(true);
-  expect((await idb(one, "kv", "collection")).value.dirty).toBe(true);
+  expect((await idb(one, "recipes", r2.id)).favorite).toBe(true);
+  expect((await idb(one, "kv", "collection")).value.dirty).toBe(false);
   const remote = drive.read(file.id).recipes;
   expect(remote.find((r) => r.id === r2.id).favorite).toBe(true);
-  expect(remote.find((r) => r.id === r1.id).favorite).toBeFalsy();
+  expect(remote.find((r) => r.id === r1.id).favorite).toBe(true);
 });
 
-test("Offline geändert und jünger als Drive → wird beim nächsten Sync hochgeladen (file-level last-write-wins)", async ({ device, drive }) => {
+test("Offline geändert und jünger als Drive → hochgeladen, die ältere Änderung von Gerät 2 bleibt trotzdem", async ({ device, drive }) => {
   const one = (await device()).page;
   const two = (await device()).page;
   await openApp(one); await signIn(one);
@@ -109,8 +109,8 @@ test("Offline geändert und jünger als Drive → wird beim nächsten Sync hochg
   expect(await syncRecipes(one)).toBe("☁️ Verbunden · Synchronisiert ✓");
   const remote = drive.read(file.id).recipes;
   expect(remote.find((r) => r.id === r1.id).favorite).toBe(true);
-  // Bekannte Grenze des Datei-Modells: Gerät 2's ältere Änderung ist damit weg (P1 / V3 beachten).
-  expect(remote.find((r) => r.id === r2.id).favorite).toBeFalsy();
+  // Bis v2.15 ging Gerät 2's ältere Änderung hier verloren (Datei-weites Last-Write-Wins).
+  expect(remote.find((r) => r.id === r2.id).favorite).toBe(true);
   expect((await idb(one, "kv", "collection")).value.dirty).toBe(false);
 });
 

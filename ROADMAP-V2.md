@@ -5,9 +5,9 @@
 > **Not here:** domain, Play Store, onboarding tour, default photos, clean-up, anything after
 > v3.0 → see **[ROADMAP-V3.md](ROADMAP-V3.md)**. What to do next → **[ROADMAP.md](ROADMAP.md)**.
 >
-> Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-10-19** (QA fleet findings of
-> 2026-10-12 placed as Epic T) · Current build: **v2.15** (`/v2`, 235 unit tests + 27 end-to-end tests
-> in `v2/e2e/`; v2.14.1 live since PR #9 was merged on 2026-10-19).
+> Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-10-27** (v2.15.1 safe recipe sync
+> built: T1 · T2 · T3 · T11 + T12 pulled in) · Current build: **v2.15.1** (`/v2`, 261 unit tests + 32
+> end-to-end tests in `v2/e2e/`; live = v2.15 until the v2.15.1 PR is merged).
 
 ---
 
@@ -40,8 +40,8 @@ V3 slices in Q1 2027 if time is short (risk R19).
 | — (no release) | ★ Safety net | P2 end-to-end tests | mid Oct | ✅ 12 Oct | — |
 | **v2.14.1** | Hotfix (found by P2) | Settings listeners broke every later save | 12 Oct | ✅ live (PR #9, 19 Oct) | — |
 | **v2.15** | ★ One sync core | P1 | late Oct | ✅ built 19 Oct · deploy = merge | — |
-| **v2.15.1** | 🔴 Hotfix: safe recipe sync | T1 · T2 · T3 · T11 | Oct | **next** | — |
-| **v2.15.2** | 🔴 Hotfix: shopping list "Ingwer" (FR-01) | T4 · T5 · T6 · T7 · T8 · T10 | Oct | next after v2.15.1 | T5/T6 key + Lager rules *(proposed, Marcel confirms)* |
+| **v2.15.1** | 🔴 Hotfix: safe recipe sync | T1 · T2 · T3 · T11 · T12 (pulled in, Marcel 2026-10-26) | Oct | ✅ built 27 Oct · deploy = merge | — |
+| **v2.15.2** | 🔴 Hotfix: shopping list "Ingwer" (FR-01) | T4 · T5 · T6 · T7 · T8 · T10 | Oct/Nov | **next** | T5/T6 key + Lager rules *(proposed, Marcel confirms)* |
 | **v2.16b** | Shopping list clarity | T9 | Nov | proposed | v2.15.2 |
 | **v2.15b** | Backend hardening | P7 (migrations in repo, advisor check, pause/backup plan) | Nov | planned | D10 for the final scope |
 | — (Marcel) | ★ Sharing proof | P3 two-account test, P4 live friend test | Oct | open since v2.11 | Picker key + partner as test user |
@@ -74,14 +74,9 @@ Every item ships with the regression tests named in its finding; test-warden's c
 acceptance tests. **Why first:** recipe sync can erase in-project Claude's edits today, and that
 breaks the original requirement #3 ("Claude updates the data").
 
-**v2.15.1 — safe recipe sync**
-
-| # | Item | Detail & acceptance | Pri | Eff | Target |
-|---|------|---------------------|-----|-----|--------|
-| **T1** | **Read before every recipe write + re-sync on resume** (DG-01 = AR-07) | Saving uploads the whole collection to Drive without reading it — still true after v2.15: `pushCollection` in `v2/src/data/syncRules.js` ("lokalen Stand blind hochladen"), called from `sync.js` `saveCollection` — and nothing re-syncs when the app returns from the background. An edit by project-Claude, v1 or the other device is erased by the next ♥/rating/edit. Fix: make the save step read → `decideSync` → write inside the v2.15 engine queue (`syncCore.js`); `visibilitychange`/`online` → sync. **Done:** probe "Claude adds a recipe, app taps ♥" keeps both; tests for the save path. | **P0** | M | v2.15.1 |
-| **T2** | **Refuse broken inbound files + keep one local backup** (DG-05 = AR-06, DG-03, DG-06) | `{}`, `null`, `recipes` not an array, a recipe without `id`, or a duplicate id from an external writer currently wipes or shrinks the local cookbook (probe: 105 → 40) and can push that back to Drive while showing "Synchronisiert ✓". Fix: validate the whole collection before replacing local data, rescue/flag bad recipes, never pull a file that would drop recipes without asking, keep the last good copy in IndexedDB. **Done:** each malformed shape from DG-05 has a test that keeps local data and surfaces an error. | **P0** | M | v2.15.1 |
-| **T3** | **Edit form writes German, never the translation** (DG-02 = AR-03, DG-10) | Editing a recipe with the UI in EN/DA/ES copies the translated text into the German Drive file (`detail.js` → `openForm(r)` with the localized recipe → `form.js` assigns every field). Assistant-generated recipes are also saved in the UI language. Fix: open the form with `getRecipeDe(id)` (or write back only changed fields); tag AI recipes with their language. **Done:** `test-canonical.js` gets an edit-in-English case. *P0 if Marcel uses a non-German UI, otherwise P1.* | P1 | S | v2.15.1 |
-| **T11** | **Contract + doc fixes** (DG-11, DG-06, DG-07, RC-01) | `SCHEMA.md` promises more safety than the code gives (fix after T1/T2); example id `r01` is a real recipe id → use a clearly fake one; document the `updated` stamp format; one comment in `v2/sw.js` that `add.html` is deliberately outside the precache. Also refresh `01_ARCHITECTURE.md` (still describes the single-file app). | P2 | S | v2.15.1 |
+**v2.15.1 — safe recipe sync** ✅ built 2026-10-27 (T1 · T2 · T3 · T11, plus T12, formerly the follow-up to v2.15)
+→ shipped log. Marcel's answers (2026-10-26): pull T12 in · same field changed on both
+sides → **app wins** · mass delete ≥ 5 recipes or ≥ 20 % → **ask** · uses EN/DA/ES sometimes → T3 was P0.
 
 **v2.15.2 — shopping list: "Ingwer" fix (FR-01)**
 
@@ -93,12 +88,6 @@ breaks the original requirement #3 ("Claude updates the data").
 | **T7** | **Tombstone clean-up must not fight the merge** (AR-09 = TW-12 = DG-13 = BH-11) | After a deleted item is 30+ days old the list stays "dirty" forever and re-reads Drive every ~1.2 s while the tab is open; a device offline 30+ days brings deleted rows back. Fix: prune only after the merge result is final, and treat a missing tombstone from a long-offline device as unknown, not alive. | P2 | S | v2.15.2 |
 | **T8** | **Regression tests for list + friend I/O** (TW-06…TW-14, DG-12, DG-14) | Pure tests for item identity, tombstone order, friend replay (duplicate `fr-` id), `parseIngredient` on real lines; extract the testable parts of `listSync`/`friendInbox` (TW-14) so their I/O decisions are covered; prove the list sync never touches the recipe file (TW-06); two small low-risk cases (TW-07 `toFileString` clock, TW-08 `extractJson` edge inputs). Add e2e specs in `v2/e2e/` for what unit tests can't reach (TW-05, TW-14): external Drive edit + app in background + ♥ (T1), malformed `rezepte.json` (T2), repeated list syncs with a legacy id-less item (T4). | P1 | S | v2.15.2 |
 | **T10** | **Escape + validate the partner list file** (AR-11, DG-14) | A partner's `einkaufsliste.json` is rendered without validation, which is an HTML-injection path, and a file in an unexpected shape is silently overwritten with the local list. Fix: validate items on read, `esc()` every field, document the list format next to `SCHEMA.md`. | P1 | S | v2.15.2 |
-
-**Follow-up to v2.15 (one sync core)**
-
-| # | Item | Detail & acceptance | Pri | Eff | Target |
-|---|------|---------------------|-----|-----|--------|
-| **T12** | **Three-way merge rule for recipes** *(proposed, QA AR-01 — Marcel confirms)* | P1 shipped as one engine with file-level last-write-wins. The architect's point still holds: LWW plus a blind save can't keep two writers' edits. Since rules are now pluggable (`syncRules.js`), add a per-recipe three-way rule (each device compares against what it last saw on Drive) and use it for `rezepte.json`; same rule later serves the Supabase transport (V3 slice 1b). T1 is the minimal fix; T12 is the durable one. **Done:** two-device tests in `test-sync-core.js` where both sides edit different recipes offline → both edits survive. | P2 | M–L | before V3 slice 1b |
 
 **v2.16b — shopping list clarity** *(proposed)*
 
@@ -252,6 +241,7 @@ Full detail lives in the git history, the in-app changelog (`v2/src/version.js`)
 | 2026-10-12 | P2 end-to-end suite (`v2/e2e/`, Playwright): ten core flows + recipe sync across devices, all offline with fakes |
 | v2.14.1 (2026-10-12) | Hotfix found by P2: after visiting Settings, every later recipe save failed with „Speichern fehlgeschlagen“ and never reached Drive (leaked listeners); „Jetzt synchronisieren“ stayed disabled |
 | v2.15 (2026-10-19) | P1 one sync core (`syncCore.js` + `syncRules.js`) behind recipes and shopping list; fixes the partner-link race and the save-during-pull overwrite |
+| v2.15.1 (2026-10-27) | **T1** read before every recipe write + sync on resume/online (no blind upload left in the core) · **T12** three-way merge per recipe and field against a stored base (`recipeMerge.js`; app wins on same-field clashes; edit beats delete) · **T2** broken inbound files refused with a repair prompt, id-less/null/duplicate entries rescued, mass-delete prompt (≥ 5 or ≥ 20 %), last local copy kept (`kv.recipesBackup`), all-or-nothing `db.replaceAll` · **T3** edit form uses the German original, overlay no longer hides edited fields, assistant recipes tagged `lang` · **T11** `SCHEMA.md` sync model + `updated` format + fake example id, `01_ARCHITECTURE.md` §0, SW comment on `add.html` · `decideSync.js` retired · tests: `test-recipe-merge.js`, 21 new recipe cases in `test-sync-core.js`, e2e `12-external-edits.spec.js` |
 | 2026-10-12 | QA fleet rework: shared `qa/AGENT-CONVENTIONS.md` (finding IDs, evidence levels, status of old findings), `qa/FIELD-REPORTS.md` intake, all 7 agents re-run → Epic T |
 
 **Architecture decisions worth remembering** (details in the linked files):

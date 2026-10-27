@@ -33,7 +33,7 @@ then test" (and name the helper).
 3. **Edge cases inside covered modules.** Highest priority = the shopping list and sync path:
    item identity (id vs name+unit key), duplicate rows from differently-parsed lines of the same
    ingredient, tombstone revival, `qty` vs `amount`, `syncStep` convergence, `applyFriendItems` with
-   `seen` replay, `trimSeen` boundaries, `decideSync` clock-skew/equal-stamp cases,
+   `seen` replay, `trimSeen` boundaries, `mergeRecipes` / `checkInbound` edge cases (no base, delete vs edit, rescued ids),
    `parseIngredient` on real `rezepte.json` lines (commas, two ingredients in one line).
 4. **Bug-to-test bridge.** For every open field report (`qa/FIELD-REPORTS.md`) and every open finding
    in `qa/findings/bug-hunter.md` / `data-guardian.md`, propose the regression test that would have

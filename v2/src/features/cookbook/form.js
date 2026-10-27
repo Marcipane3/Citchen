@@ -2,7 +2,7 @@
 // Validierung gegen Schema v3 vor dem Speichern.
 
 import { CATEGORIES, EFFORT_VALUES, DIFFICULTY_VALUES } from "../../data/schema.js";
-import { addRecipe, updateRecipe } from "../../store.js";
+import { addRecipe, updateRecipe, isTranslated } from "../../store.js";
 import { esc, makeListEditor } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "./detail.js";
@@ -21,6 +21,7 @@ export function openForm(existing, { draft = false, onSubmit = null } = {}) {
 
   const html = `
     <div class="sheet-head"><span class="cat-label">${draft ? t("form.reviewDraft") : ed ? t("form.editRecipe") : t("form.newRecipe")}</span><button class="icon-btn close" aria-label="${t("common.close")}">✕</button></div>
+    ${ed && isTranslated(ed.id) ? `<p class="set-note f-canonical">${t("recipeSync.canonicalNote")}</p>` : ""}
     <label>${t("form.name")}</label><input class="f" id="f-name" placeholder="${t("form.namePlaceholder")}" />
     <label>${t("form.category")}</label>
     <select class="f" id="f-cat">${CATEGORIES.map((c) => `<option value="${esc(c)}" ${prefill && prefill.category === c ? "selected" : ""}>${esc(tCat(c))}</option>`).join("")}</select>

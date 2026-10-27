@@ -43,7 +43,7 @@ export function validateRecipe(r) {
   if (!CATEGORIES.includes(r.category)) errors.push(`category ungültig: ${JSON.stringify(r.category)}`);
 
   // Optionale Felder: nur Typen prüfen, wenn vorhanden
-  const optStr = ["time", "servings", "lastCooked", "image", "feedback", "tips", "cuisine", "season"];
+  const optStr = ["time", "servings", "lastCooked", "image", "feedback", "tips", "cuisine", "season", "lang"];
   for (const f of optStr) {
     if (r[f] !== undefined && !isStr(r[f])) errors.push(`${f} muss String sein`);
   }

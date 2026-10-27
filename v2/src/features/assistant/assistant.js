@@ -199,7 +199,7 @@ function wireChat(container) {
       b.disabled = true;
       try {
         const recipe = JSON.parse(b.dataset.saveRecipe);
-        const saved = await addRecipe(recipe);
+        const saved = await addRecipe(withLang(recipe));
         b.textContent = t("common.saved");
         setTimeout(() => openDetail(saved.id), 400);
       } catch (e) {
@@ -212,6 +212,9 @@ function wireChat(container) {
     b.onclick = () => previewRecipe(JSON.parse(b.dataset.previewRecipe), b);
   });
 }
+
+/** T3: Der Assistent antwortet in der UI-Sprache — nicht-deutsche Rezepte tragen ihre Sprache (SCHEMA.md `lang`). */
+const withLang = (recipe) => (getLang() === "de" ? recipe : { ...recipe, lang: getLang() });
 
 /** Vorschau-Sheet (Review vor dem Speichern). */
 function previewRecipe(recipe, sourceBtn) {
@@ -227,7 +230,7 @@ function previewRecipe(recipe, sourceBtn) {
   el.querySelector("#pv-save").onclick = async (e) => {
     e.currentTarget.disabled = true;
     try {
-      const saved = await addRecipe(recipe);
+      const saved = await addRecipe(withLang(recipe));
       close();
       if (sourceBtn) { sourceBtn.textContent = "✓ Gespeichert!"; sourceBtn.disabled = true; }
       openDetail(saved.id);

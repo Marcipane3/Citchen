@@ -29,7 +29,7 @@
 | Feld | Typ | Beschreibung |
 |------|-----|--------------|
 | `version` | number | Schema-Version. Aktuell `3`. |
-| `updated` | string (ISO 8601) | Zeitpunkt der letzten Änderung. Bei jedem Schreiben aktualisieren. |
+| `updated` | string (ISO 8601) | Zeitpunkt der letzten Änderung. Bei jedem Schreiben aktualisieren. **Format exakt:** UTC mit Millisekunden und `Z`, z.B. `2026-10-27T09:15:00.000Z` (kein `+02:00`, kein reines Datum). |
 | `recipes` | array | Liste der Rezept-Objekte. |
 
 > **v1 → v2:** Alle neuen Felder (`rating`, `favorite`, `cookedCount`, `image`, `photos`, `feedback`)
@@ -47,7 +47,7 @@
 
 ```json
 {
-  "id": "r01",
+  "id": "r1717152000000",
   "name": "Süßkartoffel-Curry mit Kichererbsen",
   "category": "Vegetarische Hauptgerichte",
   "time": "35 Min",
@@ -66,7 +66,7 @@
 
 | Feld | Typ | Pflicht | Hinweis |
 |------|-----|---------|---------|
-| `id` | string | ja | Eindeutig. Schema: `"r" + Timestamp` (z.B. `r1717152000000`). Seed nutzt `r01`. |
+| `id` | string | ja | Eindeutig. Schema: `"r" + Timestamp in ms` (z.B. `r1717152000000`). ⚠️ `r01` ist eine **echte id** (Süßkartoffel-Curry), ebenso alle ids in der Datei — nie eine bestehende id als Vorlage kopieren, immer `"r" + jetzt in ms`. |
 | `name` | string | ja | Rezeptname. |
 | `category` | string | ja | MUSS einer der 16 Werte unten sein. |
 | `time` | string | nein | Frei, z.B. `"25 Min"`. |
@@ -91,6 +91,7 @@
 | `toTry` | boolean | nein | `true` bei neuen, noch nie gekochten Ideen. Treibt einen App-Filter. |
 | `season` | string | nein | Saison, falls relevant, z.B. `"Herbst"`, `"Sommer"`. |
 | `tags` | string[] | nein | Freie Schlagworte (z.B. `["bowl","mealprep","scharf"]`). |
+| `lang` | string | nein | Sprache des Inhalts, wenn **nicht** Deutsch (`"en"`, `"da"`, `"es"`). Setzt die App bei Rezepten, die der KI-Assistent in der UI-Sprache erzeugt hat (seit v2.15.1). Fehlt = Deutsch. Claude schreibt deutsche Rezepte und lässt das Feld weg. |
 
 ### Vorrat vs. „neu kaufen": die `🛒`-Konvention (wichtig für Claude)
 Zutaten, die **nicht** auf der Vorratsliste des Nutzers stehen (`Projektwissen1.md` →
@@ -172,34 +173,52 @@ ungefragt Rezepte umschreiben. Niemals `feedback` ohne Einarbeiten löschen.
     `favorite`, `cookedCount` gehören der App. Beim Editieren **unverändert übernehmen**,
     nicht zurücksetzen.
 
-## Re-Sync & Konfliktmodell (Last-Write-Wins) — entscheidend für G1
+## Re-Sync & Konfliktmodell (Drei-Wege-Merge, seit v2.15.1) — entscheidend für G1
 
-Die App hält eine **eigene lokale Kopie** (IndexedDB) und gleicht mit Drive über die
-**`updated`-Marke der ganzen Datei** ab (Last-Write-Wins, kein Feld-Merge):
+Die App hält eine **eigene lokale Kopie** (IndexedDB) und merkt sich zusätzlich den Drive-Stand,
+auf den sie sich zuletzt mit Drive geeinigt hat (die **Basis**). Bei jedem Abgleich — beim Öffnen,
+bei Rückkehr aus dem Hintergrund, wenn das Netz zurückkommt **und vor jedem Speichern** (♥,
+Sterne, „Heute gekocht“, Bearbeiten) — liest sie `rezepte.json` und führt **pro Rezept und pro
+Feld** zusammen:
 
-1. Beim Öffnen lädt die App sofort lokal und liest dann Drive im Hintergrund.
-2. **Neuere `updated`-Marke gewinnt.** Ist Drive neuer als die lokale Kopie, **ersetzt die App
-   ihre lokale Sammlung komplett** durch die Drive-Version — Claudes Edits erscheinen.
-3. `updated` ist **ISO-8601-UTC mit Millisekunden** (`2026-06-13T12:30:00.000Z`); die App
-   vergleicht die Strings direkt. Schreib das Format **exakt so**.
+| Wer hat das Feld seit der Basis geändert? | Ergebnis |
+|---|---|
+| nur Claude / v1 / das andere Gerät (Drive) | Drive-Wert |
+| nur die App | App-Wert |
+| beide, unterschiedlich | **App gewinnt** (Claudes Version bleibt im Drive-Versionsverlauf) |
+| Rezept auf Drive gelöscht, in der App seitdem unverändert | gelöscht |
+| Rezept auf Drive gelöscht, in der App seitdem geändert | bleibt (Bearbeiten schlägt Löschen) |
+| neues Rezept auf einer Seite | kommt dazu |
 
-**Damit Claudes Edit ankommt:**
-- Beim Schreiben `updated` **auf jetzt** setzen (= später als jede bisherige Änderung) → Drive
-  gewinnt, die App zieht beim nächsten Öffnen nach.
-- **Reihenfolge gegen Race-Verlust** (Single-User, ein aktiver Editor zur Zeit):
-  1. App **einmal online öffnen**, bis „Synchronisiert ✓“ — so sind alle App-Änderungen
-     (Favorit/Bewertung/neue Rezepte) nach Drive gepusht.
-  2. **Dann** bittet der Nutzer Claude zu editieren (Claude liest die frische Datei, schreibt
-     in place, bumpt `updated`).
-  3. App **neu öffnen** → sie erkennt die neuere `updated`-Marke und übernimmt.
-- ⚠️ Hat der Nutzer in der App noch **nicht gepushte** Änderungen mit *neuerer* `updated`-Marke,
-  überschreibt der nächste App-Push Claudes Drive-Edit. Deshalb Schritt 1 nicht überspringen.
+Erkannt wird eine Änderung am **Inhalt**, nicht an der `updated`-Marke. Ein Edit kommt also auch
+an, wenn `updated` vergessen wurde — trotzdem `updated` setzen (Format oben), die Marke wird
+weiter angezeigt und von v1 genutzt.
+
+**Was Claude dafür tun muss:** nur die Regeln oben. Die frühere Reihenfolge („erst App öffnen,
+bis Synchronisiert ✓, dann editieren“) ist nicht mehr nötig — ein ♥ in der offenen App überschreibt
+Claudes Edit nicht mehr. Ein Konflikt entsteht nur, wenn App und Claude **dasselbe Feld desselben
+Rezepts** zwischen zwei Abgleichen ändern; dann gilt die App.
+
+**Schutz gegen kaputte Dateien** (die App fasst ihre lokalen Rezepte dann nicht an):
+- Kein JSON-Objekt, oder `recipes` fehlt / ist kein Array → Status „Drive-Datei fehlerhaft —
+  lokale Daten behalten“ und eine Rückfrage, ob die App die Datei mit ihrem Stand **reparieren**
+  soll. Wer ablehnt, wird für genau diese Datei nicht erneut gefragt.
+- Eintrag `null` → entfernt · Rezept ohne `id` → bekommt eine neue id · doppelte `id` mit anderem
+  Inhalt → das zweite Rezept bekommt eine neue id, exakte Kopie → entfernt. Die App schreibt die
+  reparierte Datei zurück (Status „Synchronisiert ✓ — Drive-Datei repariert“).
+- Würde ein Abgleich **≥ 5 Rezepte oder ≥ 20 %** der lokalen Sammlung löschen → Rückfrage.
+  „Abbrechen“ behält die Rezepte und repariert Drive. Vor jedem Übernehmen von Drive-Inhalt legt
+  die App den alten lokalen Stand als Sicherung ab (IndexedDB, Schlüssel `recipesBackup`).
+  Rezepte, die die App selbst löscht, lösen nie eine Rückfrage aus.
+
+Darum für Claude: **nie das `recipes`-Array kürzen**, um Platz zu sparen oder „nur die
+geänderten“ Rezepte zu schreiben — die App würde nachfragen, und ein Ja löscht sie wirklich.
 
 ### Worked Example — bestehendes Rezept anpassen (Feedback einarbeiten)
 
 ```jsonc
 // Vorher (Auszug aus rezepte.json, von der App geschrieben):
-{ "id": "r01", "name": "Süßkartoffel-Curry", "category": "Vegetarische Hauptgerichte",
+{ "id": "r1717152000000", "name": "Süßkartoffel-Curry", "category": "Vegetarische Hauptgerichte",
   "ingredients": ["2 Süßkartoffeln", "1 Dose Kichererbsen"],
   "steps": ["Reis aufsetzen.", "Curry köcheln."], "tips": "Joghurt drüber.",
   "rating": 4, "favorite": true, "cookedCount": 3,
@@ -207,7 +226,7 @@ Die App hält eine **eigene lokale Kopie** (IndexedDB) und gleicht mit Drive üb
   "feedback": "Mehr Schärfe und brauchte 10 Min länger." }
 
 // Nachher (Claude arbeitet das feedback ein):
-{ "id": "r01", "name": "Süßkartoffel-Curry", "category": "Vegetarische Hauptgerichte",
+{ "id": "r1717152000000", "name": "Süßkartoffel-Curry", "category": "Vegetarische Hauptgerichte",
   "ingredients": ["2 Süßkartoffeln", "1 Dose Kichererbsen", "1 rote Chili, fein 🛒"],
   "steps": ["Reis aufsetzen.", "Curry 25 Min köcheln (statt 15)."],
   "tips": "Joghurt drüber. Swap: Chili durch Sambal Oelek.",

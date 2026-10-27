@@ -22,7 +22,7 @@ report skeleton, previous-findings status). Read-only; the ONLY file you write i
 
 ## The system today (verify — this is a snapshot, the tree wins)
 Offline-first PWA, native ES modules, **no build step** (deliberate). Recipes: IndexedDB + one Drive
-`rezepte.json` (`drive.file`), sync decision in pure `data/decideSync.js`, I/O in `data/sync.js`;
+`rezepte.json` (`drive.file`), sync merge logic in pure `data/recipeMerge.js` (three-way per recipe/field since v2.15.1), engine in `data/syncCore.js`, rules in `data/syncRules.js`, wiring in `data/sync.js`;
 display/canonical split in `store.js` (localized view over canonical German `recipesDe`). Shopping list:
 item-level LWW merge with tombstones (`features/shopping/listMerge.js`) synced to a separate
 `einkaufsliste.json` by `data/listSync.js`, shareable with a partner via Google Picker. Friends link
@@ -38,9 +38,9 @@ external writers (v1, in-project Claude).
    (different parse of the same ingredient, catalog vs recipe, two devices). Is a canonical item key
    (normalized name, unit-agnostic) the right identity — and how does it coexist with id-based LWW and
    tombstones? This is the structural side of field report FR-01 (`qa/FIELD-REPORTS.md`).
-2. **Two sync engines.** `sync.js` (file-level LWW via `decideSync`) and `listSync.js` (item-level
-   merge) — converge on one sync core before V3 (roadmap "one sync core"), or keep them separate on
-   purpose? Sketch the seam.
+2. **One sync core, two rules.** Since v2.15 `syncCore.js` runs both files; since v2.15.1 recipes use a
+   three-way merge per recipe/field (`recipeMerge.js`), the list an item merge with tombstones. Is the
+   rule seam right for a third file (shared plan, C-28) and for the Supabase transport (V3 slice 1b)?
 3. **Supabase as an exception to "no backend".** Security of the token/RPC model (hashing, invite
    rotation, rate limits, capacity, free-tier pause), the trust boundary of friend-supplied text
    (XSS via `esc()`, length limits), and the exit path if Supabase goes away.
@@ -54,7 +54,7 @@ external writers (v1, in-project Claude).
    the store?
 
 ## Method
-Read `01_ARCHITECTURE.md`, `SCHEMA.md`, `store.js`, `data/{sync,decideSync,listSync,friendInbox,
+Read `01_ARCHITECTURE.md`, `SCHEMA.md`, `store.js`, `data/{sync,syncCore,syncRules,recipeMerge,listSync,friendInbox,
 supabase,migrate,schema,drive}.js`, `features/shopping/{listMerge,friendMerge,logic}.js`, `sw.js`,
 `ai/{client,gate}.js`, the Supabase migration, before forming opinions. Where a claim is about pure
 logic, back it with a probe (E1).

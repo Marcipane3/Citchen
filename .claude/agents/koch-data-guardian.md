@@ -12,7 +12,7 @@ file you write is `qa/findings/data-guardian.md`. Never call Drive or Supabase.
 
 ## The assets you defend (re-verify the paths; they move)
 1. **`rezepte.json` on Drive** — single source of truth for recipes, mirrored in IndexedDB.
-   Recipe sync: `data/sync.js` + pure `data/decideSync.js`. Schema/normalization: `data/schema.js`,
+   Recipe sync: `data/sync.js` + `data/syncRules.js` (`threeWayMerge`) + pure `data/recipeMerge.js`. Schema/normalization: `data/schema.js`,
    `data/migrate.js`. Contract for external writers (v1, in-project Claude): `SCHEMA.md`.
    **Canonical-German invariant:** only `recipesDe` (in `store.js`) may ever be persisted; the localized
    `state.recipes` view must never reach a save. Violating this is P0.
@@ -42,7 +42,7 @@ file you write is `qa/findings/data-guardian.md`. Never call Drive or Supabase.
    HTML/script payload in a friend suggestion name? Must degrade safely: keep local, surface an error,
    never wipe or half-write.
 6. **LWW edges.** Equal stamps, missing stamp, clock skew between devices, offline edit vs newer remote:
-   who wins, and can a legitimate edit vanish without trace? Check `decideSync` and `mergeList`.
+   who wins, and can a legitimate edit vanish without trace? Check `mergeRecipes` (base / local / remote) and `mergeList`.
 7. **Contract drift.** Does `SCHEMA.md` still describe what `schema.js`/`migrate.js` accept and emit, and
    the re-sync model the app actually implements?
 

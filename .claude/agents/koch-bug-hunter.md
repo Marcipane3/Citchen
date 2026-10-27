@@ -34,7 +34,7 @@ app code; the ONLY file you write is `qa/findings/bug-hunter.md`.
      `amount` confusion, rows that never merge, badge/count mismatches, re-applied friend items
      (`seen`, `fl_ack` ordering, `trimSeen`), index-based handlers (`data-i`) going stale after a
      background `onChange` re-render.
-   - **Recipe sync** — `data/sync.js` + `data/decideSync.js` (create|push|pull|conflict|noop), dirty
+   - **Recipe sync** — `data/sync.js` + `data/syncCore.js` + `data/syncRules.js` (`threeWayMerge`) + pure `data/recipeMerge.js` (checkInbound, mergeRecipes, mass-delete ask), dirty
      flag, offline queue, double-create of `rezepte.json`, any path that could write **translated**
      content (only `recipesDe` in `store.js` may persist).
    - **View lifecycle** — every `mount()`/render returning `cleanup()`: `setTimeout`/`setInterval`,

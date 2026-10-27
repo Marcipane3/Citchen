@@ -1,7 +1,7 @@
 // settings.js — Einstellungen (#/settings). Frei nutzbar, schaltet Premium frei.
 // 🔑 KI (BYOK) · 🥫 Lager-Link · ☁️ Drive · 🎨 Design · 🌍 Sprache · ℹ️ Guide.
 
-import { state, setRecipes } from "../../store.js";
+import { state } from "../../store.js";
 import * as gate from "../../ai/gate.js";
 import { testKey, AiError } from "../../ai/client.js";
 import * as drive from "../../data/drive.js";
@@ -159,8 +159,8 @@ export function renderSettings(container) {
   container.querySelector("#drive-sync").onclick = async (e) => {
     const btn = e.currentTarget; // nach dem await ist e.currentTarget null
     btn.disabled = true;
-    const res = await sync.syncWithDrive();
-    if (res.changed) setRecipes(res.recipes, res.meta);
+    const res = await sync.syncWithDrive(); // übernommene Rezepte kommen über sync.onRemoteApplied
+    if (res.meta) state.meta = res.meta;
     btn.disabled = false; paintDrive();
   };
   container.querySelector("#drive-disconnect").onclick = () => {

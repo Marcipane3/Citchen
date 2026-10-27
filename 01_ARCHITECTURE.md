@@ -1,5 +1,31 @@
 # Koch v2 — Architecture
 
+> **Status (2026-10-27, v2.15.1).** Sections 1–9 are the original build plan (June 2026); §0 says
+> where the built app differs. The data contract is `SCHEMA.md`; sharing is `v2/docs/SHARING.md`.
+
+## 0. As built (read this first)
+
+| Plan said | Built |
+|---|---|
+| Web Components for the UI kit | Plain ES-module functions that render HTML strings (`src/ui/helpers.js`, `sheet.js`, `tabbar.js`, `tabs.js`). No Shadow DOM. |
+| `/features/cooking-mode` | `/features/cooking`; extra modules `lager`, `match`, `guide`, `onboarding`, `menu.js` |
+| One `sync.js` with last-write-wins on `updatedAt` | One **sync core** for every Drive file (`data/syncCore.js`: queue, single-flight, meta patches, find/create/read/write, status) with a pluggable merge rule per file (`data/syncRules.js`). See §5. |
+| Model picker (Haiku default) | Model IDs per action in `src/ai/`; see ROADMAP-V2 Q1 for the planned single config |
+| — | Shopping list in Drive (`einkaufsliste.json`, item merge + tombstones, partner sharing via Picker) and a Supabase friends inbox (`data/friendInbox.js`, I3) — both outside the recipe file |
+| — | Canonical German: `rezepte.json` is always German; EN/DA/ES are display overlays from bundled snapshots (`data/baseLang.js`, `store.js`). The edit form always edits the German original. |
+
+**Recipe sync (v2.15.1).** Every read and every save runs the same step inside the core's queue:
+read `rezepte.json` → `checkInbound` (refuse structurally broken files, rescue id-less / duplicate
+entries) → three-way merge per recipe and per field against the **base** (the last state this device
+agreed on with Drive, kept in IndexedDB `kv.collectionBase`) → ask before a mass delete (≥ 5 recipes
+or ≥ 20 %) → write only if the result differs from Drive → replace local only if it differs from
+local (old local copy kept in `kv.recipesBackup`). Same field changed on both sides → the app wins.
+A save during a running sync is detected by a synchronous revision counter in `sync.js`; the running
+sync then leaves local data and the base alone and the queued save merges again. Pure logic:
+`data/recipeMerge.js` (tests: `tests/test-recipe-merge.js`, two-device and project-Claude scenarios
+in `tests/test-sync-core.js`, browser flows in `e2e/tests/08-*` and `12-*`). Syncs run on sign-in,
+on every save, on `visibilitychange` back to visible and on `online`. There is no blind upload any more.
+
 ## 1. Tech stack
 
 - **No bundler / no build step.** Use native ES modules (`<script type="module">`, `import`/`export`).
@@ -81,8 +107,9 @@
 - **Important distinction:** the "create-new-file, can't overwrite" limitation only applies to the
   Drive *MCP connector used in chat*. The **PWA using the Drive API can update the file in place**.
   Build proper in-place save (update existing file content), not create-duplicate.
-- Sync strategy: local-first. On save, write IndexedDB first (instant), then push to Drive when
-  online. Use last-write-wins with a `updatedAt` timestamp; surface conflicts simply if they occur.
+- Sync strategy: local-first. On save, write IndexedDB first (instant), then sync with Drive when
+  online. *(Plan: last-write-wins on a timestamp. Built since v2.15.1: read-before-write with a
+  three-way merge per recipe and field — see §0.)*
 - Google sign-in is **optional**. Without it, the app runs fully on local data; sync is just off.
 
 ## 6. BYOK (Bring Your Own Key) & premium gating

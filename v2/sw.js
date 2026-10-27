@@ -6,8 +6,11 @@
 //  - Fonts (fonts.googleapis.com / fonts.gstatic.com): cache-first zur Laufzeit,
 //    damit die Typo auch offline stimmt.
 
-const CACHE = "koch-v2.15-1";
+const CACHE = "koch-v2.15.1-1";
 
+// Bewusst NICHT in der SHELL: ./add.html (Freunde-Seite, I3) — eigenständig, nur online sinnvoll
+// (Supabase) und von Gästen ohne installierte App geöffnet (v2/docs/SHARING.md). Seine zwei Module
+// (supabase.js, friendMerge.js) liegen trotzdem in der SHELL, weil die App sie selbst nutzt.
 const SHELL = [
   "./",
   "./index.html",
@@ -27,9 +30,9 @@ const SHELL = [
   "./src/data/migrate.js",
   "./src/data/drive.js",
   "./src/data/sync.js",
-  "./src/data/decideSync.js",
   "./src/data/syncCore.js",
   "./src/data/syncRules.js",
+  "./src/data/recipeMerge.js",
   "./src/data/baseLang.js",
   "./src/ui/sheet.js",
   "./src/ui/helpers.js",

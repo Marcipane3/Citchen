@@ -41,12 +41,16 @@ export function setRecipes(recipes, meta) {
  */
 export async function applyLanguageOverlay(lang) {
   const langRecipes = await sync.fetchLangRecipes(lang);
-  langMap = langRecipes ? buildLangMap(langRecipes) : new Map();
+  langMap = langRecipes ? buildLangMap(langRecipes, await sync.fetchBaseRecipesDe()) : new Map();
   recomputeView();
   emit();
 }
 
 export function setSignedIn(v) { state.signedIn = v; emit(); }
+
+// Vom Abgleich zusammengeführter Drive-Inhalt (Projekt-Claude, v1, 2. Gerät) → sofort übernehmen.
+// Kommt synchron, bevor die nächste Eingabe möglich ist — spätere Änderungen bauen darauf auf.
+sync.onRemoteApplied((recipes) => setRecipes(recipes));
 
 /** Anzeige-Rezept (lokalisiert) per id. */
 export function getRecipe(id) { return state.recipes.find((r) => r.id === id); }
@@ -58,6 +62,9 @@ export function getRecipe(id) { return state.recipes.find((r) => r.id === id); }
  */
 export function getRecipeDe(id) { return recipesDe.find((r) => r.id === id); }
 
+/** Zeigt die aktuelle Sprache für dieses Rezept eine Übersetzung (Basis-Rezept, UI nicht Deutsch)? */
+export function isTranslated(id) { return langMap.has(id); }
+
 /** Persistiert die KANONISCH DEUTSCHE Sammlung (IndexedDB sofort, Drive danach). */
 async function persist() {
   const meta = await sync.saveCollection(recipesDe);
@@ -66,9 +73,8 @@ async function persist() {
 
 /**
  * Einzelnes Rezept ändern: fn(recipe) mutiert eine Kopie des DEUTSCHEN Objekts;
- * danach speichern. Hinweis: Bei Basis-Rezepten in nicht-deutscher UI werden
- * Inhaltsänderungen auf das deutsche Original geschrieben (selten; sprachneutrale
- * Felder wie favorite/rating sind davon unberührt und korrekt).
+ * danach speichern. Inhaltsfelder hier nur mit deutschem Text füllen — das Formular
+ * öffnet darum zum Bearbeiten das deutsche Original (getRecipeDe), nie die Anzeige-Sicht (T3).
  */
 export async function updateRecipe(id, fn) {
   const idx = recipesDe.findIndex((r) => r.id === id);

@@ -59,7 +59,12 @@ siehe SETUP-GOOGLE.md.)
 - **Kochen:** Rezept öffnen → „👨‍🍳 Kochmodus" — Vollbild, Schritte abhaken, Bildschirm bleibt an.
 - **Claude ein Rezept eintragen lassen:** In **Claude Code** sagen „trag dieses Rezept ein: …".
   Claude editiert die lokale `G:\My Drive\rezepte.json` (Google Drive für Desktop) *in place* →
-  Drive synct hoch → beim nächsten App-Öffnen ist es da.
+  Drive synct hoch → die App holt es beim nächsten Öffnen, beim Zurückwechseln in die App oder
+  spätestens beim nächsten Speichern. Seit v2.15.1 darf die App dabei offen bleiben: ein ♥ oder
+  eine Bewertung überschreibt Claudes Änderung nicht mehr (beide werden zusammengeführt).
+- **Wenn die App fragt:** „Rezeptdatei beschädigt — reparieren?“ heißt, die Drive-Datei ist kaputt
+  (z. B. abgebrochenes Schreiben). OK schreibt die Rezepte dieses Geräts zurück. „Google Drive würde
+  N Rezepte löschen“ erscheint ab 5 Rezepten oder 20 % auf einmal — Abbrechen behält sie.
 - **Backup:** Export-Button (⬇️) kopiert alles als Markdown.
 
 ## Was Claude updaten kann — und was nicht

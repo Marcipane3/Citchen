@@ -71,14 +71,24 @@ export async function clear(store) {
   return tx(db, store, "readwrite", (s) => s.clear());
 }
 
-/** Alle Werte in einer Transaktion ersetzen (clear + put) — für Rezept-Sync. */
+/**
+ * Alle Werte in einer Transaktion ersetzen (clear + put) — für Rezept-Sync. Alles oder nichts:
+ * ein Wert ohne Schlüssel lässt put() synchron werfen, ohne die Transaktion abzubrechen — dann
+ * wären clear() und die Hälfte der puts schon festgeschrieben (DG-03). Darum hier abbrechen.
+ */
 export async function replaceAll(store, values) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const t = db.transaction(store, "readwrite");
     const s = t.objectStore(store);
-    s.clear();
-    for (const v of values) s.put(v);
+    try {
+      s.clear();
+      for (const v of values) s.put(v);
+    } catch (e) {
+      t.onabort = () => reject(e);
+      t.abort();
+      return;
+    }
     t.oncomplete = () => resolve();
     t.onerror = () => reject(t.error);
     t.onabort = () => reject(t.error);

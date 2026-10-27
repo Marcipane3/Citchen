@@ -166,7 +166,8 @@ export function openDetail(id) {
   // Aktionen
   el.querySelector(".back").onclick = close;
   el.querySelector(".act-cook").onclick = () => { closeAllSheets(); navigate(`cook/${r.id}`); };
-  el.querySelector(".edit").onclick = () => { close(); openForm(r); };
+  // T3: Bearbeiten immer mit dem deutschen Original — sonst landet die Übersetzung in Drive.
+  el.querySelector(".edit").onclick = () => { close(); openForm(getRecipeDe(r.id) || r); };
   el.querySelector(".cooked").onclick = async (e) => {
     const btn = e.currentTarget;
     if (btn.disabled) return;

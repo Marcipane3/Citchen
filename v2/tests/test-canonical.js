@@ -59,3 +59,43 @@ test("Kanonik: store.js übergibt der Persistenz ausschließlich recipesDe (Verd
     "state.recipes (Anzeige-Sicht) wird persistiert — Kanonik verletzt!"
   );
 });
+
+/* ---------- T3 (DG-02 / AR-03, v2.15.1): Bearbeiten in nicht-deutscher UI ---------- */
+
+// Was das Formular beim Speichern tut: alle Felder aus dem Formular auf das deutsche Objekt legen
+// (form.js → updateRecipe(id, x => Object.assign(x, fields))). Das Formular wird mit `prefill` gefüllt.
+const formSave = (canonical, prefill, change) => {
+  const fields = { name: prefill.name, ingredients: prefill.ingredients, steps: prefill.steps, tips: prefill.tips, time: prefill.time, ...change };
+  return Object.assign({ ...canonical }, fields);
+};
+
+test("Kanonik (T3): Bearbeiten in englischer UI ändert nur die Zeit — die Drive-Datei bleibt deutsch", () => {
+  const map = buildLangMap(EN, DE);
+  const view = localizeRecipes(DE, map)[0];
+  // Früher: das Formular wurde mit der Anzeige (Englisch) gefüllt → englischer Text in Drive (Probe DG-02).
+  const leaked = formSave(DE[0], view, { time: "40 Min" });
+  assertEqual(leaked.name, "Sweet potato curry", "Kontroll-Annahme: so leckte es früher");
+  // Jetzt: das Formular bekommt das deutsche Original (detail.js → getRecipeDe).
+  const saved = formSave(DE[0], DE[0], { time: "40 Min" });
+  const drive = toFileString({ updated: "2026-10-26T00:00:00Z", recipes: [saved] });
+  assert(drive.includes("Süßkartoffel-Curry") && !drive.includes("Sweet potato"), "Drive bleibt deutsch");
+  assertEqual(saved.time, "40 Min");
+  // Unveränderte Felder zeigen weiter die Übersetzung.
+  assertEqual(localizeRecipes([saved], map)[0].name, "Sweet potato curry");
+});
+
+test("Kanonik (T3): ein im Deutschen bearbeitetes Feld wird nicht mehr von der alten Übersetzung verdeckt", () => {
+  const map = buildLangMap(EN, DE);
+  const edited = { ...DE[0], steps: ["Reis aufsetzen.", "Alles 20 Min köcheln."] };
+  const view = localizeRecipes([edited], map)[0];
+  assertEqual(view.steps[1], "Alles 20 Min köcheln.", "die Änderung ist sichtbar");
+  assertEqual(view.name, "Sweet potato curry", "andere Felder bleiben übersetzt");
+});
+
+test("Kanonik (T3): detail.js öffnet das Formular mit dem deutschen Original (Verdrahtungs-Wächter)", () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const src = readFileSync(join(here, "..", "src", "features", "cookbook", "detail.js"), "utf8");
+  const calls = [...src.matchAll(/openForm\(([^)]*\)?)\)/g)].map((m) => m[1]);
+  assert(calls.length > 0, "kein openForm-Aufruf in detail.js gefunden");
+  for (const c of calls) assert(/getRecipeDe\(/.test(c), `openForm ohne getRecipeDe: openForm(${c})`);
+});

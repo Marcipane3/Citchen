@@ -164,6 +164,15 @@ No answers needed from Marcel here. Changes since 2026-10-01 are marked.
 
 ## Part 3 · Answered
 
+### Round 4 (2026-10-26) — safe recipe sync (v2.15.1)
+
+| ID | Question | Marcel's answer |
+|----|----------|-----------------|
+| T12 | Three-way merge per recipe/field for `rezepte.json` now, instead of "refuse + conflict"? | Yes — pulled into v2.15.1. Same rule is the starting point for the Supabase transport (V3 slice 1b). |
+| — | Same field changed in the app and by Claude/another device between two syncs: who wins? | **The app** (Drive revision history keeps the other version). |
+| T2 | A valid Drive file would delete many recipes at once: what then? | **Ask** at ≥ 5 recipes or ≥ 20 % of the local cookbook; "cancel" keeps them and repairs Drive. Broken files are always refused. |
+| T3 | Do you use the app in a non-German language? | Yes, EN/DA/ES sometimes → T3 was P0; fixed in v2.15.1. Relevant for D8 (English stored data, P6). |
+
 ### Round 3b (2026-10-05) — recipe architecture
 
 | ID | Question | Marcel's answer |

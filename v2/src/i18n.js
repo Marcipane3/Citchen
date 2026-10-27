@@ -157,6 +157,11 @@ export const DICT = {
       allInStock: "Alles schon im Vorrat — nichts zu kaufen.",
       tippTopping: "🧀 Topping", tippVariation: "🔄 Variation", tippUpgrade: "✨ Alltags-Upgrade", tippTechnik: "🧑‍🍳 Technik",
     },
+    recipeSync: {
+      askBroken: "Die Rezeptdatei in Google Drive ist beschädigt ({e}).\n\nMit den {n} Rezepten dieses Geräts reparieren?\n\nAbbrechen = nichts ändern (die Datei kannst du über den Drive-Versionsverlauf zurückholen).",
+      askMassDelete: "Google Drive würde {n} von {total} Rezepten löschen (z. B. {names}).\n\nOK = Löschen übernehmen\nAbbrechen = Rezepte behalten und Drive reparieren",
+      canonicalNote: "Basis-Rezepte werden auf Deutsch gespeichert — hier bearbeitest du den deutschen Text. Die Übersetzung bleibt für unveränderte Felder.",
+    },
     form: {
       apply: "Übernehmen",
       newRecipe: "Neues Rezept", editRecipe: "Rezept bearbeiten", reviewDraft: "Rezept-Entwurf prüfen",
@@ -401,6 +406,11 @@ export const DICT = {
       switchToList: "Switch to the list?", nothingToAdd: "No ingredients to add.",
       allInStock: "All in stock already — nothing to buy.",
       tippTopping: "🧀 Topping", tippVariation: "🔄 Variation", tippUpgrade: "✨ Everyday upgrade", tippTechnik: "🧑‍🍳 Technique",
+    },
+    recipeSync: {
+      askBroken: "The recipe file in Google Drive is damaged ({e}).\n\nRepair it with the {n} recipes on this device?\n\nCancel = change nothing (you can restore the file from the Drive version history).",
+      askMassDelete: "Google Drive would delete {n} of {total} recipes (e.g. {names}).\n\nOK = apply the deletion\nCancel = keep the recipes and repair Drive",
+      canonicalNote: "Base recipes are stored in German — you are editing the German text here. Fields you don’t change keep their translation.",
     },
     form: {
       apply: "Apply",
@@ -647,6 +657,11 @@ export const DICT = {
       allInStock: "Todo ya en despensa — nada que comprar.",
       tippTopping: "🧀 Topping", tippVariation: "🔄 Variación", tippUpgrade: "✨ Mejora diaria", tippTechnik: "🧑‍🍳 Técnica",
     },
+    recipeSync: {
+      askBroken: "El archivo de recetas en Google Drive está dañado ({e}).\n\n¿Repararlo con las {n} recetas de este dispositivo?\n\nCancelar = no cambiar nada (puedes recuperar el archivo desde el historial de versiones de Drive).",
+      askMassDelete: "Google Drive eliminaría {n} de {total} recetas (p. ej. {names}).\n\nAceptar = aplicar la eliminación\nCancelar = conservar las recetas y reparar Drive",
+      canonicalNote: "Las recetas base se guardan en alemán: aquí editas el texto alemán. Los campos que no cambies conservan su traducción.",
+    },
     form: {
       apply: "Aplicar",
       newRecipe: "Nueva receta", editRecipe: "Editar receta", reviewDraft: "Revisar borrador",
@@ -891,6 +906,11 @@ export const DICT = {
       switchToList: "Skift til listen?", nothingToAdd: "Ingen ingredienser at tilføje.",
       allInStock: "Alt er allerede på lager — intet at købe.",
       tippTopping: "🧀 Topping", tippVariation: "🔄 Variation", tippUpgrade: "✨ Hverdags-upgrade", tippTechnik: "🧑‍🍳 Teknik",
+    },
+    recipeSync: {
+      askBroken: "Opskriftsfilen i Google Drive er beskadiget ({e}).\n\nReparere den med de {n} opskrifter på denne enhed?\n\nAnnuller = ændr intet (du kan hente filen tilbage via Drives versionshistorik).",
+      askMassDelete: "Google Drive ville slette {n} af {total} opskrifter (f.eks. {names}).\n\nOK = gennemfør sletningen\nAnnuller = behold opskrifterne og reparer Drive",
+      canonicalNote: "Basisopskrifter gemmes på tysk — her redigerer du den tyske tekst. Felter, du ikke ændrer, beholder deres oversættelse.",
     },
     form: {
       apply: "Anvend",

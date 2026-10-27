@@ -92,16 +92,23 @@ async function boot() {
     if (el) el.textContent = sync.getStatus();
   });
 
-  // 4. Auth lautlos, dann Hintergrund-Sync
+  // 4. Auth lautlos, dann Hintergrund-Sync. Übernommene Drive-Rezepte kommen über
+  // sync.onRemoteApplied im Store an (store.js) — hier nur die Meta merken.
+  const syncRecipes = async () => {
+    const res = await sync.syncWithDrive();
+    if (res.meta) state.meta = res.meta;
+  };
   drive.onAuthChange(async (signedIn) => {
     setSignedIn(signedIn);
-    if (signedIn) {
-      const res = await sync.syncWithDrive();
-      if (res.changed) setRecipes(res.recipes, res.meta);
-      else if (res.meta) state.meta = res.meta;
-    }
+    if (signedIn) await syncRecipes();
   });
   drive.initAuth({ silent: true });
+
+  // T1: zurück in der App (aus dem Hintergrund) oder wieder online → Drive-Änderungen holen,
+  // bevor der nächste Tipp speichert. Ein laufender Abgleich wird geteilt (Single-Flight).
+  const resume = () => { if (document.visibilityState === "visible" && drive.isSignedIn()) syncRecipes(); };
+  document.addEventListener("visibilitychange", resume);
+  window.addEventListener("online", resume);
 }
 
 boot();
