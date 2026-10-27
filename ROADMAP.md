@@ -1,7 +1,7 @@
 # 🍳 Koch — Roadmap index
 
 > Start here. This page says **what is next** and where everything else lives.
-> **Last updated: 2026-10-27** (v2.15b merged · v2.16 AI housekeeping built · v2.16.2 sync follow-ups + v2.17 find recipes built, PRs open) · Live: **v2.15b** (its database migration still needs one manual step; v2.16 goes live on merge)
+> **Last updated: 2026-10-27** (refinement: G2.1 + P8.1 ready · v2.15b merged · v2.16 AI housekeeping built · v2.16.2 sync follow-ups + v2.17 find recipes built, PRs open) · Live: **v2.15b** (its database migration still needs one manual step; v2.16 goes live on merge)
 
 ## The two roadmaps
 
@@ -39,11 +39,13 @@ below every time an item is crossed off.
 | 1 | **Merge PR #18 (v2.16.2) and the v2.17 PR, finish the v2.15b steps + device checks** (v2.16 is merged) | V2 | Marcel (Claude guides) | Live beats new (rule 1). **v2.15b:** ✅ migration applied on prod + ✅ advisors checked (26 Oct: the 18 expected `fl_*` warnings, nothing else) · GitHub → Actions → "Supabase keep-alive" → *Run workflow* once (green = keep-alive works) · friends link still works. **v2.16:** build line v2.16 · capture check (Q1): 10 real recipes — ~6 photos (book page, handwritten, screenshot) + ~4 URLs; each draft complete and faithful? · ask the assistant twice → Settings → KI → „Verbrauch“ shows both calls (and „aus Cache“ > 0 % if the cookbook is big enough). **v2.16b:** Thai curry → result sheet → rows say „aus Thai-Style Gemüsecurry“, ✕ + „Rückgängig“, tiles stay under your finger. **v2.17:** sort menu right in the search field → pick „Zuletzt gekocht“, close and reopen the app → still selected · search „linsen spinat“ → only recipes with both | 40 min | P7, Q1 closed · FR-01 closed |
 | 2 | **Live friend test** (V2 P4) — PR #8 merged 2026-10-04 | V2 | Marcel | The backend piece should be proven with a real friend before it is hardened (P7). Now unblocked: the list code it writes into is fixed (v2.15.2) | 15 min | P7, closes I3 |
 | 3 | **Two-account sharing proof** (V2 P3): Picker API key, partner as test user, run the test in `v2/docs/SHARING.md` | V2 | Marcel (Claude guides) | **Last open V3 gate item** (P1 ✅, P2 ✅). The e2e suite proves the flow with fake accounts; this is the real-phone proof — now on a clean list | ~45 min | V3 gate, US-06 |
-| 4 | **v2.18 — recipe export / import** (V2 G2) | V2 | Claude | Next in the version plan; a portable file is also the safety net before format 4 (R1) | S–M | R1 spike |
+| 4 | **v2.18 — recipe export / import** (V2 G2, split 2026-10-27: **G2.1 import core = ready**; G2.2/G2.4 wait on G2-Q1…Q3; **P8.1** i18n clean-up is also ready and can ride along) | V2 | Claude | Next in the version plan; a portable file is also the safety net before format 4 (R1) | S–M | R1 spike |
 | 5 | ★ **R1 data-model spike** (ingredient model, unit spec, format 4) | V2 | Claude (+ Marcel signs off) | Gates v2.19 (ingredient master + calories) and P6/format 4; due in Nov before format 4 is frozen. Also the right moment for the vegetarian/vegan flag skipped in v2.17 | M | v2.19, P6 |
 
 **Waiting on Marcel — from the QA fleet (2026-10-12), each a yes/no:**
 *All answered:* T5 ✅ yes and T6 ✅ yes (26 Oct, built in v2.15.3) · T3 and T12 settled by v2.15.1 without a decision.
+
+**Waiting on Marcel — from the 2026-10-27 refinement** (suggested default in `ROADMAP-V2.md` → "Open questions from refinement"): **G2-Q1** which fields the export file keeps · **G2-Q2** file name · **G2-Q3** Markdown language · **G3-Q1/Q2** how base vs. user recipes are told apart, and whether update covers base recipes · **Q4-Q1/Q2** which part of the assistant prompt is editable, which variables · **P8-Q1** existing users without a stored language stay on German?
 
 **Waiting on Marcel — from v2.16, a yes/no:** **Q5** move the chat to the 5.5 generation? Haiku 5.5 is ~10× cheaper than today's Haiku 4.5 default and caches from 512 tokens (so v2.16's prompt caching hits for every cookbook size); Sonnet 5.5 would replace Sonnet 4.6 as the stronger option. Recommended: yes, after the v2.16 usage numbers are in (details: `ROADMAP-V2.md` Q5).
 
