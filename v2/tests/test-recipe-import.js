@@ -66,3 +66,10 @@ test("import: Eingaben werden nicht mutiert", () => {
   assertEqual(JSON.stringify(incoming), snapA);
   assertEqual(JSON.stringify(existing), snapB);
 });
+
+test("import: frische ID kollidiert nie mit einer ID, die eine frühere Import-Zeile behält", () => {
+  const plan = planImport([r("r1000", "Eigen"), r("a", "Neu")], [r("a", "Alt")], () => 1000);
+  const ids = plan.toAdd.map((e) => e.id);
+  assertEqual(new Set(ids).size, ids.length);
+  assert(!ids.includes("a"), "keine Kollision mit Bestand");
+});

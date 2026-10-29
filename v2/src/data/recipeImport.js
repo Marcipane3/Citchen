@@ -29,7 +29,7 @@ export function parseImportFile(text) {
 
 /** Plant das Hinzufügen: → {toAdd, skipped, renamed}. Mutiert keine Eingabe. */
 export function planImport(incoming, existing, now = Date.now) {
-  const nextId = makeIdFactory(existing.map((r) => r.id), now);
+  const nextId = makeIdFactory([...existing, ...incoming].map((r) => r.id), now); // auch Import-IDs sperren
   const taken = new Set(existing.map((r) => r.id));
   const toAdd = [], renamed = [];
   for (const r of incoming) {
