@@ -22,6 +22,7 @@ import "./test-intake.js";
 import "./test-friends.js";
 import "./test-sync-core.js";
 import "./test-recipe-merge.js";
+import "./test-recipe-import.js";
 import "./test-list-file.js";
 import "./test-shopping-identity.js";
 import "./test-shopping-ux.js";
