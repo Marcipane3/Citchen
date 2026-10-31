@@ -47,6 +47,7 @@ const SHELL = [
   "./src/data/syncRules.js",
   "./src/data/recipeMerge.js",
   "./src/data/recipeImport.js",
+  "./src/data/recipeExport.js",
   "./src/data/listFile.js",
   "./src/data/baseLang.js",
   "./src/ui/sheet.js",
