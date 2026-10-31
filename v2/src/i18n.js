@@ -111,7 +111,7 @@ export const DICT = {
     nav: {
       cookbook: "Rezepte", match: "Koch-Match (Swipe)", shopping: "Einkaufsliste",
       planner: "Wochenplan", assistant: "KI-Assistent", capture: "Rezept erfassen (Foto/URL)",
-      lager: "Lager", settings: "Einstellungen", export: "Rezepte als Markdown exportieren",
+      lager: "Lager", settings: "Einstellungen", export: "Rezepte als Markdown exportieren", exportFile: "Ganzes Kochbuch als Import-Datei",
       driveConnect: "Mit Google Drive verbinden", driveConnected: "Google Drive verbunden",
       driveSyncActive: "✓ Sync aktiv",
       guide: "Features & Versionen",
@@ -372,7 +372,7 @@ export const DICT = {
     nav: {
       cookbook: "Recipes", match: "Cook-Match (Swipe)", shopping: "Shopping list",
       planner: "Meal plan", assistant: "AI assistant", capture: "Capture recipe (photo/URL)",
-      lager: "Stock", settings: "Settings", export: "Export recipes as Markdown",
+      lager: "Stock", settings: "Settings", export: "Export recipes as Markdown", exportFile: "Whole cookbook as import file",
       driveConnect: "Connect Google Drive", driveConnected: "Google Drive connected",
       driveSyncActive: "✓ Sync active",
       guide: "Features & versions",
@@ -633,7 +633,7 @@ export const DICT = {
     nav: {
       cookbook: "Recetas", match: "Cook-Match (deslizar)", shopping: "Lista de compra",
       planner: "Plan semanal", assistant: "Asistente IA", capture: "Capturar receta (foto/URL)",
-      lager: "Despensa", settings: "Ajustes", export: "Exportar recetas como Markdown",
+      lager: "Despensa", settings: "Ajustes", export: "Exportar recetas como Markdown", exportFile: "Todo el recetario como archivo de importación",
       driveConnect: "Conectar Google Drive", driveConnected: "Google Drive conectado",
       driveSyncActive: "✓ Sync activo",
       guide: "Funciones y versiones",
@@ -894,7 +894,7 @@ export const DICT = {
     nav: {
       cookbook: "Opskrifter", match: "Kok-Match (swipe)", shopping: "Indkøbsliste",
       planner: "Madplan", assistant: "AI-assistent", capture: "Tilføj opskrift (foto/URL)",
-      lager: "Lager", settings: "Indstillinger", export: "Eksportér opskrifter som Markdown",
+      lager: "Lager", settings: "Indstillinger", export: "Eksportér opskrifter som Markdown", exportFile: "Hele kogebogen som importfil",
       driveConnect: "Forbind Google Drive", driveConnected: "Google Drive forbundet",
       driveSyncActive: "✓ Sync aktiv",
       guide: "Funktioner & versioner",
