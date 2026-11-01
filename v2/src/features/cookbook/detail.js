@@ -7,6 +7,7 @@ import { parseTipps, hasStructuredTipps } from "../../data/derive.js";
 import { esc, metaBadges, loadHeroInto, compressImage } from "../../ui/helpers.js";
 import { ingredientIcons } from "../../data/catalog.js";
 import { openSheet, closeAllSheets } from "../../ui/sheet.js";
+import { recipeToMarkdown, shareRecipeText } from "./export.js";
 import { openForm } from "./form.js";
 import { navigate } from "../../router.js";
 import { t, tn, tCat, tLastCooked } from "../../i18n.js";
@@ -65,6 +66,7 @@ export function openDetail(id) {
     <div class="actions">
       <button class="btn-primary btn-cook act-cook">${t("detail.cookMode")}</button>
       <button class="btn-primary cooked">${t("detail.cookedToday")}</button>
+      <button class="btn-sec act-share">${t("detail.share")}</button>
       <button class="btn-sec edit">✎ ${t("common.edit")}</button>
       <button class="btn-sec btn-del del">🗑 ${t("common.delete")}</button>
     </div>
@@ -170,6 +172,21 @@ export function openDetail(id) {
 
   // Aktionen
   el.querySelector(".back").onclick = close;
+  el.querySelector(".act-share").onclick = async (e) => {
+    const btn = e.currentTarget;
+    const orig = btn.textContent;
+    try {
+      // Immer das deutsche Original teilen, nie die Übersetzung (Rezepttext „wie gespeichert“).
+      const src = getRecipeDe(r.id) || r;
+      const res = await shareRecipeText(recipeToMarkdown(src), src.name);
+      if (res === "copied") {
+        btn.textContent = t("detail.shareCopied");
+        setTimeout(() => { btn.textContent = orig; }, 2000);
+      }
+    } catch (err) {
+      alert(t("detail.shareFail", { msg: err.message }));
+    }
+  };
   el.querySelector(".act-cook").onclick = () => { closeAllSheets(); navigate(`cook/${r.id}`); };
   // T3 (DG-02): bearbeitet wird immer das deutsche Original, nie die Übersetzung — sonst landet
   // der übersetzte Text in der deutschen Drive-Datei (geteilt mit v1 + Projekt-Claude).

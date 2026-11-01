@@ -4,7 +4,9 @@ import {
   availableChips, chipLabel, filterRecipes, distinctValues, isSpecialChip, activeFilterCount,
   sortRecipes, cookedMonthKey, searchNorm, SORTS,
 } from "../src/features/cookbook/filter.js";
-import { exportMarkdown } from "../src/features/cookbook/export.js";
+import { exportMarkdown, recipeToMarkdown, CATEGORY_LABELS_EN, shareRecipeText } from "../src/features/cookbook/export.js";
+import { setLang } from "../src/i18n.js";
+import { CATEGORIES } from "../src/data/schema.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -159,21 +161,75 @@ test("activeFilterCount zählt belegte Facetten-Werte", () => {
 
 test("exportMarkdown: Struktur wie v1 (Kategorien-Reihenfolge, Felder)", () => {
   const md = exportMarkdown(R);
-  assert(md.startsWith("# 📖 Rezept-Datenbank"));
-  assert(md.includes("## Frühstück & Brunch"));
+  assert(md.startsWith("# 📖 Recipe collection"));
+  assert(md.includes("## Breakfast & Brunch"));
   assert(md.includes("### Süßkartoffel-Curry mit Kichererbsen (★★★)"), "Rating als Sterne im Titel");
-  assert(md.includes("**Zeit:** 35 Min | **Portionen:** ~4 | **Zuletzt:** Mai 2026"));
-  assert(md.includes("#### Zutaten"));
-  assert(md.includes("#### Zubereitung"));
-  assert(md.includes("#### Tipps"));
+  assert(md.includes("**Time:** 35 Min | **Servings:** ~4 | **Last cooked:** Mai 2026"));
+  assert(md.includes("#### Ingredients"));
+  assert(md.includes("#### Instructions"));
+  assert(md.includes("#### Tips"));
+  assert(!/Zutaten\n|Zubereitung\n|\*\*Zeit|\*\*Portionen/.test(md), "keine deutschen Labels");
   // Kategorie-Reihenfolge: Frühstück vor Grundrezepte
-  assert(md.indexOf("## Frühstück & Brunch") < md.indexOf("## Grundrezepte & Basissoßen"));
+  assert(md.indexOf("## Breakfast & Brunch") < md.indexOf("## Basic recipes & sauces"));
 });
 
 test("exportMarkdown: leere Kategorien tauchen nicht auf", () => {
   const md = exportMarkdown([{ id: "a", name: "Nur Pasta", category: "Pasta & Nudeln" }]);
-  assert(md.includes("## Pasta & Nudeln"));
-  assert(!md.includes("## Frühstück & Brunch"));
+  assert(md.includes("## Pasta & noodles"));
+  assert(!md.includes("## Breakfast & Brunch"));
+});
+
+test("G2.4: jede kanonische Kategorie hat ein englisches Label", () => {
+  for (const c of CATEGORIES) assert(CATEGORY_LABELS_EN[c] && typeof CATEGORY_LABELS_EN[c] === "string", "Label fehlt: " + c);
+  assertEqual(Object.keys(CATEGORY_LABELS_EN).length, CATEGORIES.length);
+});
+
+const one = { id: "x", name: "Linsen-Dal", category: "Reis & Getreide", rating: 2, time: "30 Min", servings: "4",
+  ingredients: ["200 g Linsen", "1 Zwiebel"], steps: ["Kochen", "Würzen"], tips: "Mit Joghurt servieren" };
+
+test("G2.4: recipeToMarkdown — Titel mit Sternen, Zeit/Portionen, Zutaten, nummerierte Schritte, Tipps", () => {
+  const md = recipeToMarkdown(one);
+  assert(md.startsWith("# Linsen-Dal (★★)\n"));
+  assert(md.includes("Rice & grains"), "englische Kategorie");
+  assert(md.includes("**Time:** 30 Min | **Servings:** 4"));
+  assert(md.includes("## Ingredients\n- 200 g Linsen\n- 1 Zwiebel"));
+  assert(md.includes("## Instructions\n1. Kochen\n2. Würzen"));
+  assert(md.includes("## Tips\nMit Joghurt servieren"));
+});
+
+test("G2.4: recipeToMarkdown — ohne Tipps/Bewertung keine leeren Abschnitte", () => {
+  const md = recipeToMarkdown({ ...one, tips: "", rating: 0 });
+  assert(!md.includes("Tips"));
+  assert(md.startsWith("# Linsen-Dal\n"));
+});
+
+test("G2.4: recipeToMarkdown — Labels bleiben Englisch, egal welche UI-Sprache", () => {
+  for (const l of ["en", "de", "es", "da"]) {
+    setLang(l);
+    const md = recipeToMarkdown(one);
+    assert(md.includes("## Ingredients") && md.includes("Rice & grains"), "Sprache " + l);
+  }
+  setLang("de");
+});
+
+test("G2.4: shareRecipeText — navigator.share({text}) wenn vorhanden", async () => {
+  let got = null;
+  const nav = { share: async (d) => { got = d; } };
+  assertEqual(await shareRecipeText("# A", "A", nav), "shared");
+  assertEqual(got.text, "# A");
+});
+
+test("G2.4: shareRecipeText — Abbruch im Share-Sheet ist still, kein Kopieren", async () => {
+  let copied = false;
+  const nav = { share: async () => { const e = new Error("x"); e.name = "AbortError"; throw e; }, clipboard: { writeText: async () => { copied = true; } } };
+  assertEqual(await shareRecipeText("# A", "A", nav), "cancelled");
+  assert(!copied);
+});
+
+test("G2.4: shareRecipeText — ohne share in die Zwischenablage", async () => {
+  let clip = "";
+  assertEqual(await shareRecipeText("# A", "A", { clipboard: { writeText: async (x) => { clip = x; } } }), "copied");
+  assertEqual(clip, "# A");
 });
 
 /* ---------- v2.17 (F4): Suche, Zeit-Chips, Sortierung ---------- */
