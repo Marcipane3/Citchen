@@ -102,6 +102,7 @@ export function tLastCooked(v) {
 export const DICT = {
   /* ---------------- DEUTSCH ---------------- */
   de: {
+    export: { copied: "Markdown in Zwischenablage kopiert!", copyFail: "Zwischenablage nicht verfügbar: {msg}" },
     common: {
       save: "Speichern", saving: "Speichere…", cancel: "Abbrechen", delete: "Löschen",
       edit: "Bearbeiten", close: "Schließen", back: "Zurück", add: "Hinzufügen",
@@ -145,6 +146,7 @@ export const DICT = {
       ingredients: "Zutaten", steps: "Zubereitung", tips: "Tipps",
       toShopping: "🛒 Zutaten zur Einkaufsliste", cookMode: "👨‍🍳 Kochmodus",
       cookedToday: "✓ Heute gekocht", cookedDone: "✓ Eingetragen!",
+      share: "↗ Teilen", shareCopied: "✓ Kopiert", shareFail: "Teilen fehlgeschlagen: {msg}",
       addPhoto: "📷 Foto aufnehmen oder hochladen",
       photoFail: "Foto fehlgeschlagen: {msg}",
       noteTitle: "💬 Notiz für Claude",
@@ -363,6 +365,7 @@ export const DICT = {
 
   /* ---------------- ENGLISH ---------------- */
   en: {
+    export: { copied: "Markdown copied to clipboard!", copyFail: "Clipboard not available: {msg}" },
     common: {
       save: "Save", saving: "Saving…", cancel: "Cancel", delete: "Delete",
       edit: "Edit", close: "Close", back: "Back", add: "Add",
@@ -406,6 +409,7 @@ export const DICT = {
       ingredients: "Ingredients", steps: "Method", tips: "Tips",
       toShopping: "🛒 Ingredients to shopping list", cookMode: "👨‍🍳 Cooking mode",
       cookedToday: "✓ Cooked today", cookedDone: "✓ Logged!",
+      share: "↗ Share", shareCopied: "✓ Copied", shareFail: "Sharing failed: {msg}",
       addPhoto: "📷 Take or upload a photo",
       photoFail: "Photo failed: {msg}",
       noteTitle: "💬 Note for Claude",
@@ -624,6 +628,7 @@ export const DICT = {
 
   /* ---------------- ESPAÑOL ---------------- */
   es: {
+    export: { copied: "¡Markdown copiado al portapapeles!", copyFail: "Portapapeles no disponible: {msg}" },
     common: {
       save: "Guardar", saving: "Guardando…", cancel: "Cancelar", delete: "Eliminar",
       edit: "Editar", close: "Cerrar", back: "Atrás", add: "Añadir",
@@ -667,6 +672,7 @@ export const DICT = {
       ingredients: "Ingredientes", steps: "Preparación", tips: "Consejos",
       toShopping: "🛒 Ingredientes a la lista", cookMode: "👨‍🍳 Modo cocina",
       cookedToday: "✓ Cocinado hoy", cookedDone: "✓ ¡Registrado!",
+      share: "↗ Compartir", shareCopied: "✓ Copiado", shareFail: "No se pudo compartir: {msg}",
       addPhoto: "📷 Hacer o subir una foto",
       photoFail: "Error con la foto: {msg}",
       noteTitle: "💬 Nota para Claude",
@@ -885,6 +891,7 @@ export const DICT = {
 
   /* ---------------- DANSK ---------------- */
   da: {
+    export: { copied: "Markdown kopieret til udklipsholderen!", copyFail: "Udklipsholder ikke tilgængelig: {msg}" },
     common: {
       save: "Gem", saving: "Gemmer…", cancel: "Annuller", delete: "Slet",
       edit: "Rediger", close: "Luk", back: "Tilbage", add: "Tilføj",
@@ -928,6 +935,7 @@ export const DICT = {
       ingredients: "Ingredienser", steps: "Fremgangsmåde", tips: "Tips",
       toShopping: "🛒 Ingredienser til indkøbsliste", cookMode: "👨‍🍳 Kogetilstand",
       cookedToday: "✓ Lavet i dag", cookedDone: "✓ Registreret!",
+      share: "↗ Del", shareCopied: "✓ Kopieret", shareFail: "Deling mislykkedes: {msg}",
       addPhoto: "📷 Tag eller upload et foto",
       photoFail: "Foto mislykkedes: {msg}",
       noteTitle: "💬 Note til Claude",
