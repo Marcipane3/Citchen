@@ -143,6 +143,7 @@ export const DICT = {
     },
     badge: { alltag: "⚡ Alltag", besonders: "✨ Besonders", mealprep: "🍱 Meal-Prep", totry: "🆕 Zu probieren" },
     detail: {
+      favoriteTitle: "Favorit",
       ingredients: "Zutaten", steps: "Zubereitung", tips: "Tipps",
       toShopping: "🛒 Zutaten zur Einkaufsliste", cookMode: "👨‍🍳 Kochmodus",
       cookedToday: "✓ Heute gekocht", cookedDone: "✓ Eingetragen!",
@@ -302,6 +303,7 @@ export const DICT = {
       duplicate: "„{n}“ ist schon in der Liste — überschreiben?",
     },
     settings: {
+      showKey: "anzeigen",
       title: "Einstellungen",
       aiHeading: "🔑 KI (eigener Anthropic-Schlüssel)",
       aiNote: "Bring Your Own Key: Der Schlüssel bleibt <strong>nur auf diesem Gerät</strong> (localStorage), wird nie nach Drive synchronisiert und nur direkt an die Anthropic-API gesendet. Kosten laufen über dein Anthropic-Konto.",
@@ -406,6 +408,7 @@ export const DICT = {
     },
     badge: { alltag: "⚡ Everyday", besonders: "✨ Special", mealprep: "🍱 Meal prep", totry: "🆕 To try" },
     detail: {
+      favoriteTitle: "Favorite",
       ingredients: "Ingredients", steps: "Method", tips: "Tips",
       toShopping: "🛒 Ingredients to shopping list", cookMode: "👨‍🍳 Cooking mode",
       cookedToday: "✓ Cooked today", cookedDone: "✓ Logged!",
@@ -565,6 +568,7 @@ export const DICT = {
       duplicate: "“{n}” is already in the list — overwrite?",
     },
     settings: {
+      showKey: "show",
       title: "Settings",
       aiHeading: "🔑 AI (your own Anthropic key)",
       aiNote: "Bring Your Own Key: the key stays <strong>only on this device</strong> (localStorage), is never synced to Drive and is sent only directly to the Anthropic API. Costs run through your Anthropic account.",
@@ -669,6 +673,7 @@ export const DICT = {
     },
     badge: { alltag: "⚡ Diario", besonders: "✨ Especial", mealprep: "🍱 Meal prep", totry: "🆕 Probar" },
     detail: {
+      favoriteTitle: "Favorito",
       ingredients: "Ingredientes", steps: "Preparación", tips: "Consejos",
       toShopping: "🛒 Ingredientes a la lista", cookMode: "👨‍🍳 Modo cocina",
       cookedToday: "✓ Cocinado hoy", cookedDone: "✓ ¡Registrado!",
@@ -828,6 +833,7 @@ export const DICT = {
       duplicate: "“{n}” ya está en la lista — ¿sobrescribir?",
     },
     settings: {
+      showKey: "mostrar",
       title: "Ajustes",
       aiHeading: "🔑 IA (tu propia clave Anthropic)",
       aiNote: "Bring Your Own Key: la clave se queda <strong>solo en este dispositivo</strong> (localStorage), nunca se sincroniza a Drive y se envía solo directo a la API de Anthropic. Los costes corren por tu cuenta de Anthropic.",
@@ -932,6 +938,7 @@ export const DICT = {
     },
     badge: { alltag: "⚡ Hverdag", besonders: "✨ Særlig", mealprep: "🍱 Meal prep", totry: "🆕 Prøv" },
     detail: {
+      favoriteTitle: "Favorit",
       ingredients: "Ingredienser", steps: "Fremgangsmåde", tips: "Tips",
       toShopping: "🛒 Ingredienser til indkøbsliste", cookMode: "👨‍🍳 Kogetilstand",
       cookedToday: "✓ Lavet i dag", cookedDone: "✓ Registreret!",
@@ -1091,6 +1098,7 @@ export const DICT = {
       duplicate: "„{n}“ er allerede på listen — overskriv?",
     },
     settings: {
+      showKey: "vis",
       title: "Indstillinger",
       aiHeading: "🔑 AI (egen Anthropic-nøgle)",
       aiNote: "Bring Your Own Key: Nøglen bliver <strong>kun på denne enhed</strong> (localStorage), synkroniseres aldrig til Drive og sendes kun direkte til Anthropic-API’en. Omkostninger går via din Anthropic-konto.",

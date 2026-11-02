@@ -37,7 +37,7 @@ export function openDetail(id) {
     <div class="sheet-head">
       <span class="cat-label">${esc(tCat(r.category))}</span>
       <div class="hd-r">
-        <button class="heart" title="Favorit">${r.favorite ? "♥" : "♡"}</button>
+        <button class="heart" title="${t("detail.favoriteTitle")}">${r.favorite ? "♥" : "♡"}</button>
         <button class="icon-btn close" aria-label="${t("common.close")}">✕</button>
       </div>
     </div>

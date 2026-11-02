@@ -145,3 +145,43 @@ test("tLastCooked: DE gibt unverändert zurück, andere Sprachen übersetzen Mon
   assertEqual(tLastCooked(null), null);
   setLang("de");
 });
+
+// P8.1 (#26): ehemals hartcodierte deutsche UI-Texte laufen über i18n.
+const P81_KEYS = ["form.addRow", "form.saveFailed", "cookbook.newRecipe", "detail.favoriteTitle", "settings.showKey", "export.copied", "export.copyFail"];
+
+test("P8.1: neue Keys in allen 4 Sprachen vorhanden, EN ist englisch", () => {
+  for (const lang of LANGS.map((l) => l.code)) {
+    setLang(lang);
+    for (const k of P81_KEYS) {
+      const v = t(k, { e: "x", msg: "x" });
+      assert(v && v !== k, `Key fehlt in ${lang}: ${k}`);
+    }
+  }
+  setLang("en");
+  assertEqual(t("detail.favoriteTitle"), "Favorite");
+  assertEqual(t("settings.showKey"), "show");
+  assertEqual(t("cookbook.newRecipe"), "New recipe");
+  assertEqual(t("form.addRow"), "+ Add row");
+  assertEqual(t("form.saveFailed", { e: "boom" }), "Save failed: boom");
+  setLang("de");
+  assertEqual(t("detail.favoriteTitle"), "Favorit");
+  assertEqual(t("settings.showKey"), "anzeigen");
+  assertEqual(t("form.addRow"), "+ Zeile hinzufügen");
+});
+
+test("P8.1: keine hartcodierten deutschen Literale mehr in den UI-Dateien", async () => {
+  const fs = await import("node:fs");
+  const base = new URL("../src/", import.meta.url);
+  const checks = [
+    ["features/assistant/assistant.js", "Speichern fehlgeschlagen"],
+    ["ui/helpers.js", "Zeile hinzufügen"],
+    ["features/cookbook/cookbook.js", 'title="Neues Rezept"'],
+    ["features/cookbook/detail.js", 'title="Favorit"'],
+    ["features/settings/settings.js", 'title="anzeigen"'],
+    ["features/cookbook/export.js", "alert(\""],
+  ];
+  for (const [f, lit] of checks) {
+    const src = fs.readFileSync(new URL(f, base), "utf8");
+    assert(!src.includes(lit), `${f} enthält noch: ${lit}`);
+  }
+});

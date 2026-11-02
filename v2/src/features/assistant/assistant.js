@@ -234,7 +234,7 @@ function previewRecipe(recipe, sourceBtn) {
       openDetail(saved.id);
     } catch (err) {
       e.currentTarget.disabled = false;
-      alert("Speichern fehlgeschlagen: " + err.message);
+      alert(t("form.saveFailed", { e: err.message }));
     }
   };
 }
