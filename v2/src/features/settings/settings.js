@@ -24,7 +24,7 @@ export function renderSettings(container) {
         <label>${t("settings.apiKey")}</label>
         <div style="display:flex;gap:8px">
           <input class="f" id="set-key" type="password" placeholder="sk-ant-…" autocomplete="off" style="flex:1" />
-          <button class="btn-sec" id="key-toggle" title="anzeigen">👁</button>
+          <button class="btn-sec" id="key-toggle" title="${t("settings.showKey")}">👁</button>
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
           <button class="btn-primary" id="key-save">${t("settings.keySave")}</button>
