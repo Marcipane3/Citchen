@@ -6,6 +6,7 @@ import * as drive from "../data/drive.js";
 import { openSheet } from "../ui/sheet.js";
 import { navigate } from "../router.js";
 import { copyExport, exportFile } from "./cookbook/export.js";
+import { pickAndImport } from "./cookbook/importFile.js";
 import { t } from "../i18n.js";
 
 export const ITEMS = [
@@ -15,6 +16,7 @@ export const ITEMS = [
   { go: "guide", icon: "ℹ️", k: "nav.guide" },
   { go: "__export", icon: "⬇️", k: "nav.export" },
   { go: "__exportFile", icon: "📦", k: "nav.exportFile" },
+  { go: "__importFile", icon: "📥", k: "nav.importFile" },
 ];
 
 export function openMenu(current) {
@@ -37,6 +39,7 @@ export function openMenu(current) {
       close();
       if (go === "__export") copyExport(state.recipes);
       else if (go === "__exportFile") exportFile(state.recipes).catch((e) => alert(e.message));
+      else if (go === "__importFile") pickAndImport();
       else if (go === "__login") drive.login().catch((e) => alert(e.message));
       else navigate(go);
     };

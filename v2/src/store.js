@@ -12,6 +12,7 @@ import * as sync from "./data/sync.js";
 import { makeIdFactory, withDefaults, validateRecipe } from "./data/schema.js";
 import { buildLangMap, localizeRecipes } from "./data/baseLang.js";
 import { sameCollection } from "./data/recipeMerge.js";
+import { planImport } from "./data/recipeImport.js";
 
 export const state = {
   recipes: [],      // Anzeige-Sicht (lokalisiert) — Views lesen NUR das
@@ -81,10 +82,13 @@ export function getRecipeDe(id) { return recipesDe.find((r) => r.id === id); }
  * übernimmt er den maßgeblichen Stand (inkl. dessen, was Drive mitbrachte, z. B. Claudes Rezept).
  */
 let pendingSaves = 0;
+let saveChange = (change) => sync.saveChange(change);
+/** Nur für Tests: Speicher-Warteschlange durch einen Fake ersetzen (null = echte). */
+export function setSaveChangeForTest(fn) { saveChange = fn || ((change) => sync.saveChange(change)); }
 async function persist(change) {
   pendingSaves++;
   let res;
-  try { res = await sync.saveChange(change); }
+  try { res = await saveChange(change); }
   finally { pendingSaves--; }
   state.meta = { ...(state.meta || {}), ...res.meta };
   if (pendingSaves === 0 && res.recipes && !sameCollection(res.recipes, recipesDe)) {
@@ -131,4 +135,22 @@ export async function deleteRecipe(id) {
   recomputeView();
   emit();
   await persist((list) => list.filter((r) => r.id !== id));
+}
+
+/**
+ * Import-Datei (G2.3): alle Rezepte in EINER Speicherung. Geplant wird zweimal — optimistisch gegen den
+ * Speicher und dann in der Warteschlange gegen den aktuellen lokalen Stand, damit eine ID-Kollision, die
+ * erst dazwischen entsteht, nie ein Rezept überschreibt. Gibt den maßgeblichen Plan zurück.
+ */
+export async function importRecipes(incoming) {
+  let plan = planImport(incoming, recipesDe);
+  if (!plan.toAdd.length) return plan;
+  recipesDe = [...plan.toAdd, ...recipesDe];
+  recomputeView();
+  emit();
+  await persist((list) => {
+    plan = planImport(incoming, list);
+    return [...plan.toAdd, ...list];
+  });
+  return plan;
 }
