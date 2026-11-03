@@ -45,7 +45,10 @@ against `origin/next`.
   final message and do **not** write any file." Treat its P0/P1 findings as blocking.
 
 ## 3. Verdict (exactly one per PR)
-Post one review: `gh api "$R/pulls/<num>/reviews" -f event=COMMENT -f body=@review.md`. The body
+Post one review: `gh api "$R/pulls/<num>/reviews" -f event=COMMENT -F body=@review.md --jq '{id, body: .body[0:40]}'`.
+Capital `-F`: only `-F` reads the file; `-f` posts the literal text `@review.md` and the builder gets
+nothing to act on. If the returned body starts with `@`, fix it at once:
+`gh api -X PUT "$R/pulls/<num>/reviews/<id>" -F body=@review.md`. The body
 contains the verdict, an AC table (criterion → test → verified how), findings with `path:line`
 (blocking vs. nit), and the mutation-check result. Use event COMMENT, not APPROVE: GitHub doesn't
 let you approve a PR opened under the same identity.

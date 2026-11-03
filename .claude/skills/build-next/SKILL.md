@@ -58,7 +58,10 @@ on what blocks you.
 - Commit: `feat(#N): <what>` (or `fix(#N)` / `chore(#N)`). End with the attribution lines your
   environment provides.
 - `git push -u origin HEAD`
-- Create the PR: `gh api "$R/pulls" -f base=next -f head=<branch> -f title="[#N] <issue title>" -F draft=<true|false> -f body=@body.md`
+- Create the PR: `gh api "$R/pulls" -f base=next -f head=<branch> -f title="[#N] <issue title>" -F draft=<true|false> -F body=@body.md --jq '{number, body: .body[0:40]}'`
+  Capital `-F` for the body: only `-F` reads the file; `-f` posts the literal text `@body.md`, the PR
+  loses its `Refs #N` and the Reviewer stops it. If the returned body starts with `@`, fix it at once:
+  `gh api -X PATCH "$R/pulls/<number>" -F body=@body.md`.
   Body follows `.github/pull_request_template.md`: `Refs #N` (not "Closes", which only works on `main`),
   an AC table (criterion → test name → result), what changed and why, risks, anything left out of scope.
 - Labels: PR gets `claude-build`; issue goes `status:in-progress` → `status:in-review`.

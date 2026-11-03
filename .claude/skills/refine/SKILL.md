@@ -49,7 +49,8 @@ Read the code the item touches to learn the current state, then check every Defi
 - **needs-human area** (Supabase/migrations, auth, secrets, deleting user data, a `SCHEMA.md` format
   change): refine it fully and add `risk:needs-human`. It may be `status:ready`, but it doesn't count
   toward the buffer of 3.
-- **Passes everything:** `status:ready`.
+- **Passes everything:** `status:ready`. It replaces the old status label; an issue carries exactly
+  one `status:*` label (`gh api -X DELETE "$R/issues/N/labels/status:planned"`, then add `status:ready`).
 
 ## Final message
 `Ready: #a [ID] title, …` · `Questions for Marcel: #x (n questions), …` · `Split: ID → #…` ·
