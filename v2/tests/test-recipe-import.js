@@ -73,3 +73,80 @@ test("import: frische ID kollidiert nie mit einer ID, die eine frühere Import-Z
   assertEqual(new Set(ids).size, ids.length);
   assert(!ids.includes("a"), "keine Kollision mit Bestand");
 });
+
+import { summarizeImport } from "../src/data/recipeImport.js";
+import { importRecipes, setRecipes, setSaveChangeForTest, state } from "../src/store.js";
+
+test("summarizeImport: importiert / übersprungen (mit Gründen) / neue ID", () => {
+  const { recipes, errors } = parseImportFile(file([r("a", "A"), { id: "x" }, r("b", "B")]));
+  const plan = planImport(recipes, [r("a", "Alt")]);
+  const s = summarizeImport(plan, errors);
+  assertEqual(s.imported, 2);
+  assertEqual(s.skipped, 1);
+  assertEqual(s.renamed, 1);
+  assertEqual(s.reasons.length, 1);
+  assert(s.reasons[0].includes("[1]"), "Grund mit Index");
+});
+
+test("summarizeImport: kaputte Datei → 0 importiert, Grund bleibt", () => {
+  const { recipes, errors } = parseImportFile("{nope");
+  const s = summarizeImport(planImport(recipes, []), errors);
+  assertEqual(s.imported, 0);
+  assertEqual(s.skipped, 1);
+  assertEqual(s.reasons.length, 1);
+});
+
+test("import never overwrites a late id clash", async () => {
+  setRecipes([r("a", "Alt")], null);
+  let saves = 0, stored;
+  // Fake-Warteschlange: zwischen Planung und Speichern taucht lokal ein Rezept mit der Import-ID "n1" auf.
+  setSaveChangeForTest(async (change) => {
+    saves++;
+    stored = change([r("a", "Alt"), r("n1", "Spät dazugekommen")]);
+    return { meta: {}, recipes: stored };
+  });
+  try {
+    const plan = await importRecipes([r("n1", "Importiert"), r("n2", "Zweites")]);
+    assertEqual(saves, 1, "genau EINE Speicherung für die ganze Datei");
+    assertEqual(stored.length, 4);
+    assertEqual(stored.find((x) => x.name === "Spät dazugekommen").id, "n1", "vorhandenes Rezept unverändert");
+    assertEqual(stored.filter((x) => x.id === "n1").length, 1, "keine doppelte ID");
+    assertEqual(plan.renamed.length, 1);
+    assertEqual(new Set(stored.map((x) => x.id)).size, 4);
+    assertEqual(state.recipes.length, 4);
+  } finally { setSaveChangeForTest(null); }
+});
+
+test("import: Bearbeitung während des Speicherns trifft nie ein vorhandenes Rezept mit gleicher ID", async () => {
+  const { updateRecipe } = await import("../src/store.js");
+  setRecipes([r("a", "Alt")], null);
+  let release, stored;
+  const gate = new Promise((res) => { release = res; });
+  setSaveChangeForTest(async (change) => {
+    const local = [r("a", "Alt"), r("n1", "Spät")];
+    stored = change(local);
+    await gate;
+    return { meta: {}, recipes: stored };
+  });
+  try {
+    const p = importRecipes([r("n1", "Importiert")]);
+    await Promise.resolve(); await Promise.resolve();
+    const shownId = state.recipes.find((x) => x.name === "Importiert").id;
+    assert(shownId !== "n1", "Anzeige zeigt die neue ID schon vor dem Ende der Speicherung");
+    const edit = updateRecipe(shownId, (x) => { x.name = "EditedByUser"; }).catch(() => {});
+    release(); await p; await edit;
+    assertEqual(stored.find((x) => x.id === "n1").name, "Spät", "vorhandenes n1 unverändert");
+  } finally { setSaveChangeForTest(null); }
+});
+
+test("import: Speichern schlägt fehl → Anzeige zurückgesetzt, Promise lehnt ab", async () => {
+  setRecipes([r("a", "Alt")], null);
+  setSaveChangeForTest(async () => { throw new Error("quota"); });
+  try {
+    let err = null;
+    try { await importRecipes([r("n1", "X"), r("n2", "Y")]); } catch (e) { err = e; }
+    assert(err && err.message === "quota", "rethrow");
+    assertEqual(state.recipes.length, 1);
+    assertEqual(state.recipes[0].id, "a");
+  } finally { setSaveChangeForTest(null); }
+});

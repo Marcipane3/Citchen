@@ -45,3 +45,13 @@ export function planImport(incoming, existing, now = Date.now) {
   }
   return { toAdd, skipped: [], renamed };
 }
+
+/** Plan + Parse-Fehler → Zähler für das Ergebnis-Blatt (G2.3): {imported, skipped, reasons, renamed}. */
+export function summarizeImport(plan, errors = []) {
+  return {
+    imported: plan.toAdd.length,
+    skipped: errors.length + plan.skipped.length,
+    reasons: [...errors, ...plan.skipped.map((s) => (typeof s === "string" ? s : s.reason || ""))].filter(Boolean),
+    renamed: plan.renamed.length,
+  };
+}
