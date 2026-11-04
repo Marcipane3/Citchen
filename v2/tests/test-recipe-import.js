@@ -116,3 +116,37 @@ test("import never overwrites a late id clash", async () => {
     assertEqual(state.recipes.length, 4);
   } finally { setSaveChangeForTest(null); }
 });
+
+test("import: Bearbeitung während des Speicherns trifft nie ein vorhandenes Rezept mit gleicher ID", async () => {
+  const { updateRecipe } = await import("../src/store.js");
+  setRecipes([r("a", "Alt")], null);
+  let release, stored;
+  const gate = new Promise((res) => { release = res; });
+  setSaveChangeForTest(async (change) => {
+    const local = [r("a", "Alt"), r("n1", "Spät")];
+    stored = change(local);
+    await gate;
+    return { meta: {}, recipes: stored };
+  });
+  try {
+    const p = importRecipes([r("n1", "Importiert")]);
+    await Promise.resolve(); await Promise.resolve();
+    const shownId = state.recipes.find((x) => x.name === "Importiert").id;
+    assert(shownId !== "n1", "Anzeige zeigt die neue ID schon vor dem Ende der Speicherung");
+    const edit = updateRecipe(shownId, (x) => { x.name = "EditedByUser"; }).catch(() => {});
+    release(); await p; await edit;
+    assertEqual(stored.find((x) => x.id === "n1").name, "Spät", "vorhandenes n1 unverändert");
+  } finally { setSaveChangeForTest(null); }
+});
+
+test("import: Speichern schlägt fehl → Anzeige zurückgesetzt, Promise lehnt ab", async () => {
+  setRecipes([r("a", "Alt")], null);
+  setSaveChangeForTest(async () => { throw new Error("quota"); });
+  try {
+    let err = null;
+    try { await importRecipes([r("n1", "X"), r("n2", "Y")]); } catch (e) { err = e; }
+    assert(err && err.message === "quota", "rethrow");
+    assertEqual(state.recipes.length, 1);
+    assertEqual(state.recipes[0].id, "a");
+  } finally { setSaveChangeForTest(null); }
+});

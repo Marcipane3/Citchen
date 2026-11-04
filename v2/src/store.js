@@ -145,12 +145,31 @@ export async function deleteRecipe(id) {
 export async function importRecipes(incoming) {
   let plan = planImport(incoming, recipesDe);
   if (!plan.toAdd.length) return plan;
-  recipesDe = [...plan.toAdd, ...recipesDe];
-  recomputeView();
-  emit();
-  await persist((list) => {
-    plan = planImport(incoming, list);
-    return [...plan.toAdd, ...list];
-  });
+  let shown = plan.toAdd; // was der Bildschirm gerade zeigt (Identität, nicht ID)
+  const swapShown = (next) => {
+    const old = new Set(shown);
+    recipesDe = [...next, ...recipesDe.filter((r) => !old.has(r))];
+    shown = next;
+    recomputeView();
+    emit();
+  };
+  swapShown(plan.toAdd);
+  try {
+    await persist((list) => {
+      const queued = planImport(incoming, list);
+      // Hat die Warteschlange andere IDs vergeben, sofort anzeigen — sonst trifft eine Bearbeitung
+      // in der Wartezeit per ID das andere, bereits vorhandene Rezept.
+      if (queued.toAdd.some((r, i) => r.id !== shown[i]?.id) || queued.toAdd.length !== shown.length) swapShown(queued.toAdd);
+      plan = queued;
+      return [...plan.toAdd, ...list];
+    });
+  } catch (e) {
+    // Speichern fehlgeschlagen: die nur angezeigten Rezepte wieder entfernen.
+    const old = new Set(shown);
+    recipesDe = recipesDe.filter((r) => !old.has(r));
+    recomputeView();
+    emit();
+    throw e;
+  }
   return plan;
 }

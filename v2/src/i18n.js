@@ -103,7 +103,7 @@ export const DICT = {
   /* ---------------- DEUTSCH ---------------- */
   de: {
     export: { copied: "Markdown in Zwischenablage kopiert!", copyFail: "Zwischenablage nicht verfügbar: {msg}" },
-    importFile: { title: "Import", imported: "{n} importiert", skipped: "{n} übersprungen", renamed: "{n} mit neuer ID", invalid: "Nichts importiert. Die Datei ist ungültig oder enthält keine gültigen Rezepte.", readFail: "Lesen fehlgeschlagen: {msg}" },
+    importFile: { title: "Import", imported: "{n} importiert", skipped: "{n} übersprungen", renamed: "{n} mit neuer ID", invalid: "Nichts importiert. Die Datei ist ungültig oder enthält keine gültigen Rezepte.", readFail: "Lesen fehlgeschlagen: {msg}", saveFail: "Speichern fehlgeschlagen, nichts importiert: {msg}" },
     common: {
       save: "Speichern", saving: "Speichere…", cancel: "Abbrechen", delete: "Löschen",
       edit: "Bearbeiten", close: "Schließen", back: "Zurück", add: "Hinzufügen",
@@ -369,7 +369,7 @@ export const DICT = {
   /* ---------------- ENGLISH ---------------- */
   en: {
     export: { copied: "Markdown copied to clipboard!", copyFail: "Clipboard not available: {msg}" },
-    importFile: { title: "Import", imported: "{n} imported", skipped: "{n} skipped", renamed: "{n} got a new id", invalid: "Nothing imported. The file is invalid or has no valid recipes.", readFail: "Could not read file: {msg}" },
+    importFile: { title: "Import", imported: "{n} imported", skipped: "{n} skipped", renamed: "{n} got a new id", invalid: "Nothing imported. The file is invalid or has no valid recipes.", readFail: "Could not read file: {msg}", saveFail: "Saving failed, nothing imported: {msg}" },
     common: {
       save: "Save", saving: "Saving…", cancel: "Cancel", delete: "Delete",
       edit: "Edit", close: "Close", back: "Back", add: "Add",
@@ -635,7 +635,7 @@ export const DICT = {
   /* ---------------- ESPAÑOL ---------------- */
   es: {
     export: { copied: "¡Markdown copiado al portapapeles!", copyFail: "Portapapeles no disponible: {msg}" },
-    importFile: { title: "Importar", imported: "{n} importadas", skipped: "{n} omitidas", renamed: "{n} con nuevo id", invalid: "No se importó nada. El archivo no es válido o no tiene recetas válidas.", readFail: "No se pudo leer el archivo: {msg}" },
+    importFile: { title: "Importar", imported: "{n} importadas", skipped: "{n} omitidas", renamed: "{n} con nuevo id", invalid: "No se importó nada. El archivo no es válido o no tiene recetas válidas.", readFail: "No se pudo leer el archivo: {msg}", saveFail: "Error al guardar, no se importó nada: {msg}" },
     common: {
       save: "Guardar", saving: "Guardando…", cancel: "Cancelar", delete: "Eliminar",
       edit: "Editar", close: "Cerrar", back: "Atrás", add: "Añadir",
@@ -901,7 +901,7 @@ export const DICT = {
   /* ---------------- DANSK ---------------- */
   da: {
     export: { copied: "Markdown kopieret til udklipsholderen!", copyFail: "Udklipsholder ikke tilgængelig: {msg}" },
-    importFile: { title: "Import", imported: "{n} importeret", skipped: "{n} sprunget over", renamed: "{n} fik nyt id", invalid: "Intet importeret. Filen er ugyldig eller har ingen gyldige opskrifter.", readFail: "Kunne ikke læse filen: {msg}" },
+    importFile: { title: "Import", imported: "{n} importeret", skipped: "{n} sprunget over", renamed: "{n} fik nyt id", invalid: "Intet importeret. Filen er ugyldig eller har ingen gyldige opskrifter.", readFail: "Kunne ikke læse filen: {msg}", saveFail: "Kunne ikke gemme, intet importeret: {msg}" },
     common: {
       save: "Gem", saving: "Gemmer…", cancel: "Annuller", delete: "Slet",
       edit: "Rediger", close: "Luk", back: "Tilbage", add: "Tilføj",

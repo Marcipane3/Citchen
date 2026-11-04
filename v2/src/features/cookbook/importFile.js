@@ -27,7 +27,9 @@ function resultSheet(summary) {
 export async function importText(text) {
   const { recipes, errors } = parseImportFile(text);
   if (!recipes.length) { resultSheet(summarizeImport({ toAdd: [], skipped: [], renamed: [] }, errors.length ? errors : ["–"])); return; }
-  const plan = await importRecipes(recipes);
+  let plan;
+  try { plan = await importRecipes(recipes); }
+  catch (e) { alert(t("importFile.saveFail", { msg: e.message })); return; }
   resultSheet(summarizeImport(plan, errors));
 }
 
