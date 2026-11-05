@@ -5,7 +5,7 @@ import {
   sortRecipes, cookedMonthKey, searchNorm, SORTS,
 } from "../src/features/cookbook/filter.js";
 import { exportMarkdown, recipeToMarkdown, CATEGORY_LABELS_EN, shareRecipeText } from "../src/features/cookbook/export.js";
-import { setLang } from "../src/i18n.js";
+import { setLang, DE_MONTHS } from "../src/i18n.js";
 import { CATEGORIES } from "../src/data/schema.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -280,6 +280,29 @@ test("cookedMonthKey: „Mai 2026“ und Varianten → JJJJMM, leer/unbekannt �
   assertEqual(cookedMonthKey(""), 0);
   assertEqual(cookedMonthKey(undefined), 0);
   assertEqual(cookedMonthKey("irgendwann"), 0);
+});
+
+test("cookedMonthKey (QA-02): EN/ES/DA-Monatsnamen → JJJJMM", () => {
+  assertEqual(cookedMonthKey("May 2026"), 202605);
+  assertEqual(cookedMonthKey("March 2026"), 202603);
+  assertEqual(cookedMonthKey("mayo 2026"), 202605);
+  assertEqual(cookedMonthKey("agosto 2025"), 202508);
+  assertEqual(cookedMonthKey("diciembre 2025"), 202512);
+  assertEqual(cookedMonthKey("maj 2026"), 202605);
+  assertEqual(cookedMonthKey("marts 2026"), 202603);
+  assertEqual(cookedMonthKey("december 2024"), 202412);
+});
+
+test("cookedMonthKey (QA-02): deutsche 3-Buchstaben-/Punkt-Kürzel", () => {
+  assertEqual(cookedMonthKey("Mär 2026"), 202603);
+  assertEqual(cookedMonthKey("Okt. 2026"), 202610);
+  assertEqual(cookedMonthKey("Dez. 2025"), 202512);
+  assertEqual(cookedMonthKey("Jan 2026"), 202601);
+});
+
+test("cookedMonthKey (QA-02): deutsche Vollnamen unverändert, Fremdwort → Monat 0", () => {
+  for (let i = 0; i < 12; i++) assertEqual(cookedMonthKey(`${DE_MONTHS[i]} 2026`), 202600 + i + 1);
+  assertEqual(cookedMonthKey("irgendwann 2026"), 202600);
 });
 
 test("sortRecipes (F4): alle Sortierungen, Gleichstand → neueste zuerst, Eingabe unverändert", () => {
