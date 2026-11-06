@@ -148,7 +148,18 @@ export function cookedMonthKey(v) {
   const y = /(\d{4})/.exec(v);
   if (!y) return 0;
   const m = DE_MONTHS.findIndex((name) => v.includes(name));
-  return +y[1] * 100 + (m >= 0 ? m + 1 : 0);
+  return +y[1] * 100 + (m >= 0 ? m + 1 : monthFromWord(v));
+}
+
+/** Monatsnamen/-kürzel in DE, EN, ES, DA über die ersten 3 Buchstaben („Mär.“, „mayo“, „maj“). */
+const MONTH_PREFIX = {
+  jan: 1, ene: 1, feb: 2, mar: 3, apr: 4, abr: 4, may: 5, mai: 5, maj: 5, jun: 6, jul: 7,
+  aug: 8, ago: 8, sep: 9, set: 9, oct: 10, okt: 10, nov: 11, dec: 12, dez: 12, dic: 12,
+};
+function monthFromWord(v) {
+  const words = v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().match(/[a-z]{3,}/g) || [];
+  for (const w of words) if (MONTH_PREFIX[w.slice(0, 3)]) return MONTH_PREFIX[w.slice(0, 3)];
+  return 0;
 }
 
 /** Anlegezeit aus der id („r“ + Millisekunden); Basis-ids wie „r01“ → 0. */

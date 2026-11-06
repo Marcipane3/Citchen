@@ -71,7 +71,7 @@
 | `category` | string | ja | MUSS einer der 16 Werte unten sein. |
 | `time` | string | nein | Frei, z.B. `"25 Min"`. |
 | `servings` | string | nein | Frei, z.B. `"~4"` oder `"1 Zucchini, 2 Paprika"`. |
-| `lastCooked` | string | nein | Z.B. `"Mai 2026"` oder `""`. |
+| `lastCooked` | string | nein | Z.B. `"Mai 2026"` oder `""`. Die App schreibt deutsche Monatsnamen; beim Sortieren werden zusätzlich gelesen: Monatsnamen/-kürzel in DE/EN/ES/DA (`"May 2026"`, `"mayo 2026"`, `"maj 2026"`, `"Mär 2026"`, `"Okt. 2026"`), `"06/2026"` und `"2026-06"`. Nicht lesbar → zählt als „nie gekocht“. |
 | `rating` | number | nein | Bewertung `0`–`5` (Sterne). `0` = nicht bewertet. |
 | `favorite` | boolean | nein | Favorit (♥). Default `false`. |
 | `cookedCount` | number | nein | Wie oft gekocht. Wird vom „Heute gekocht"-Button hochgezählt. |
