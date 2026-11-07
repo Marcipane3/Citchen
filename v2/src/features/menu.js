@@ -1,7 +1,7 @@
 // menu.js — ☰ Navigations-Sheet für die Nebenbereiche. Die 5 Hauptbereiche stehen seit J2
 // in der Tab-Leiste unten (ui/tabs.js) und werden hier bewusst NICHT doppelt geführt.
 
-import { state } from "../store.js";
+import { state, getRecipesDe } from "../store.js";
 import * as drive from "../data/drive.js";
 import { openSheet } from "../ui/sheet.js";
 import { navigate } from "../router.js";
@@ -37,8 +37,8 @@ export function openMenu(current) {
     b.onclick = () => {
       const go = b.dataset.go;
       close();
-      if (go === "__export") copyExport(state.recipes);
-      else if (go === "__exportFile") exportFile(state.recipes).catch((e) => alert(e.message));
+      if (go === "__export") copyExport(getRecipesDe());
+      else if (go === "__exportFile") exportFile(getRecipesDe()).catch((e) => alert(e.message));
       else if (go === "__importFile") pickAndImport();
       else if (go === "__login") drive.login().catch((e) => alert(e.message));
       else navigate(go);

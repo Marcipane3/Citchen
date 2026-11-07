@@ -5,6 +5,9 @@
 // lässt. Reiner Node-Test (Logik + Quelltext-Wächter), kein DOM, keine IndexedDB.
 import { test, assert, assertEqual } from "./runner.js";
 import { buildLangMap, localizeRecipes } from "../src/data/baseLang.js";
+import { buildExportFile } from "../src/data/recipeExport.js";
+import { exportMarkdown } from "../src/features/cookbook/export.js";
+const assertThrows = (fn) => { let threw = false; try { fn(); } catch { threw = true; } assert(threw, "sollte werfen"); };
 import { toFileString } from "../src/data/migrate.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -80,3 +83,27 @@ test("Kanonik / T3: so wie das Formular speichert, bleibt der Drive-Inhalt deuts
   assert(toFileString({ recipes: [leaked] }).includes("Sweet potato"), "Kontroll-Annahme falsch");
 });
 
+
+test("AR-13: Export aus der kanonischen Sammlung bleibt deutsch (Datei + Markdown)", () => {
+  const file = buildExportFile(DE);
+  assertEqual(file.recipes[0].name, "Süßkartoffel-Curry");
+  assertEqual(file.recipes[0].steps[0], "Reis aufsetzen.");
+  assertEqual(file.recipes[0].tips, "Topping: Joghurt.");
+  assert(exportMarkdown(DE).includes("Süßkartoffel-Curry"), "Markdown nicht kanonisch");
+});
+
+test("AR-13: buildExportFile / exportMarkdown lehnen die lokalisierte Anzeige-Sicht ab", () => {
+  const view = localizeRecipes(DE, buildLangMap(EN));
+  assertEqual(view[0].name, "Sweet potato curry");
+  assert(!JSON.stringify(view).includes("citchen.localized"), "Marker darf nicht serialisiert werden");
+  assertThrows(() => buildExportFile(view));
+  assertThrows(() => exportMarkdown(view));
+});
+
+test("AR-13: menu.js exportiert getRecipesDe(), nie state.recipes (Verdrahtungs-Wächter)", () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const src = readFileSync(join(here, "..", "src", "features", "menu.js"), "utf8");
+  assert(/copyExport\(getRecipesDe\(\)\)/.test(src), "Markdown-Export nicht kanonisch");
+  assert(/exportFile\(getRecipesDe\(\)\)/.test(src), "Datei-Export nicht kanonisch");
+  assert(!/(copyExport|exportFile)\(state\.recipes\)/.test(src), "menu.js exportiert die Anzeige-Sicht");
+});

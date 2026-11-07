@@ -73,6 +73,8 @@ export function getRecipe(id) { return state.recipes.find((r) => r.id === id); }
  * matcht (Einkaufs-Katalog/Gänge/Icons, Vorrats-Abgleich) — die Zutaten-Texte
  * müssen deutsch sein, sonst greift das Matching nicht. Anzeige bleibt lokalisiert.
  */
+/** Alle Rezepte KANONISCH deutsch (Kopie der Liste) — für ausgehende Exporte, nie state.recipes. */
+export function getRecipesDe() { return recipesDe.slice(); }
 export function getRecipeDe(id) { return recipesDe.find((r) => r.id === id); }
 
 /**

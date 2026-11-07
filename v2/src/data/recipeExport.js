@@ -2,11 +2,13 @@
 // damit der Import (recipeImport.js) sie direkt liest. Persönliche Felder bleiben draußen (G2-Q1).
 
 import { SCHEMA_VERSION } from "./schema.js";
+import { assertCanonical } from "./baseLang.js";
 
 const PERSONAL = ["photos", "feedback", "favorite", "rating", "cookedCount", "lastCooked"];
 
 /** {version, updated, recipes} ohne persönliche Felder; Eingabe wird nicht verändert. */
 export function buildExportFile(recipes, now = new Date()) {
+  assertCanonical(recipes);
   const out = (recipes || []).map((r) => {
     const copy = JSON.parse(JSON.stringify(r));
     for (const f of PERSONAL) delete copy[f];
