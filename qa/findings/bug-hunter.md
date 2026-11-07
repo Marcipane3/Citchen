@@ -1,136 +1,103 @@
-# Bug-Hunter — findings (2026-10-12T16:29:50Z)
-_Build 2026-10-04-v2.14 · CACHE koch-v2.14-1 · tests 215/215 · HEAD 70e8b9d · mode FULL_
+# Bug-Hunter — findings (2026-11-07T07:22:11Z)
+_Build 2026-10-27-v2.17 · CACHE koch-v2.17-1 · tests 393/393 · HEAD 95ae0f3 · mode DELTA (origin/main..HEAD, release candidate v2.18)_
+
+## Δ since origin/main
+8 commits (#25, #26, #28, #30, #33, #35, #42 + e2e race fix). Changed under `v2/src`: `data/recipeImport.js` (new),
+`data/recipeExport.js` (new), `data/baseLang.js` (LOCALIZED marker + `assertCanonical`), `store.js`
+(`getRecipesDe`, `importRecipes`, test seam), `features/cookbook/{export,importFile(new),detail,filter,cookbook}.js`,
+`features/menu.js`, `features/assistant/assistant.js`, `features/settings/settings.js`, `ui/helpers.js`, `i18n.js`.
+Hunted in those files and the code they call (`schema.js` validate/defaults/id factory, `sync.saveChange`,
+`syncCore.run`, `localizeRecipes`/`buildLangMap`, `loadHeroInto`). Working tree is clean.
+
+New: **1 × P1** (BH-12), 1 × P2 (BH-13), 2 × P3 (BH-14, BH-15). No P0.
 
 ## Field reports
-
-### FR-01 — "Ingwer gets added randomly and multiple times without me selecting it"
-**Verdict: reproduced (E1), cause found. It is not a ghost writer.** The code has exactly four paths that
-put items on the list: `shopAdd` (catalog tile / free text, `shopping.js:70`), `addItemsToList`
-(the recipe button `detail.js:151` and the plan button `planner.js:162-172`), `applyExternal` (friends
-inbox, `friendInbox.js:93`) and the item-by-item Drive merge (`listSync.js:94-111`). Nothing adds items on
-a timer or at startup. Ginger comes in from the **recipe/plan buttons**. It turns into several rows because of
-four defects that add up:
-
-| # | Hypothesis | Result | Evidence |
-|---|---|---|---|
-| 1 | **"Without selecting" = Plan → Einkaufsliste.** Ginger is marked 🛒 in 6 dinner recipes (4 of them "Asiatisch inspiriert"). | **Confirmed.** In 2000 random `generatePlan` weeks, **1500 (75 %) contain at least one ginger row**, and 216 contain more than one. A random weekly plan means ginger shows up "randomly". | E1 `fr01_b.mjs` |
-| 2 | **The Lager doesn't stop it.** Even with ginger marked as in stock, it gets added. | **Confirmed → BH-04.** `needsBuying` returns true for any 🛒 line before it looks at the Lager. | E1 `fr01_d.mjs` |
-| 3 | **"Multiple times" = different merge keys.** | **Confirmed → BH-05.** Plan + tile + plan again → 4 ginger-looking rows: `2 Stück Ingwer, gerieben` · `2 Stück Ingwer` · `1 TL gemahlene Nelken , 1 TL Ingwerpulver` (🫚, Gemüse) · `Ingwer`. | E1 `fr01_b.mjs` |
-| 4 | **Catalog badge shows a different row's count** → the tap looks like it did nothing → user taps again. | **Confirmed → BH-06.** The badge reads `1` (the qty of the `2 Stück Ingwer` row) while the tap builds a separate `Ingwer` row. | E1 `fr01_b.mjs` |
-| 5 | Pressing plan/recipe → list again adds everything again | **Confirmed (by design: `mergeItems` sums amounts)**, but nothing tells the user it already happened, and the recipe button has no in-flight guard → BH-10. | E1 / E2 |
-| 6 | Partner merge keeps duplicates (union by id) | **Confirmed → BH-08**, only matters if a partner list is linked. | E1 `fr01_c.mjs` H-A |
-| 7 | Tombstone revival creates a duplicate | **Confirmed → BH-07** (`mergeItems` revives the *first* key match, even a deleted one, while a live row with the same key exists). | E1 `fr01_c.mjs` H-B |
-| 8 | Friends inbox re-applies items (`seen`/`fl_ack`/`trimSeen`) | **Refuted.** A repeat pull with `seen` adds 0. Only a lost `seen` would double-count, and `seen` is saved before `fl_ack`. Friend items also carry a visible "von X" tag. | E1 `fr01_c.mjs` H-C |
-| 9 | Background `listSync` merge brings back a deleted row | **Refuted for normal use** (a newer tombstone beats an older live copy). Only a device that was offline for more than 30 days brings rows back → BH-11. | E1 H-D/H-E |
-| 10 | Wrong tap target: the catalog grid moves down under the finger when `paintList` inserts a row above it | **Unconfirmed, E3, low.** On a ~412 px phone `.cat-grid` (`minmax(96px)`) has 3 columns. Ingwer is Gemüse row 7, col 1, directly above Basilikum. Tapping a *new* item adds a list row (plus maybe an aisle header) and pushes the grid down about one tile row, so a fast second tap on Basilikum can land on Ingwer. This doesn't explain why it is *always* ginger, and the layout wasn't run. | E3 |
-
-**Open questions for Marcel (only the answers can rule out #6 and #10):**
-(a) Does a ginger row look like `1 Stück Ingwer…` (comes from a recipe or the plan) or like plain `Ingwer` with a −/+ counter (comes from a tile or a friend; a friend's row also shows "von …")?
-(b) Did you use "Plan → Einkaufsliste" or "Zutaten auf die Liste" before it showed up?
-(c) Is a partner list linked, or is the friends link on?
-(d) Is ginger in your Lager? If yes, BH-04 is the whole story.
+FR-01 (Ingwer): no shopping-list code changed in this delta. The status stays as the orchestrator set it
+(fixed in code in v2.15.2/v2.15.3, waiting for Marcel's device check). Nothing new to probe.
 
 ## Status of previous findings
-The previous report (2026-06-14) had no IDs. They are assigned here.
-
 | ID | Title | Status | Note |
 |---|---|---|---|
-| BH-01 | Offline edit silently dropped by LWW | ✅ fixed | 9019e8c (v2.7): `decideSync.js:17-32` returns `"conflict"`, and `sync.js:114-121` keeps the local copy |
-| BH-02 | Match "Nochmal" shows recipes you already matched | ⏳ still open | `features/match/match.js:120` shuffles all `state.recipes`. The first deck (`:91`) filters out `swipeMatches`. Fix: use the same filter. P3 · E2 · S |
-| BH-03 | Pager / scaler stops running step timers | ⏳ still open | `features/cooking/cooking.js:268-273` (prev/next/check → `paint()` → `clearTimers()` at `:201`). P3 · E2 · M |
+| BH-01 | Offline edit silently dropped by LWW | fixed | 9019e8c (v2.7), unchanged |
+| BH-02 | Match "Nochmal" shows recipes you already matched | still open | `features/match/match.js:120` still shuffles all `state.recipes`. The first deck at `:91` filters `swipeMatches`. P3 · E2 · S |
+| BH-03 | Pager / scaler stops running step timers | still open | `features/cooking/cooking.js:269-273` (prev/next/check → `paint()` → `clearTimers()` at `:201`). P3 · E2 · M |
+| BH-04 | Lager ignored for 🛒 lines | fixed | 41e5ea0 (v2.15.3, T6). `logic.js:41`, test `test-shopping-identity.js:33` |
+| BH-05 | Same ingredient → several rows | fixed | 41e5ea0 (T5), one key rule at `logic.js:84` |
+| BH-06 | Catalog badge shows a different row | fixed | 41e5ea0. `shopping.js:117` returns the touched row, test `test-shopping-identity.js:117` |
+| BH-07 | `mergeItems` revives a tombstone next to a live row | fixed | 41e5ea0. `logic.js:287`, test `test-shopping-identity.js:139` |
+| BH-08 | Partner sync keeps same-item duplicates | fixed | 41e5ea0. `listMerge.js:98`, test `test-shopping-identity.js:184` |
+| BH-09 | Two ingredients on one line | fixed | 41e5ea0. `logic.js:209`, test `test-shopping-identity.js:100` |
+| BH-10 | "Zutaten auf die Liste" without in-flight guard | fixed | `detail.js:154` (`addIngBtn.disabled` guard) |
+| BH-11 | Device offline > 30 days revives deleted rows | fixed | 2eab1bb (v2.15.2, T7). Tests `test-list-file.js:211`, `test-sync-core.js:667` |
 
 ## New findings
 
-### BH-04 [P1] Lager stock is ignored for every recipe that uses 🛒 markers (82/105) · confidence: high · evidence: E1
-- **Where:** `v2/src/features/shopping/logic.js:43-44` (`needsBuying`). Callers: `planner.js:171` and `detail.js:159` both pass `staples` from `settings.getStaples()` (`data/settings.js:44-46`, which is Lager + fridge + basics).
-- **What breaks:** The user marks ginger as in stock in the Lager (pantry or fridge) and then runs Plan → Einkaufsliste. Ginger still lands on the list. The reverse also happens: a staple switched *off* in the Lager (e.g. Kichererbsen used up) is never added for marker recipes. The UI promises otherwise: `i18n.js:281` "Diese Artikel überspringt die Einkaufsliste", and `:332` "Vorrat wird automatisch abgezogen".
-- **Why:** `if (/🛒/.test(raw)) return true; if (recipeUsesMarkers) return false;` returns before `staples` is ever read. For 82 of 105 base recipes the Lager has no effect at all.
-- **Proof:** `needsBuying('1 Stück Ingwer 🛒', staples incl. Ingwer) = true`, and Thai curry → list → "Ingwer STILL added". 82/105 recipes use markers. 42 of the 199 marked lines match a default staple, so the Lager would suppress them if it were checked.
-- **Fix:** Check the Lager first for every line: if the parsed item matches an in-stock name, skip it whatever the marker says. Use 🛒 / no-marker only as the fallback when nothing in the Lager matches. Pass the Lager list separately from `DEFAULT_STAPLES` so the "no-marker recipe" fallback keeps working.
-- **Regression test:** `needsBuying: Lager beats 🛒` with `"1 Stück Ingwer 🛒"`, `{recipeUsesMarkers:true, staples:["Ingwer"]}` → `false`. Also `aggregateIngredients([thaiCurry], {staples:[...,"Ingwer"]})` → no `Ingwer` item.
+### BH-12 [P1] "Whole cookbook as import file" → importing it on another Citchen device doubles all 105 base recipes · confidence: high · evidence: E1
+- **Where:** `v2/src/features/menu.js:41` (the only export path: `exportFile(getRecipesDe())`, the whole cookbook) → `data/recipeExport.js:10-18` (all recipes, base ids `r01…r105` kept) → recipient `features/cookbook/importFile.js:27-34` → `store.js:147-176` (`importRecipes`) → `data/recipeImport.js:31-47` (`planImport`: every id clash becomes a fresh-id copy, `skipped` is always `[]`). Every install is seeded from `v2/data/rezepte.snapshot.json` (`data/sync.js:5,20,96`), so every recipient already has all 105 base recipes under the same ids.
+- **What breaks:** Marcel wants to give a friend or his partner his own recipe. There is no per-recipe file export in the UI (`detail.js` share is Markdown only), so he uses ☰ → "Ganzes Kochbuch als Import-Datei". The friend imports it. Result: "106 importiert · 0 übersprungen · 105 mit neuer ID", and the friend's cookbook goes from 105 to 211 recipes, with every base recipe listed twice. In a non-German UI the copies stand out because they lose the translation overlay (it is keyed by id): the original shows "Sweet Potato Curry with Chickpeas" and the copy right next to it shows "Süßkartoffel-Curry mit Kichererbsen". The doubles are saved, synced to the friend's `rezepte.json` (and to the partner, who shares it), and can only be removed one at a time with 🗑. Running the same import on a second device of the same Drive account (e.g. as a backup restore) does the same.
+- **Why:** G2.1 AC (6) chose "no silent merge, duplicates are the user's call" for re-importing the same file. That rule did not account for the seeded base set that both sides share. `planImport` has a `skipped` slot, but nothing ever fills it.
+- **Proof:** probe `dup_probe.mjs` (sender = seeded snapshot + 1 own recipe, recipient = fresh seeded install):
+  ```
+  { imported: 106, skipped: 0, reasons: [], renamed: 105 }
+  recipient cookbook size 105 -> 211
+  EN view: original "Sweet Potato Curry with Chickpeas" | imported copy "Süßkartoffel-Curry mit Kichererbsen"
+  ```
+- **Fix:** In `planImport`, skip an incoming recipe whose id is taken *and* whose content (name, category, ingredients, steps, tips, times, servings, tags…; ignore the personal fields and `photos`) equals the existing recipe. Report it in `skipped` with the reason "schon im Kochbuch" (i18n). Only rename on a real clash (same id, different content). This needs Marcel to confirm, because it changes G2.1 AC (6). Ask before the v2.18 release. Short-term alternative: exclude unedited base recipes from the whole-cookbook export.
+- **Regression test:** `test-recipe-import.js` "planImport: identical recipe under same id is skipped, not duplicated": `planImport(parse(buildExportFile(snapshot)).recipes, snapshot)` → `toAdd.length === 0`, `skipped.length === 105`. Plus "same id, different content → renamed" with `existing=[{id:"r01",name:"A"}]`, `incoming=[{id:"r01",name:"B"}]` → 1 renamed.
 - **Effort:** S
 
-### BH-05 [P1] The same ingredient becomes several list rows that never merge · confidence: high · evidence: E1
-- **Where:** `logic.js:50-52` (`itemKey` = whole parsed item text + unit), `logic.js:85-87` (`aggregateIngredients`), `logic.js:120-123` (`mergeItems`), `shopping.js:73-74` (`shopAdd` key with no unit).
-- **What breaks:** Ginger from different recipes and from the tile shows up as `Ingwer, gerieben|stück`, `Ingwer|stück` and `Ingwer|` — three rows, plus an `Ingwerpulver` row in Gemüse (BH-09). The user sees "Ingwer" several times.
-- **Why:** The key keeps the prep note (", gerieben") and the unit. The catalog tile always has `unit:null`. Nothing normalises keys to the catalog name.
-- **Proof:** `fr01_a.mjs`: keys `ingwer, gerieben|stück`, `ingwer|stück`, tile `ingwer|`. `fr01_b.mjs` ends with 4 ginger-looking rows (see FR-01 table).
-- **Fix:** Build the merge key from the catalog match name (`ingMatchCat(name)` → canonical `Ingwer`) with prep notes stripped (`, gerieben`, `(…)`). When units differ, keep one row and show the amounts combined (e.g. "1 Stück + 1"), or fall back to qty. Use the same key function in `shopAdd`, `mergeItems`, `applyFriendItems` and `catItemHTML`.
-- **Regression test:** `mergeItems: Zubereitungs-Zusatz merged` with `"1 Stück Ingwer, gerieben 🛒"` + `"1 Stück Ingwer 🛒"` → 1 row, amount 2. Then `shopAdd("Ingwer")` → still 1 row.
-- **Effort:** M
-
-### BH-06 [P2] Catalog badge shows the count of a different row → the tap looks like a no-op → repeated taps · confidence: high · evidence: E1
-- **Where:** `shopping.js:420-426` (`catItemHTML`) and `shopping.js:455-461` (tile click updates the badge). Both use `live().find(name === low)`, matching on name only and taking the first hit.
-- **What breaks:** With `2 Stück Ingwer` (from a recipe) on the list, a tap on the Ingwer tile creates a separate `Ingwer` row (BH-05), but the badge keeps showing **1**, the recipe row's `qty`. Amount rows always have qty 1. The tap looks like it didn't register, the user taps again, and the hidden tile row climbs to ×2, ×3.
-- **Why:** The badge lookup (name only) and the `shopAdd` lookup (name + `unit:null` key) disagree on which row "is" Ingwer.
-- **Proof:** `fr01_b.mjs`: `catalog badge for Ingwer shows qty: 1 (row: 2 Stück Ingwer)` while a separate `Ingwer ×1` row exists.
-- **Fix:** Have the badge use the same row `shopAdd` changes. Either return the touched item from `shopAdd`, or share one `findSame()` helper. Better still, fix BH-05 so there is only one row.
-- **Regression test:** pure helper `findCatalogRow(items,"Ingwer")` with `[recipe row 2 Stück Ingwer, tile row Ingwer qty 3]` → returns the tile row (qty 3).
+### BH-13 [P2] Import accepts any `version` number, so a future format-4 file is written into the flat-v3 store · confidence: med · evidence: E1
+- **Where:** `v2/src/data/recipeImport.js:15-17` (checks only `typeof number`), then `:21-26` (each recipe through the v3 `validateRecipe`, all unknown fields kept), then `store.js:163` → `rezepte.json`.
+- **What breaks:** v2.21 plans format 4 (P6, R1 fields). A file exported from the new app (version 4) and imported into a v2 install is checked against v3 rules only. Recipes whose fields changed type get dropped with German validator messages. Recipes that only gained fields are imported with the unknown v4 fields, and those then sit in the v3 `rezepte.json` that v1 and Project-Claude also read. This works against rule 1 ("flat-v3, additive fields only"). It also works the other way: `version: 99` imports silently.
+- **Proof:** probe `ie_probe.mjs`: `parseImportFile({version:99, recipes:[valid]})` → 1 recipe, 0 errors.
+- **Fix:** Reject `version > SCHEMA_VERSION` with a clear reason ("Datei stammt aus einer neueren App-Version"). Optionally accept older versions through `migrate.js`.
+- **Regression test:** `parseImportFile: newer version rejected`: `{version: SCHEMA_VERSION+1, recipes:[valid]}` → `recipes: []`, `errors.length === 1`.
 - **Effort:** S
 
-### BH-07 [P2] `mergeItems` revives a deleted row although a live row with the same key exists → duplicate · confidence: high · evidence: E1
-- **Where:** `logic.js:123-125`
-- **What breaks:** The list holds a tombstone and a live row with the same key. This happens after a partner merge (BH-08) where one copy was deleted, or when a friend item was created next to a deleted tile row (`friendMerge.js:105` skips tombstones). Adding a recipe then brings the tombstone back *and* leaves the live row, so two identical rows appear.
-- **Why:** `out.find((x) => keyOf(x) === key)` returns the first match, which may be the tombstone. `shopAdd` (`shopping.js:76`) gets this right by preferring live rows; `mergeItems` doesn't.
-- **Proof:** `fr01_c.mjs` H-B: before `live:1 Stück Ingwer` → after `old:1 Stück Ingwer, live:1 Stück Ingwer`.
-- **Fix:** `const hit = out.find(x => !x.deleted && keyOf(x) === key) || out.find(x => keyOf(x) === key);`
-- **Regression test:** `mergeItems: lebender Artikel vor Tombstone` with `[tomb(key K), live(key K)]` + incoming K → 1 live row, amount summed, tombstone stays deleted.
+### BH-14 [P3] Import result sheet shows untranslated German reasons, and a stray "–" for an empty file · confidence: high · evidence: E1
+- **Where:** `data/recipeImport.js:10,13,16,18,23` (German literal error strings, plus `validateRecipe` messages from `schema.js:41-72`) → `features/cookbook/importFile.js:17` (rendered as `<li>`). `importFile.js:29` passes the placeholder `["–"]` when nothing parsed and there were no errors.
+- **What breaks:** (a) With an EN/ES/DA UI, an invalid file shows "Nothing imported…" followed by bullets like "Datei ist kein gültiges JSON" or "Rezept[0]: category ungültig: \"Pasta\"". (b) A valid file with `"recipes": []` shows the "file is invalid" error plus a bullet "–", and the counter says "1 skipped" (`summarizeImport` counts the placeholder as an error).
+- **Proof:** probe: `summarizeImport({toAdd:[],skipped:[],renamed:[]},["–"])` → `{ imported: 0, skipped: 1, reasons: ['–'], renamed: 0 }`.
+- **Fix:** Have the parser return error codes (plus index and field) and map them through `t()` in `importFile.js`. Show an "empty file" message instead of the placeholder.
+- **Regression test:** `importText('{"version":3,"recipes":[]}')` sheet → no `.import-reasons`, and the message is "no recipes in file". i18n: every parser error code has a key in all 4 languages.
 - **Effort:** S
 
-### BH-08 [P2] Partner sync never merges the same item added on two devices · confidence: high · evidence: E1
-- **Where:** `features/shopping/listMerge.js:8-16` (`mergeList` unions by `id`), called from `listSync.js:94` and `:103`.
-- **What breaks:** Marcel and his partner each press "Plan → Einkaufsliste" (or tap Ingwer). After sync both see two `1 Stück Ingwer` rows. Every sync keeps both.
-- **Why:** Local adds merge by name+unit key, but the cross-device merge goes by id. Two independent adds create two ids.
-- **Proof:** `fr01_c.mjs` H-A: `B after sync: li-…os85gh:1 Stück Ingwer, li-…d1u1xl:1 Stück Ingwer`.
-- **Fix:** After `mergeList`, fold live rows with the same key into the older id (sum amounts/qty, tombstone the other with a fresh `updated`). This has to be deterministic (lowest id wins) so both devices converge.
-- **Regression test:** `syncStep: gleicher Artikel auf zwei Geräten` → after A↔B sync exactly one live `Ingwer|stück` row, amount 2, and a second sync is a no-op.
-- **Effort:** M
-
-### BH-09 [P3] Two ingredients on one line become one bogus list row in the wrong aisle · confidence: high · evidence: E1
-- **Where:** `data/derive.js` `parseIngredient` (via `logic.js:84-88`). The catalog match picks the longest substring.
-- **What breaks:** 8 rows in the base recipes, e.g. `🫚 0,5 TL gemahlene Nelken , 1 TL Ingwerpulver [Gemüse]` (ginger icon in the vegetable aisle — part of FR-01's "Ingwer" sightings) and `🍄 300g Champignons , 1 Zwiebel, 200ml Sahne, Öl/Butter [Gemüse]`.
-- **Why:** These are data lines with several ingredients joined by commas. The parser treats the line as one item.
-- **Fix:** In `aggregateIngredients`, split a 🛒 line on `,` followed by a quantity (`/,\s*(?=[\d½¼¾])/`) before parsing. Long term, fix the data (→ data-guardian).
-- **Regression test:** `aggregateIngredients: Mehrfach-Zeile` with `"½ TL gemahlene Nelken 🛒, 1 TL Ingwerpulver 🛒"` → 2 items, `Nelken` and `Ingwerpulver`.
-- **Effort:** S
-
-### BH-10 [P3] "Zutaten auf die Liste" has no in-flight guard; pressing it again silently doubles everything · confidence: med · evidence: E2
-- **Where:** `features/cookbook/detail.js:151-163`. Compare `planner.js:164-165`, which disables its button.
-- **What breaks:** A double tap, or tapping again after cancelling the "switch to list?" confirm, runs `addItemsToList` twice. Every amount doubles (ginger 1 → 2 Stück). Nothing says the items are already on the list.
-- **Why:** No `btn.disabled` while the async import / `getStaples` / `addItemsToList` chain runs, and `mergeItems` sums by design.
-- **Fix:** Disable the button for the duration, the way the planner does. Optionally, if every aggregated item is already on the list from this recipe (`sources`), ask before adding again.
-- **Regression test:** none pure. Manual: double-tap the button → amounts must stay single.
-- **Effort:** S
-
-### BH-11 [P3] A device offline for more than 30 days brings deleted rows back · confidence: high · evidence: E1
-- **Where:** `listMerge.js:38-41` (`pruneTombstones`, 30 days) together with `mergeList` union.
-- **What breaks:** A row deleted on phone A gets pruned after 30 days. Laptop B, unsynced since before the delete, still holds it live. When B syncs, the row reappears on both devices "on its own".
-- **Proof:** `fr01_c.mjs` H-E: Drive after prune: 0 items → after the old device syncs: `x:1 Stück Ingwer`.
-- **Fix:** Store the prune horizon in the file (e.g. `prunedBefore`) and drop incoming live items whose `updated` is older than it. Otherwise this is an accepted trade-off and should be documented.
-- **Regression test:** `syncStep: veraltetes Gerät nach Prune` → the item stays gone.
+### BH-15 [P3] File export: a share error other than cancel gives no download fallback, and a synchronous throw escapes the menu's `.catch` · confidence: med · evidence: E2
+- **Where:** `features/cookbook/export.js:92-98` (`deliverExportFile` rethrows every non-`AbortError` from `navigator.share`, e.g. `NotAllowedError`). Compare `shareRecipeText` at `:65-76`, which falls back to the clipboard. `export.js:111-112`: `exportFile` is not `async`, so a throw from `buildExportFile` → `assertCanonical` (`baseLang.js:61-65`) happens before a promise exists, and `menu.js:41` `.catch(...)` never sees it (uncaught error, no alert).
+- **What breaks:** On iOS/macOS Safari, where `canShare({files})` is true, a rejected share means the user gets a raw DOMException text in an alert and no file. The download path is never tried. The second part is a trap: today `getRecipesDe()` keeps localized records out, but a future caller passing `state.recipes` would fail with nothing on screen, not with the intended error.
+- **Fix:** On a non-Abort share error, fall through to the `<a download>` path. Make `exportFile` `async` (or wrap the call in `try`) so builder errors reach `.catch`.
+- **Regression test:** `deliver: share rejects NotAllowedError → falls back to download` (stubbed navigator, assert an anchor `click`). `exportFile(localized) returns a rejected promise` (does not throw synchronously).
 - **Effort:** S
 
 ## Checked and refuted
-- Friends inbox double-applies a suggestion on re-pull: `seen` covers it (E1). `seen` is saved before `fl_ack` (`friendInbox.js:97-100`).
-- Stale `data-i` after a background `onChange`: every `onChange` repaints the list synchronously (`shopping.js:135`), and indices only point into `ITEMS`, which is never spliced (tombstones only).
-- Lost tap during `listSync.doSync`: taps during the network round-trip are picked up by the `latest` re-read (`listSync.js:102-103`). The remaining window (between that read and `db.put(final)`) is a few ms and could only *lose* an edit, never duplicate one.
-- Planner ignores translated categories: categories stay canonical German in the overlay (`rezepte.snapshot.en.json`), so `MEAL_CATEGORIES` matches.
-- Any automatic or timer-driven list add: none exists. Only the four write paths listed under FR-01.
+- **Import overwrites an existing recipe on id clash** (including a clash that appears between planning and saving): refuted. `planImport` locks the existing and incoming ids (`recipeImport.js:32`). `importRecipes` plans again inside the save queue against the stored list (`store.js:160-166`), and `saveChange` calls the change function exactly once (`sync.js:122-124`). Duplicate ids inside one file get renamed (E1: `['x','r179…']`).
+- **Rename ids differ between the optimistic plan and the queued plan** (both use `Date.now`): true, but harmless. `swapShown` replaces the shown copies by identity before anyone can edit them.
+- **Failed import leaves ghost recipes on screen**: refuted. The `catch` at `store.js:168-174` removes exactly the shown objects.
+- **Export / Markdown / share leaks translated text**: refuted. The menu uses `getRecipesDe()` (`menu.js:40-41`), the detail share uses `getRecipeDe(r.id)` (`detail.js:180`), and `buildExportFile`/`exportMarkdown` throw on records with the LOCALIZED marker (E1: throws for `localizeRecipes` output). The marker is non-enumerable, so it never reaches JSON. A spread copy drops it, which is correct for the canonical store.
+- **Round trip loses fields**: refuted. 105 snapshot recipes → `buildExportFile` → `parseImportFile` → 105 recipes, 0 errors. Personal fields are dropped on export, `photos` on import.
+- **Import keeps `favorite`/`rating`/`feedback`/`cookedCount`/`lastCooked` from a raw `rezepte.json`**: confirmed by probe, but this is as specified (G2.1 AC 3 "all other fields are kept"). Not a bug. → data-guardian if that should change.
+- **Unescaped `title="${t(…)}"`** (`cookbook.js:196`, `detail.js:40`, `settings.js:27`): static dict strings with no straight quotes in any language (E1). Safe.
+- **New `t()` calls with wrong placeholder names** (`form.saveFailed {e}`, `importFile.* {n,msg}`, `detail.shareFail {msg}`, `export.copyFail {msg}`): refuted by probe, 0 mismatches.
+- **`cookedMonthKey` word matching**: the probe gives correct results for DE/EN/ES/DA full names and abbreviations. Known harmless edge: any word starting with a month prefix also counts ("maybe 2026" → 202605), and US `3/15/2026` → 202615 (old `num` branch, not part of this delta). The app always writes `de-DE` "Mai 2026", and `SCHEMA.md:74` documents the accepted formats. Not a finding.
+- **File picker leaks `<input>`** if neither `change` nor `cancel` fires: at most one hidden node per cancelled pick on old browsers. Not worth a finding.
 
 ## Verified clean
-- i18n: every literal `t("…")`/`tn("…")` key under `src/` resolves in de/en/es/da (E1 probe, plural `_one/_other` included). The dynamic `shopping.syncState.*` / `shopping.friends.state.*` keys all exist.
-- `friendMerge.applyFriendItems` / `trimSeen` / `snapshotOf`: `seen` ordering correct.
-- `listSync.syncStep` stability (two syncs in a row → no write), and a newer tombstone beats an older live copy.
-- `app.js:34-39` cleanup-on-route-change; `shopping.js:153` removes all 5 listeners.
-- Recipe sync conflict path (`decideSync` → `sync.js:114`).
+- i18n: every literal `t()`/`tn()` key under `v2/src` resolves in de/en/es/da, and the placeholders match the call params (E1 `i18n_probe.mjs`; the only "misses" are dynamic prefixes and a comment).
+- `recipeExport.exportFileName`: path-unsafe characters stripped, blank name → `rezept.citchen.json`, multi → dated name.
+- `shareRecipeText`: share → `shared`, AbortError → `cancelled`, other error → clipboard.
+- `importFile.js` result sheet: all dynamic text goes through `esc()`.
+- `store.importRecipes` / `persist` / `setSaveChangeForTest`: `pendingSaves` balanced in `finally`, a single persist per file.
+- SW `SHELL` contains the new modules (`test-sw-shell.js` green).
 
 ## Definition drift
-None material. The agent file matches the tree (files, BUILD, suite size). The previous report pre-dated finding IDs; IDs BH-01..03 were assigned here.
+The agent file names `data/listSync.js`/`friendInbox.js` etc. correctly, but recipe sync now runs through `data/syncCore.js` + `syncRules.js` (the agent file only mentions `sync.js` + `decideSync.js`). There is no root `rezepte.json`; recipe data probes use `v2/data/rezepte.snapshot.json`.
 
 ## Cross-lens notes
-- → data-guardian: 8 base-recipe lines hold several ingredients in one string (BH-09). Ginger is 🛒-marked in 6 dinner recipes, so it gets bought every time even if it's usually at home.
-- → test-warden: no test combines `needsBuying` with a Lager entry for a 🛒 line (BH-04), and none covers `mergeItems` with a tombstone listed before a live row (BH-07).
-- → ux-curator: re-pressing Plan → list gives no "already on the list" feedback.
+- → release-captain / ux-curator: Epic G2 promised a detail "Share" chooser ("for import into the app" / "readable"). G2.4 (#30) deferred the chooser to G2.3, but G2.3 (#42) doesn't include it. There is no UI to export **one** recipe as a file (`exportFileName` supports it, no caller does). This is what makes BH-12 the normal path.
+- → simplifier: `store.js:76-78` puts the new `getRecipesDe` between `getRecipeDe` and its doc comment.
+- → test-warden: no test imports a whole-cookbook export into a seeded store (BH-12), and none checks `version > SCHEMA_VERSION` (BH-13).
+- → data-guardian: a foreign `image` URL from an imported file is fetched as a CSS background (`ui/helpers.js:74-75`). This is a new trust boundary (files from friends), but the feature is as designed.
 
 ## Summary
-P0 0 · P1 2 · P2 3 · P3 5 (BH-02, BH-03, BH-09, BH-10, BH-11). Most valuable fix: **BH-04** (Lager is ignored for 🛒 lines) together with **BH-05** (key normalisation). Between them they explain FR-01: ginger arrives with 75 % of random weekly plans even when it's in the Lager, and splits into 3–4 rows that never merge.
+P0 0 · P1 1 (BH-12) · P2 1 (BH-13) · P3 2 new (BH-14, BH-15) + 2 carried (BH-02, BH-03). BH-04…BH-11 fixed.
+Most valuable: **BH-12**. Sharing the whole cookbook, the only file export there is, doubles all 105 base recipes on the recipient's device. Decide the dedup rule with Marcel before v2.18 ships.
