@@ -3,6 +3,7 @@
 
 import { CATEGORIES } from "../../data/schema.js";
 import { t } from "../../i18n.js";
+import { assertCanonical } from "../../data/baseLang.js";
 import { buildExportFile, exportFileName } from "../../data/recipeExport.js";
 
 // Markdown ist immer Englisch (G2-Q3): feste Labels, unabhängig von der UI-Sprache.
@@ -31,6 +32,7 @@ const ingredientsMd = (r) => (r.ingredients || []).map((i) => "- " + i).join("\n
 const stepsMd = (r) => (r.steps || []).map((s, i) => `${i + 1}. ${s}`).join("\n");
 
 export function exportMarkdown(recipes) {
+  assertCanonical(recipes);
   let md = "# 📖 Recipe collection\n\n";
   for (const cat of CATEGORIES) {
     const items = recipes.filter((r) => r.category === cat);

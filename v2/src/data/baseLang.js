@@ -54,6 +54,16 @@ export function buildLangMap(langRecipes, deRecipes = null) {
  */
 const edited = (tr, r, f) => !!tr.de && JSON.stringify(r[f] ?? null) !== JSON.stringify(tr.de[f] ?? null);
 
+/** Marker für lokalisierte Anzeige-Kopien (AR-13). */
+export const LOCALIZED = Symbol("citchen.localized");
+export const isLocalized = (r) => !!(r && r[LOCALIZED]);
+/** Wirft, wenn eine Anzeige-Kopie (statt der kanonisch deutschen Rezepte) nach außen gehen soll. */
+export function assertCanonical(recipes) {
+  for (const r of recipes || []) {
+    if (isLocalized(r)) throw new Error(`Lokalisiertes Rezept ${r.id} darf nicht exportiert werden (kanonisch: getRecipesDe)`);
+  }
+}
+
 /**
  * ANZEIGE-Overlay: liefert eine neue Rezeptliste, in der Basis-Rezepte (id in der
  * Map) ihre vier Inhaltsfelder aus der Zielsprache zeigen — Nutzer-Status,
@@ -68,6 +78,8 @@ export function localizeRecipes(recipes, langMap) {
     const tr = langMap.get(r.id);
     if (!tr) return r;
     const out = { ...r };
+    // Markierung (nicht enumerierbar → nie in JSON/Spread): ausgehende Builder lehnen so etwas ab.
+    Object.defineProperty(out, LOCALIZED, { value: true });
     if (typeof tr.name === "string" && tr.name.trim() && !edited(tr, r, "name")) out.name = tr.name;
     if (Array.isArray(tr.ingredients) && tr.ingredients.length && !edited(tr, r, "ingredients")) out.ingredients = tr.ingredients.slice();
     if (Array.isArray(tr.steps) && tr.steps.length && !edited(tr, r, "steps")) out.steps = tr.steps.slice();
