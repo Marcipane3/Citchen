@@ -50,13 +50,46 @@ test("import: doppelte IDs innerhalb der Datei werden gleich behandelt", () => {
   assertEqual(plan.renamed[0].name, "X2");
 });
 
-test("import: dieselbe Datei zweimal → doppelt hinzugefügt, jeweils frische IDs", () => {
-  const incoming = parseImportFile(file([r("a", "A")])).recipes;
+test("import: dieselbe Datei zweimal → zweites Mal komplett übersprungen (#48)", () => {
+  const incoming = parseImportFile(file([r("a", "A", { ingredients: ["1 x"] })])).recipes;
   const first = planImport(incoming, []);
   const second = planImport(incoming, first.toAdd);
-  assertEqual(second.toAdd.length, 1);
-  assert(second.toAdd[0].id !== "a", "frische ID");
-  assertEqual(second.renamed.length, 1);
+  assertEqual(second.toAdd.length, 0);
+  assertEqual(second.renamed.length, 0);
+  assertEqual(second.skipped.length, 1);
+});
+
+test("import: eigener Vollexport in den Bestand → 0 neu, alle übersprungen (#48)", () => {
+  const existing = Array.from({ length: 105 }, (_, i) => r("s" + i, "R" + i, { tips: "t" + i }));
+  const incoming = parseImportFile(file(existing)).recipes;
+  const plan = planImport(incoming, existing);
+  assertEqual(plan.toAdd.length, 0);
+  assertEqual(plan.skipped.length, 105);
+  const sum = summarizeImport(plan);
+  assertEqual(sum.imported, 0);
+  assertEqual(sum.skipped, 105);
+  assertEqual(sum.duplicates, 105);
+});
+
+test("import: persönliche Felder und Fotos zählen beim Vergleich nicht (#48)", () => {
+  const existing = [r("a", "A", { rating: 5, favorite: true, cookedCount: 7, lastCooked: "Mai 2026", feedback: "gut", photos: [{ id: "d" }] })];
+  const plan = planImport(parseImportFile(file([r("a", "A")])).recipes, existing);
+  assertEqual(plan.toAdd.length, 0);
+  assertEqual(plan.skipped.length, 1);
+});
+
+test("import: gleiche ID, anderer Inhalt → weiter umbenannt, nie überschrieben (#48)", () => {
+  const existing = [r("a", "A", { tips: "alt" })];
+  const plan = planImport(parseImportFile(file([r("a", "A", { tips: "neu" })])).recipes, existing);
+  assertEqual(plan.toAdd.length, 1);
+  assertEqual(plan.renamed.length, 1);
+  assertEqual(plan.skipped.length, 0);
+});
+
+test("import: Schlüsselreihenfolge ist egal beim Vergleich (#48)", () => {
+  const a = { id: "a", name: "A", category: "Vegetarische Hauptgerichte", tips: "t" };
+  const b = { tips: "t", category: "Vegetarische Hauptgerichte", name: "A", id: "a" };
+  assertEqual(planImport([b], [a]).skipped.length, 1);
 });
 
 test("import: Eingaben werden nicht mutiert", () => {

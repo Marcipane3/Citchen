@@ -43,7 +43,7 @@ test("Import: Ergebnis-Blatt, neue Rezepte im Kochbuch und nach Reload, neue ID 
   await expect(page.locator("#cards .rcard").first()).toBeVisible();
 });
 
-test("Import: Round-Trip Export → Import ergibt dieselben Felder", async ({ page }) => {
+test("Import: Round-Trip Export → Import überspringt alle identischen Rezepte (#48)", async ({ page }) => {
   await openApp(page);
   await waitForCookbook(page);
   await page.evaluate(() => { delete navigator.canShare; });
@@ -51,7 +51,8 @@ test("Import: Round-Trip Export → Import ergibt dieselben Felder", async ({ pa
   await menu(page, "__exportFile");
   const path = await (await dl).path();
   const s = await pick(page, path);
-  await expect(s.locator(".import-summary")).toContainText(`${base.length} importiert · 0 übersprungen · ${base.length} mit neuer ID`);
+  await expect(s.locator(".import-summary")).toContainText(`0 importiert · ${base.length} übersprungen · 0 mit neuer ID`);
+  await expect(s.locator(".import-summary")).not.toHaveClass(/err/);
 });
 
 test("Import: ungültige Datei zeigt Fehler und ändert nichts", async ({ page }) => {

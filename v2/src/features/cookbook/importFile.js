@@ -8,7 +8,7 @@ import { esc } from "../../ui/helpers.js";
 import { t } from "../../i18n.js";
 
 function resultSheet(summary) {
-  const failed = summary.imported === 0 && summary.skipped > 0;
+  const failed = summary.imported === 0 && summary.skipped > (summary.duplicates || 0);
   const line = failed
     ? t("importFile.invalid")
     : [t("importFile.imported", { n: summary.imported }),
