@@ -55,6 +55,7 @@ test("Chips: Spezial-Chips fehlen, wenn Daten sie nicht hergeben", () => {
 });
 
 test("chipLabel: Kürzungen wie v1", () => {
+  setLang("de");
   assertEqual(chipLabel("Alle"), "Alle");
   assertEqual(chipLabel("__fav"), "♥ Favoriten");
   assertEqual(chipLabel("Backen: Süßes & Kuchen"), "Backen");
