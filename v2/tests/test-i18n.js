@@ -1,6 +1,6 @@
 // Tests: i18n.js — Key-Parität DE/EN/ES, Interpolation, Plural, Fallback.
 import { test, assert, assertEqual } from "./runner.js";
-import { t, tn, tCat, tCuisine, tSeason, tLastCooked, setLang, getLang, LANGS, DICT } from "../src/i18n.js";
+import { t, tn, tCat, tCuisine, tSeason, tLastCooked, setLang, getLang, LANGS, DICT, migrateDefaultLang, hasLegacyLocalData, hasLang, _resetLangCache } from "../src/i18n.js";
 import { CATEGORIES } from "../src/data/schema.js";
 
 // Sammelt alle Punkt-Pfade eines verschachtelten Objekts (Blätter = Strings).
@@ -23,8 +23,52 @@ const SAMPLE_KEYS = [
   "guide.title", "errors.nokey", "badge.alltag", "chip.fav",
 ];
 
-test("Default ist Deutsch", () => {
+// localStorage-Attrappe für Node
+function fakeStorage(init = {}) {
+  const m = new Map(Object.entries(init));
+  globalThis.localStorage = {
+    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => m.set(k, String(v)),
+    get length() { return m.size; },
+    key: (i) => [...m.keys()][i] ?? null,
+  };
+  _resetLangCache();
+  return m;
+}
+
+test("P8.2: Default ist Englisch, wenn nichts gespeichert ist", () => {
+  fakeStorage();
+  assertEqual(getLang(), "en");
+});
+
+test("P8.2: Bestehender Nutzer ohne Sprache bekommt einmalig de gespeichert", () => {
+  const m = fakeStorage({ kochv2_theme: "dark" });
+  assert(hasLegacyLocalData(0), "kochv2_-Einstellung zählt als Bestandsdaten");
+  assert(migrateDefaultLang(hasLegacyLocalData(0)), "Migration läuft");
+  assertEqual(m.get("kochv2_lang"), "de");
   assertEqual(getLang(), "de");
+  assert(!migrateDefaultLang(true), "zweiter Aufruf ändert nichts");
+});
+
+test("P8.2: Rezepte in IndexedDB zählen als Bestandsdaten", () => {
+  fakeStorage();
+  assert(hasLegacyLocalData(3));
+  assert(!hasLegacyLocalData(0), "frische Installation hat keine Bestandsdaten");
+});
+
+test("P8.2: Neue Installation: keine Migration, Sprachauswahl bleibt nötig", () => {
+  const m = fakeStorage();
+  assert(!migrateDefaultLang(false));
+  assert(!hasLang());
+  assertEqual(m.has("kochv2_lang"), false);
+  assertEqual(getLang(), "en");
+});
+
+test("P8.2: Gewählte Sprache bleibt erhalten", () => {
+  const m = fakeStorage({ kochv2_lang: "es", kochv2_theme: "dark" });
+  assert(!migrateDefaultLang(true));
+  assertEqual(m.get("kochv2_lang"), "es");
+  assertEqual(getLang(), "es");
 });
 
 test("Alle Beispiel-Keys in DE/EN/ES vorhanden (kein Key-Echo)", () => {
@@ -96,6 +140,7 @@ test("Fallback auf DE bei fehlendem Key, Key-Echo bei komplett unbekanntem", () 
 });
 
 test("setLang ignoriert unbekannte Sprachen", () => {
+  fakeStorage();
   setLang("de");
   setLang("xx");
   assertEqual(getLang(), "de");

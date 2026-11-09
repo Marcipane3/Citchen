@@ -1,4 +1,4 @@
-// i18n.js — Mehrsprachigkeit (DE Standard, EN, ES). Sprache in localStorage
+// i18n.js — Mehrsprachigkeit (EN Standard für neue Installationen, DE, ES, DA). Sprache in localStorage
 // (kochv2_lang) für synchronen Erst-Render ohne Flackern. t(key, params)
 // löst Punkt-Pfade auf; fehlt ein Key, Fallback auf DE, dann auf den Key selbst.
 // Rezeptinhalte bleiben in der Eingabesprache — übersetzt wird nur das UI.
@@ -23,8 +23,31 @@ export function hasLang() {
 export function getLang() {
   if (current) return current;
   try { current = localStorage.getItem(LANG_KEY); } catch (e) { current = null; }
-  if (!LANGS.some((l) => l.code === current)) current = "de";
+  if (!LANGS.some((l) => l.code === current)) current = "en";
   return current;
+}
+/** Nur für Tests: Cache verwerfen, damit getLang() wieder aus localStorage liest. */
+export function _resetLangCache() { current = null; }
+/**
+ * P8.2: Neue Installation → Englisch. Bestehende Nutzer (hasData) ohne gespeicherte Sprache
+ * bekommen einmalig "de" gespeichert und sehen weiter Deutsch. Gibt true zurück, wenn gespeichert wurde.
+ */
+export function migrateDefaultLang(hasData) {
+  if (!hasData || hasLang()) return false;
+  try { localStorage.setItem(LANG_KEY, "de"); } catch (e) { return false; }
+  current = null;
+  return true;
+}
+/** Hat dieses Gerät schon Daten einer früheren Version? (Rezepte in IndexedDB oder irgendeine kochv2_-Einstellung) */
+export function hasLegacyLocalData(recipeCount) {
+  if (recipeCount > 0) return true;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("kochv2_") && k !== LANG_KEY) return true;
+    }
+  } catch (e) { /* egal */ }
+  return false;
 }
 export function setLang(code) {
   if (!LANGS.some((l) => l.code === code)) return;

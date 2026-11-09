@@ -10,6 +10,8 @@ test("Erststart: Sprachauswahl, Basis-Rezepte aus dem Snapshot, Tab-Leiste, Buil
   const modal = page.locator(".lang-overlay");
   await expect(modal).toBeVisible();
   await expect(modal.locator(".lang-btn")).toHaveCount(4);
+  // P8.2: Neue Installation → Standard ist Englisch (noch vor der Wahl).
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await modal.locator('[data-lang="en"]').click();
   await expect(modal).toHaveCount(0);
 
@@ -31,6 +33,16 @@ test("Erststart: Sprachauswahl, Basis-Rezepte aus dem Snapshot, Tab-Leiste, Buil
   await page.reload();
   await expect(page.locator("#cards .rcard").first()).toBeVisible();
   await expect(page.locator(".lang-overlay")).toHaveCount(0);
+});
+
+test("P8.2: Bestehende Installation ohne gespeicherte Sprache bleibt Deutsch", async ({ device }) => {
+  const { page, context } = await device({ lang: null });
+  await context.addInitScript(() => { try { localStorage.setItem("kochv2_theme", "dark"); } catch (e) { /* egal */ } });
+  await page.goto("/v2/");
+  await expect(page.locator("#cards .rcard").first()).toBeVisible();
+  await expect(page.locator(".lang-overlay")).toHaveCount(0);
+  await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  expect(await page.evaluate(() => localStorage.getItem("kochv2_lang"))).toBe("de");
 });
 
 test("Ohne Anmeldung: Einkaufsliste bleibt lokal, Anmelden wird angeboten", async ({ page }) => {
