@@ -27,6 +27,32 @@ export const CATEGORIES = Object.freeze([
 export const EFFORT_VALUES = Object.freeze(["", "alltag", "besonders"]);
 export const DIFFICULTY_VALUES = Object.freeze(["", "einfach", "mittel", "aufwändig"]);
 
+/** Alle Rezept-Felder des Vertrags (SCHEMA.md). Der Datei-Import übernimmt nur diese (#36). */
+export const RECIPE_FIELDS = Object.freeze([
+  "id", "name", "category", "time", "servings", "lastCooked", "rating", "favorite", "cookedCount",
+  "image", "photos", "feedback", "ingredients", "steps", "tips", "effort", "difficulty", "cuisine",
+  "prepTime", "cookTime", "totalTime", "mealPrep", "toTry", "season", "tags",
+]);
+
+/**
+ * Persönliche Felder: gehören dem Nutzer, nicht dem Rezeptinhalt (G2-Q1). Sie verlassen das Gerät
+ * nicht per Export, kommen per Import nicht herein und zählen beim Inhaltsvergleich nicht mit.
+ * EINZIGE Definition — Export und Import lesen sie von hier (#36).
+ */
+export const PERSONAL_FIELDS = Object.freeze(["photos", "feedback", "favorite", "rating", "cookedCount", "lastCooked"]);
+
+/**
+ * Hülle einer Rezept-Datei prüfen — gemeinsam für Drive-Sync (inspectRemote) und Datei-Import:
+ * "notObject" (null, Zahl, Array …) · "noRecipes" (kein `recipes`-Array) ·
+ * "newerFormat" (version > SCHEMA_VERSION: diese App versteht das Format nicht) · null = in Ordnung.
+ */
+export function envelopeProblem(json) {
+  if (!json || typeof json !== "object" || Array.isArray(json)) return "notObject";
+  if (!Array.isArray(json.recipes)) return "noRecipes";
+  if (typeof json.version === "number" && json.version > SCHEMA_VERSION) return "newerFormat";
+  return null;
+}
+
 const isStr = (v) => typeof v === "string";
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 const isBool = (v) => typeof v === "boolean";

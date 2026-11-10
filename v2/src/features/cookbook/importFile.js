@@ -25,12 +25,12 @@ function resultSheet(summary) {
 }
 
 export async function importText(text) {
-  const { recipes, errors } = parseImportFile(text);
+  const { recipes, errors, notes } = parseImportFile(text);
   if (!recipes.length) { resultSheet(summarizeImport({ toAdd: [], skipped: [], renamed: [] }, errors.length ? errors : ["–"])); return; }
   let plan;
   try { plan = await importRecipes(recipes); }
   catch (e) { alert(t("importFile.saveFail", { msg: e.message })); return; }
-  resultSheet(summarizeImport(plan, errors));
+  resultSheet(summarizeImport(plan, errors, notes));
 }
 
 /** Dateiauswahl öffnen (Klick muss aus der Nutzergeste kommen); Fehler beim Lesen → Meldung, nichts geändert. */

@@ -65,7 +65,7 @@ Their first runs produced sensible output.
  (label)              ▲   │
                       │   └► status:needs-input ─► Marcel answers in a comment ─┘
  QA finding ─► status:proposed   (guard pass weekly · /propose digest monthly)
-                                 │ /build-next (nightly) — 1 issue, WIP 1
+                                 │ /build-next (nightly) — 1 issue, WIP 2
                                  ▼
                  PR build/<N>-slug → next   [CI: unit · e2e · supabase · policy]
                                  │ /review-pr (every morning)
@@ -167,23 +167,42 @@ the full QA fleet before a big release, and hotfixes.
    force pushes, branch deletion of main/next and the `supabase` CLI, for every session.
 6. **Scheduled tasks without connectors, with `Task`:** remove Gmail, Drive, Indeed, Supabase, Claude Docs and
    visualize from all five. They need only the repo, plus the `Task` tool where a role spawns `koch-*` agents.
-7. **WIP limit 1, max 2 review rounds,** then needs-human. No infinite loops.
+7. **WIP limit 2 (one issue per run), max 2 review rounds,** then needs-human. No infinite loops.
+   WIP was 1 until 10 Nov; one stuck PR then idled the whole queue (§11).
 
 ---
 
 ## 8. Budget on the Pro plan
 
-- **Runs per week:** builder 7 + reviewer 7 + refiner 2 + release-prep 1 = 17, plus one proposer
-  digest a month. Idle runs stop after 2–3 REST calls.
-- **Models:** Sonnet 5.5 for all roles (the default). Opus only inside the `koch-*` agents that are
-  pinned to it (bug-hunter, data-guardian, architect): the reviewer's bug-hunter only when the data/sync
-  path changes, data-guardian only when the data layer changes, architect once a month.
-- **Timing:** builder and reviewer run at night and early morning, so they use usage windows you
-  aren't using. Scheduled runs still count toward the same weekly allowance as your chats and
-  interactive Claude Code.
+Measured on the first two weeks (27 Oct – 10 Nov, from the run logs; cost = what the same tokens would
+cost on the API, a yardstick for comparing runs, not a bill):
+
+| Run | Model | Measured | Per week |
+|-----|-------|----------|----------|
+| Builder, one small issue incl. local e2e | Sonnet 5.5 | ≈ $0.29, 3 min | 7 × ≈ $0.3 |
+| Refiner, buffer refill | Sonnet 5.5 | ≈ $0.33, 1.5 min | 2–3 × ≈ $0.3 |
+| Reviewer | Sonnet 5.5 (+ Opus bug-hunter on data/sync diffs) | not measured, est. $0.3–1 | 7 × |
+| Release prep with guard pass | Sonnet 5.5 + **Opus 5.5 subagents** | ≈ $3.20, of which $2.48 Opus | 1 × (2 × after a NO-GO) |
+| Any run that stops in preflight | Sonnet 5.5 | ≈ $0.1 (the ~54k-token session start) | — |
+
+So a normal week is about **$9–10 of API-equivalent usage**, and one third of it is the Saturday
+guard pass. Nothing here needs tuning for cost; what the Pro plan is sensitive to is *when* it runs:
+
+- **Scheduled runs draw from the same usage windows as your own sessions** (the 5-hour window and the
+  weekly allowance). A run at 06:58 opens a 5-hour window that lasts until noon and has the reviewer's
+  and refiner's usage already in it. All nightly roles therefore run between 00:20 and 02:30, inside
+  one window that has reset long before you sit down (`SCHEDULED-TASKS.md`).
+- **Saturday release prep runs at 05:40**, in its own window: it is the one heavy run (Opus), and a run
+  that hits the window limit is cut off, not queued.
+- **Daily run cap:** the launch documentation named 5 scheduled runs per day on Pro; today's page only
+  lists hourly caps. The schedule stays at ≤ 4 runs on any day (5 on a Saturday the 1st), so it holds
+  either way.
+- **Models:** Sonnet 5.5 for all roles (the default). Opus only inside the `koch-*` agents pinned to it
+  (bug-hunter, data-guardian, architect).
 - **Context diet:** agents read CLAUDE.md (short) + the one issue + the files it names. Only
   release-prep reads the big roadmaps, once a week.
-- **Throttle if needed:** drop the builder to weekdays (`1-5`) first. The queue just drains slower.
+- **Throttle if needed** (in this order): builder to weekdays (`1-5`) · guard-pass agents on Sonnet for
+  patch releases · refiner back to twice a week.
 
 ---
 
@@ -219,3 +238,23 @@ the full QA fleet before a big release, and hotfixes.
 | 6 | Guard hook blocked branch names ending in `-next` / `-main` and missed `+ref` force pushes | Ref-boundary matching, tested against 24 cases |
 | 7 | Weekend QA ran only bug-hunter + test-warden | data-guardian joins when the data layer changed; proposers run monthly via `/propose` |
 
+---
+
+## 11. Amendments after two weeks of running (2026-11-10)
+
+What the pipeline did: 11 agent PRs built, reviewed and merged into `next` in 12 nights (v2.18 scope
+complete), 1 release attempt (NO-GO on a real data bug, BH-12 — the gate worked). What stalled it:
+
+| # | What happened | Evidence | Fix |
+|---|---------------|----------|-----|
+| 1 | **CI broke for an infrastructure reason and stopped everything.** `ubuntu-latest` moved to Ubuntu 26.04; Playwright 1.56 can't install Chromium there. The Reviewer marked the PR `needs-human`, the Builder then hit WIP 1 every night. | PR #57, run 42730800080 | `e2e` pinned to `ubuntu-24.04` · Reviewer tells infra failures from test failures, re-runs once, files **one** `[CI]` issue, leaves the PR unlabelled so it resumes by itself · Builder WIP 2 |
+| 2 | **A NO-GO cost a full week.** Release prep said NO-GO on Sat 7 Nov; the fix was merged Sun 8 Nov; the next attempt is Sat 14 Nov. | PR #54, #55 | Mid-week `retry` run of release prep that only proceeds after a NO-GO whose blockers are merged |
+| 3 | **An answered question got lost.** Marcel answered #36 with `ok` and the status label went missing; the Refiner only looks at `status:needs-input`, so nobody picked it up for three days. | #36, refiner run 9 Nov | Refiner sweeps issues without a `status:*` label |
+| 4 | **Roles run on `main`, the work lives on `next`.** Scheduled sessions clone the default branch. Skill fixes merged into `next` are not live until the next release, and the Refiner read month-old code. | refiner run 9 Nov: "this checkout's branch doesn't have it" | Task prompts start with `git switch --detach origin/next` (only Marcel-merged changes can touch `.claude/` there; policy blocks agent PRs) |
+| 5 | **Hand-merged PRs leave stale labels.** Issues built in an interactive session never get `status:merged`, so release prep would miss them. | PR #58 | Release prep reconciles labels from `Refs #N` of every PR merged into `next` |
+| 6 | **A delivered issue stayed open.** #37 was covered by #48; nobody may close issues. | refiner run 9 Nov | Refiner asks "delivered by #N — close?" as a normal question |
+| 7 | **Runs sat in Marcel's morning usage window.** | schedule 06:58 / 07:39 / Sat 08:17 | Night schedule, §8 |
+| 8 | **Lead time from an answer to a build was up to 4 days** (answer Mon → refiner Thu → builder Fri). | schedule | Refiner three nights a week, *before* the builder: answer by evening → merged into `next` next morning |
+
+Still open, for Marcel to decide (see `docs/questions/2026-11-10/`): release from a frozen
+`release/v2.x` branch so the freeze no longer idles the Reviewer while a release waits for the device test.
