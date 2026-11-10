@@ -73,7 +73,7 @@ body.no-tabbar { padding-bottom: env(safe-area-inset-bottom); }
 
 .btn-primary {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  background: var(--accent); color: #fff; border: none; border-radius: var(--radius-m);
+  background: var(--accent-fill); color: var(--on-accent); border: none; border-radius: var(--radius-m);
   padding: 13px 18px; font-weight: 700; font-size: 15px;
 }
 .btn-sec {
