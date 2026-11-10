@@ -260,7 +260,7 @@ label.check input { width: auto; }
 .sheet .sl-field { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 8px; }
 .sheet .sl-field input { width: 100%; min-height: 44px; border: 1.5px solid var(--line); border-radius: 12px; padding: 0 12px; font-size: 15px; background: var(--paper); color: var(--ink); }
 .sl-fine { font-size: 12.5px; margin-top: 12px; }
-.sl-undo-btn { background: var(--accent); color: #fff; border: none; border-radius: 9px; padding: 7px 14px; font-weight: 700; }
+.sl-undo-btn { background: var(--accent-fill); color: var(--on-accent); border: none; border-radius: 9px; padding: 7px 14px; font-weight: 700; }
 .sl-sort { display: flex; gap: 6px; margin: 8px 0 4px; }
 .sl-sortbtn { background: var(--card); border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; color: var(--muted-strong); }
 .sl-sortbtn.on { border-color: var(--accent); color: var(--accent); background: var(--line-soft); }
@@ -419,7 +419,7 @@ body.no-tabbar .tabbar { display: none; }
 .tab:active .tab-ic { transform: scale(.9); }
 .tab-badge {
   position: absolute; top: -6px; left: 60%; min-width: 18px; height: 18px; padding: 0 5px;
-  border-radius: 999px; background: var(--accent); color: #fff; border: 2px solid var(--paper);
+  border-radius: 999px; background: var(--accent-fill); color: var(--on-accent); border: 2px solid var(--paper);
   font-size: 10px; font-weight: 700; line-height: 14px; text-align: center; font-family: var(--font-body);
 }
 @media (pointer: coarse) {

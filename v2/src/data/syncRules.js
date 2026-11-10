@@ -78,6 +78,7 @@ export function recipeSync({ store, approveDrop = async () => false, onRetry = (
         const out = mergeRecipes({ base, local, remote: collection.recipes, prefer });
         merged = out.merged;
         if (out.conflicts.length) console.info("Beidseitig geändert, feldweise zusammengeführt:", out.conflicts);
+        if (out.forked.length) console.info("Gleiche id, anderes Rezept — lokales Rezept bekommt eine neue id:", out.forked);
         // T2: Drive-Datei würde viele Rezepte löschen → erst fragen, sonst nichts übernehmen.
         if (base && suspiciousDrop(out.removedRemotely.length, base.length)
           && !(await approveDrop({ count: out.removedRemotely.length, total: base.length }))) {

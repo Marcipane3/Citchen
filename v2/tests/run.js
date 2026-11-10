@@ -28,6 +28,7 @@ import "./test-list-file.js";
 import "./test-shopping-identity.js";
 import "./test-shopping-ux.js";
 import "./test-ai-usage.js";
+import "./test-contrast.js";
 import { run } from "./runner.js";
 
 const { fail } = await run();

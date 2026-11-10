@@ -1,17 +1,15 @@
 // recipeExport.js — reine Builder für die Export-Datei (G2.2). Gleiche Form wie rezepte.json,
 // damit der Import (recipeImport.js) sie direkt liest. Persönliche Felder bleiben draußen (G2-Q1).
 
-import { SCHEMA_VERSION } from "./schema.js";
+import { SCHEMA_VERSION, PERSONAL_FIELDS } from "./schema.js";
 import { assertCanonical } from "./baseLang.js";
-
-const PERSONAL = ["photos", "feedback", "favorite", "rating", "cookedCount", "lastCooked"];
 
 /** {version, updated, recipes} ohne persönliche Felder; Eingabe wird nicht verändert. */
 export function buildExportFile(recipes, now = new Date()) {
   assertCanonical(recipes);
   const out = (recipes || []).map((r) => {
     const copy = JSON.parse(JSON.stringify(r));
-    for (const f of PERSONAL) delete copy[f];
+    for (const f of PERSONAL_FIELDS) delete copy[f];
     return copy;
   });
   return { version: SCHEMA_VERSION, updated: new Date(now).toISOString(), recipes: out };
