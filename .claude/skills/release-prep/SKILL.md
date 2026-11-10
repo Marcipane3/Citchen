@@ -18,10 +18,22 @@ You prepare what Marcel will put live. Read `CLAUDE.md`, `qa/AGENT-CONVENTIONS.m
   merge commit on `main` that `next` never gets, and that one is expected.
 - Any open PR into `next` labelled `claude-build` with green CI and no `changes-requested` →
   continue anyway. It rides the next release.
+- **Retry mode** (the task prompt says `retry`; the mid-week run): go on only if the last release
+  attempt ended NO-GO and its blockers are fixed. Check the newest merged PR from a `release-bump/*`
+  branch: `gh api "$R/pulls?state=closed&base=next&sort=updated&direction=desc&per_page=30" --jq '[.[] | select(.merged_at and (.head.ref|startswith("release-bump/")))][0] | {title, body}'`.
+  Its title does not contain `NO-GO` → STOP: `No retry needed`. A blocker issue it names is still
+  open without `status:merged` → STOP: `Retry waits for #N`. Otherwise continue as usual.
 
 ## 1. Scope of the release
-Collect the issues merged since the last release: issues labelled `status:merged`, cross-checked with
-`git log origin/main..origin/next` (`[#N]` in commit titles). **Version** = their milestone (lowest if
+**First reconcile the labels.** PRs that Marcel merged by hand (interactive sessions, branches other
+than `build/*`) never pass the Reviewer, so their issues keep an old status. For every PR merged into
+`next` since the last release
+(`gh api "$R/pulls?state=closed&base=next&sort=updated&direction=desc&per_page=50" --jq '[.[] | select(.merged_at) | {number, merged_at, body}]'`,
+newer than the last release merge on `main`), read `Refs #N` (may list several) and set each of those
+issues that is still open to `status:merged` (replace its old status label).
+
+Then collect the issues merged since the last release: issues labelled `status:merged`, cross-checked
+with `git log origin/main..origin/next` (`[#N]` or `#N` in commit titles). **Version** = their milestone (lowest if
 mixed). Only fixes → patch `v2.N.1`. More than about 2–3 h of device checks → include only the oldest
 issues, leave the rest for next week, and say so (rule 5 "fits the week").
 
@@ -39,7 +51,8 @@ Treat a data-guardian P0/P1 exactly like a bug-hunter one. They may update their
 one issue per finding (`[BH-xx] …` or `[DG-xx] …`, labels `type:bug`, `source:qa`, `prio:P0|P1`, `status:ready`,
 milestone = this version). That is the only case where an agent creates a ready issue directly: it is a
 regression in unreleased code. Commit the findings files, open the bump PR anyway (step 4) without
-the version bump, and STOP with a report. P2/P3 findings → issues with `status:proposed`.
+the version bump, and STOP with a report. Title of that PR: `Release v<version> guard pass: findings
+only (NO-GO, #a, #b)`; the mid-week retry run keys on it. P2/P3 findings → issues with `status:proposed`.
 
 ## 3. Bump and docs (only if the guard pass is clean)
 - `v2/src/version.js`: `BUILD` = `YYYY-MM-DD-v<version>`, `APP_VERSION`, and a `CHANGELOG` entry in

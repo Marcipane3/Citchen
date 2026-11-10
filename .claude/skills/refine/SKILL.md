@@ -12,7 +12,10 @@ and the Definition of Ready in `docs/process/AGENT-PIPELINE.md` §4. GitHub REST
 
 ## 0. Preflight
 Count open issues labelled `status:ready` that don't carry `risk:needs-human`.
-**≥ 3 → STOP** (`Buffer full: #a #b #c`), unless step 1 has answered questions to process.
+**≥ 3 → STOP** (`Buffer full: #a #b #c`), unless step 1 has answered questions or strays to process.
+
+One call gives you everything for steps 0–2:
+`gh api "$R/issues?state=open&per_page=100" --jq '[.[] | select(.pull_request|not) | {number, title, comments, labels:[.labels[].name]}]'`
 
 ## 1. Answered questions first
 For each `status:needs-input` issue: does Marcel have a comment newer than the question? (The
@@ -21,6 +24,13 @@ question comment is the one that starts with `**Questions**`.) If yes:
 - Otherwise apply his answers, and the defaults for anything he didn't address.
 Rewrite the issue body's acceptance criteria with the decisions, record them in a `Decisions` section
 (date + "Marcel"), relabel to `status:planned`, and continue with step 3 for this issue.
+
+**Strays (issues with no `status:*` label).** An open issue without any status label is invisible to
+every role (this happened to #36 after Marcel answered and removed the label by hand). For each one:
+- It has a `**Questions**` comment and a newer comment by Marcel → treat it as an answered
+  needs-input issue (above).
+- It has a `**Questions**` comment without an answer → put `status:needs-input` back.
+- Otherwise → list it in the final message under `No status label`. Don't guess a status.
 
 ## 2. Find candidates (in this order)
 1. Open issues labelled `status:planned` (Marcel approved them, including QA findings he promoted).
@@ -32,8 +42,12 @@ Rewrite the issue body's acceptance criteria with the decisions, record them in 
 3. Never pick `status:proposed`; only Marcel promotes those.
 
 ## 3. Refine each candidate (max 4 per run, max 5 new issues per run)
-Read the code the item touches to learn the current state, then check every Definition of Ready point.
+Read the code the item touches **on `origin/next`** (that is where merged work lives; `main` is the last
+release) to learn the current state, then check every Definition of Ready point.
 
+- **Already delivered:** if the code on `origin/next` already meets the issue (another issue covered
+  it), don't refine it. Set `status:needs-input` and ask one question: "Looks delivered by #N (PR #M):
+  <one line of evidence>. Close it? **Suggested default: yes.**" You never close issues yourself.
 - **Too big (not S/M):** split it into child issues `[<ID>.1] …`, `[<ID>.2] …`, each one PR and each
   ready on its own. Make the parent `type:epic` with a task list of its children. Children carry
   `Depends on #…` where order matters.
@@ -54,7 +68,7 @@ Read the code the item touches to learn the current state, then check every Defi
 
 ## Final message
 `Ready: #a [ID] title, …` · `Questions for Marcel: #x (n questions), …` · `Split: ID → #…` ·
-`Buffer: k/3`.
+`No status label: #y, …` · `Buffer: k/3`. Questions older than 7 days are listed again with their age.
 
 ## Never
 Write code · edit any `ROADMAP*.md` (release-prep does that weekly) · promote `status:proposed` ·

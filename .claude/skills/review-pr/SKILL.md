@@ -17,12 +17,27 @@ owns production. Read `CLAUDE.md` first (rules + Definition of Done). GitHub RES
    and without a version bump. Reviews resume the morning after Marcel merges (or closes) it.
 2. `gh api "$R/pulls?state=open&base=next&per_page=50"` → keep PRs with label `claude-build` that are
 **not** draft and have neither `changes-requested` nor `needs-human`. Oldest first, **max 2 per run**.
-None → STOP: `Nothing to review`.
+None → STOP: `Nothing to review`. In the STOP line, name every agent PR that carries `needs-human`
+and how many days it has waited.
 
 ## 1. Per PR — gates (stop at the first failure)
 1. **CI:** `gh api "$R/commits/<head_sha>/check-runs" --jq '[.check_runs[] | {name,status,conclusion}]'`
    - Any check still running → skip the PR (`CI pending`); the next run picks it up.
-   - Any failure → **CHANGES** with the failing job name and the key lines from the log.
+   - A job failed → read its log first (`gh api "$R/actions/jobs/<job_id>/logs" | tail -60`).
+     - **Infrastructure failure** = the job died before or outside the project's tests: checkout,
+       `setup-node`, `npm ci`, browser install, runner image, network, cancelled or timed out with no
+       test output. The PR did not cause it and the builder can't fix it (`.github/` is protected).
+       Do this, once per failure cause, not once per PR:
+       1. Re-run the failed jobs once: `gh api -X POST "$R/actions/runs/<run_id>/rerun-failed-jobs"`
+          (a 403 means the token may not; carry on). Skip the PR as `CI re-run`.
+       2. If the same job failed the same way on the re-run, or on another PR: file **one** issue
+          `[CI] <job>: <one-line cause>` (search first: `gh api "$R/issues?state=open&labels=type:chore&per_page=50" --jq '.[] | select(.title|startswith("[CI]")) | .number'`)
+          with labels `type:chore`, `prio:P0`, `risk:needs-human`, `status:ready`. Body: the log lines,
+          the workflow line to change, and the fix you would make.
+       3. Skip the PR as `CI infra — issue #N`. Do **not** label it `needs-human` or
+          `changes-requested`: it must be picked up again by itself as soon as CI is green.
+     - **Test failure** (a unit, snapshot, e2e or supabase test ran and failed) → **CHANGES** with the
+       failing job name and the key lines from the log.
 2. **Policy:** the `policy` check must be green. Protected paths in the diff → **NEEDS-HUMAN**.
 3. **Linked issue:** read `Refs #N`, the issue body and its comments. No linked issue → **NEEDS-HUMAN**.
 
@@ -66,6 +81,8 @@ let you approve a PR opened under the same identity.
 
 ## Final message
 One line per PR: `#num → merged | changes (round k) | needs-human: <why> | skipped: <why>`.
+If CI is red for an infrastructure reason, start the message with
+`⚠ CI is broken (issue #N) — nothing can merge until Marcel fixes the workflow`.
 
 ## Never
 Write or push code (no "small fixes"; that breaks separation of duties) · merge red or pending CI ·
