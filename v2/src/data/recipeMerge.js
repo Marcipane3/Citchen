@@ -12,7 +12,7 @@
 //   kaputte Einträge (fehlende oder doppelte id → neue id, null → verworfen), statt den lokalen
 //   Bestand zu leeren.
 
-import { SCHEMA_VERSION, withDefaults, makeIdFactory } from "./schema.js";
+import { SCHEMA_VERSION, PERSONAL_FIELDS, withDefaults, makeIdFactory, envelopeProblem } from "./schema.js";
 
 /** Fehler, bei dem die Drive-Datei NICHT übernommen werden darf (lokal bleibt alles). */
 export class RemoteRejected extends Error {
@@ -30,9 +30,8 @@ export class RemoteRejected extends Error {
  * Einzelne kaputte Rezepte werden gerettet und in `notes` gemeldet, nie stillschweigend verloren.
  */
 export function inspectRemote(json, { now = Date.now } = {}) {
-  if (!json || typeof json !== "object" || Array.isArray(json)) throw new RemoteRejected("notObject");
-  if (!Array.isArray(json.recipes)) throw new RemoteRejected("noRecipes");
-  if (typeof json.version === "number" && json.version > SCHEMA_VERSION) throw new RemoteRejected("newerFormat", `version ${json.version}`);
+  const problem = envelopeProblem(json);
+  if (problem) throw new RemoteRejected(problem, problem === "newerFormat" ? `version ${json.version}` : "");
 
   const notes = [];
   const valid = json.recipes.filter((r) => r && typeof r === "object" && !Array.isArray(r));
@@ -68,6 +67,15 @@ function stable(v) {
   return JSON.stringify(v);
 }
 
+/** Gleicher Rezept-INHALT: persönliche Felder (♥, Bewertung, Fotos …) und fehlende Standardwerte zählen nicht. */
+const PERSONAL = new Set(PERSONAL_FIELDS);
+function contentOnly(r) {
+  const full = withDefaults(r), out = {};
+  for (const k of Object.keys(full)) if (!PERSONAL.has(k)) out[k] = full[k];
+  return out;
+}
+export function sameContent(a, b) { return stable(contentOnly(a)) === stable(contentOnly(b)); }
+
 /** Feldweise: was lokal gegenüber der Basis geändert wurde, gewinnt; sonst der Drive-Stand. */
 function mergeFields(base, local, remote) {
   const out = {};
@@ -86,20 +94,27 @@ export const sameCollection = (a, b) => a.length === b.length && a.every((r, i) 
  * base   — letzter gemeinsamer Stand mit Drive (null = unbekannt, z. B. vor v2.15.1)
  * local  — lokale Sammlung · remote — geprüfte Drive-Sammlung (inspectRemote)
  * prefer — nur ohne Basis: wer bei Unterschieden gewinnt ("local" | "remote")
- * → { merged, removedRemotely: [ids lokal gelöscht, weil Drive sie löschte], conflicts: [ids beidseitig geändert] }
+ * → { merged, removedRemotely: [ids lokal gelöscht, weil Drive sie löschte], conflicts: [ids beidseitig geändert],
+ *     forked: [{from, to, name}] }
+ *
+ * forked (#49, DG-15): Beide Seiten haben UNABHÄNGIG ein Rezept mit derselben id angelegt (die Basis kennt
+ * die id nicht), aber mit anderem Inhalt — typisch: eine importierte Datei, deren id auf Drive schon ein
+ * anderes Gerät vergeben hat. Früher gewann still eine Seite. Jetzt bleibt das Drive-Rezept unter der id,
+ * das lokale bekommt eine frische id. Unterscheiden sich nur persönliche Felder, ist es dasselbe Rezept.
  *
  * Reihenfolge: neue lokale Rezepte vorn (App fügt vorn ein), danach die Drive-Reihenfolge,
  * dann übrige lokale. Ohne Basis wird nichts gelöscht (Vereinigung) — kein Datenverlust beim Umstieg.
  */
-export function mergeRecipes({ base, local, remote, prefer = "remote" }) {
+export function mergeRecipes({ base, local, remote, prefer = "remote", now = Date.now }) {
   const B = base ? byId(base) : null, L = byId(local), R = byId(remote);
   const merged = new Map();
-  const removedRemotely = [], conflicts = [];
+  const removedRemotely = [], conflicts = [], twins = [];
 
   const decide = (id) => {
     const b = B ? B.get(id) : undefined, l = L.get(id), r = R.get(id);
     if (l && r) {
       if (sameRecipe(l, r)) return l;
+      if (B && !b && !sameContent(l, r)) { twins.push(l); return r; } // zwei verschiedene Rezepte, eine id
       if (!B || !b) return prefer === "local" ? l : r;
       if (sameRecipe(l, b)) return r;                 // nur Drive geändert
       if (sameRecipe(r, b)) return l;                 // nur lokal geändert
@@ -129,7 +144,18 @@ export function mergeRecipes({ base, local, remote, prefer = "remote" }) {
     const v = decide(id);
     merged.set(id, v);
   }
-  return { merged: [...merged.values()].filter(Boolean), removedRemotely, conflicts };
+  const out = [...merged.values()].filter(Boolean);
+  const forked = [];
+  if (twins.length) {
+    const nextId = makeIdFactory([...(base || []), ...(local || []), ...(remote || [])].map((r) => r.id), now);
+    const copies = twins.map((l) => {
+      const id = nextId();
+      forked.push({ from: l.id, to: id, name: l.name });
+      return { ...l, id };
+    });
+    out.unshift(...copies);                           // wie jedes lokal neue Rezept: vorn
+  }
+  return { merged: out, removedRemotely, conflicts, forked };
 }
 
 /**

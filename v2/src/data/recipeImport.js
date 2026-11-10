@@ -2,50 +2,74 @@
 // Bestand planen. Kein DOM, kein Store. Dateiform = rezepte.json ({version, updated, recipes[]}).
 // Eine Import-ID überschreibt NIE ein vorhandenes Rezept: Kollisionen bekommen eine frische ID.
 
-import { validateRecipe, withDefaults, makeIdFactory } from "./schema.js";
+import { validateRecipe, withDefaults, makeIdFactory, envelopeProblem, RECIPE_FIELDS, PERSONAL_FIELDS } from "./schema.js";
+import { sameContent } from "./recipeMerge.js";
 
-/** Text → {recipes, errors}. Ungültige Rezepte werden mit Index + Grund gemeldet und übersprungen. */
+// Eine Import-Datei ist ein FREMDER Kanal (#36): Grenzen weit über echten Rezepten (längster Name im
+// Grundbestand: 52 Zeichen, längster Schritt: 208, ganzes Kochbuch: 147 KB), aber unter Missbrauch.
+export const IMPORT_LIMITS = Object.freeze({ fileChars: 2_000_000, name: 200, line: 500, lines: 200, tips: 5000, image: 2000 });
+
+const PERSONAL = new Set(PERSONAL_FIELDS);
+const KEPT_FIELDS = RECIPE_FIELDS.filter((f) => !PERSONAL.has(f)); // unbekannte Felder fallen weg
+
+function limitProblems(r) {
+  const L = IMPORT_LIMITS, out = [];
+  if (r.name.length > L.name) out.push(`name länger als ${L.name} Zeichen`);
+  for (const f of ["time", "servings", "cuisine", "season"]) {
+    if (typeof r[f] === "string" && r[f].length > L.line) out.push(`${f} länger als ${L.line} Zeichen`);
+  }
+  if (typeof r.tips === "string" && r.tips.length > L.tips) out.push(`tips länger als ${L.tips} Zeichen`);
+  if (typeof r.image === "string" && r.image.length > L.image) out.push(`image länger als ${L.image} Zeichen`);
+  for (const f of ["ingredients", "steps", "tags"]) {
+    if (!Array.isArray(r[f])) continue;
+    if (r[f].length > L.lines) out.push(`${f} hat mehr als ${L.lines} Zeilen`);
+    else if (r[f].some((line) => line.length > L.line)) out.push(`${f}: Zeile länger als ${L.line} Zeichen`);
+  }
+  return out;
+}
+
+/** Nur https-Bilder: ein http-Bild wird bei jedem Anzeigen unverschlüsselt geladen, javascript:/data: gehören nie in ein Rezept. */
+function isHttpsUrl(v) {
+  try { return new URL(v).protocol === "https:"; } catch { return false; }
+}
+
+/**
+ * Text → {recipes, errors, notes}. Ungültige oder übergroße Rezepte werden mit Index + Grund gemeldet
+ * (errors) und übersprungen; `notes` nennt, was an einem übernommenen Rezept entfernt wurde.
+ * Übernommen werden nur Inhaltsfelder des Vertrags — persönliche und unbekannte Felder fallen weg.
+ */
 export function parseImportFile(text) {
+  const none = (msg) => ({ recipes: [], errors: [msg], notes: [] });
+  if (typeof text !== "string") return none("Datei ist kein Text");
+  if (text.length > IMPORT_LIMITS.fileChars) return none("Datei ist größer als 2 MB");
   let data;
   try { data = JSON.parse(text); }
-  catch { return { recipes: [], errors: ["Datei ist kein gültiges JSON"] }; }
-  if (!data || typeof data !== "object" || Array.isArray(data)) {
-    return { recipes: [], errors: ["Datei enthält kein Objekt"] };
-  }
-  if (typeof data.version !== "number" || !Number.isFinite(data.version)) {
-    return { recipes: [], errors: ["version fehlt oder ist keine Zahl"] };
-  }
-  if (!Array.isArray(data.recipes)) return { recipes: [], errors: ["recipes fehlt oder ist kein Array"] };
+  catch { return none("Datei ist kein gültiges JSON"); }
+  const problem = envelopeProblem(data);
+  if (problem === "notObject") return none("Datei enthält kein Objekt");
+  if (typeof data.version !== "number" || !Number.isFinite(data.version)) return none("version fehlt oder ist keine Zahl");
+  if (problem === "noRecipes") return none("recipes fehlt oder ist kein Array");
+  if (problem === "newerFormat") return none(`Datei stammt aus einer neueren App-Version (Format ${data.version})`);
 
-  const recipes = [], errors = [];
+  const recipes = [], errors = [], notes = [];
   data.recipes.forEach((r, i) => {
     const res = validateRecipe(r);
-    if (!res.valid) { errors.push(`Rezept[${i}]: ${res.errors.join("; ")}`); return; }
-    const { photos, ...rest } = r; // Drive-Datei-IDs sind für ein anderes Konto wertlos (SCHEMA.md §Bilder)
-    recipes.push(withDefaults(rest));
+    const problems = res.valid ? limitProblems(r) : res.errors;
+    if (problems.length) { errors.push(`Rezept[${i}]: ${problems.join("; ")}`); return; }
+    const clean = {};
+    for (const f of KEPT_FIELDS) if (r[f] !== undefined) clean[f] = r[f];
+    clean.id = r.id.trim(); // „ r01 “ ist dasselbe Rezept wie „r01“ (#50)
+    if (clean.image && !isHttpsUrl(clean.image)) {
+      clean.image = "";
+      notes.push(`Rezept[${i}] „${r.name}“: Bild-Adresse entfernt (nur https erlaubt)`);
+    }
+    recipes.push(withDefaults(clean));
   });
-  return { recipes, errors };
-}
-
-// Persönliche Felder gehören dem Nutzer, nicht dem Rezeptinhalt: sie zählen beim Vergleich nicht mit.
-const PERSONAL = new Set(["rating", "favorite", "cookedCount", "lastCooked", "feedback", "photos"]);
-
-function stable(v) {
-  if (Array.isArray(v)) return v.map(stable);
-  if (v && typeof v === "object") {
-    return Object.fromEntries(Object.keys(v).sort().map((k) => [k, stable(v[k])]));
-  }
-  return v;
-}
-
-function contentKey(r) {
-  const full = withDefaults(r), o = {}; // fehlende Optionalfelder gleich behandeln
-  for (const k of Object.keys(full)) if (!PERSONAL.has(k)) o[k] = full[k];
-  return JSON.stringify(stable(o));
+  return { recipes, errors, notes };
 }
 
 /** Gleiche ID und gleicher Inhalt (ohne persönliche Felder + Fotos) → dasselbe Rezept. */
-export function isSameRecipe(a, b) { return a.id === b.id && contentKey(a) === contentKey(b); }
+export function isSameRecipe(a, b) { return a.id === b.id && sameContent(a, b); }
 
 /** Plant das Hinzufügen: → {toAdd, skipped, renamed}. Identische Rezepte werden übersprungen. Mutiert keine Eingabe. */
 export function planImport(incoming, existing, now = Date.now) {
@@ -69,12 +93,12 @@ export function planImport(incoming, existing, now = Date.now) {
   return { toAdd, skipped, renamed };
 }
 
-/** Plan + Parse-Fehler → Zähler für das Ergebnis-Blatt (G2.3): {imported, skipped, reasons, renamed}. */
-export function summarizeImport(plan, errors = []) {
+/** Plan + Parse-Fehler (+ Hinweise) → Zähler für das Ergebnis-Blatt (G2.3): {imported, skipped, reasons, renamed}. */
+export function summarizeImport(plan, errors = [], notes = []) {
   return {
     imported: plan.toAdd.length,
-    skipped: errors.length + plan.skipped.length,
-    reasons: errors, // Duplikate nur zählen: bis zu 105 Zeilen Liste wären Rauschen
+    skipped: errors.length + plan.skipped.length, // Hinweise zählen nicht: das Rezept wurde übernommen
+    reasons: [...errors, ...notes], // Duplikate nur zählen: bis zu 105 Zeilen Liste wären Rauschen
     renamed: plan.renamed.length,
     duplicates: plan.skipped.length,
   };

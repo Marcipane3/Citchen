@@ -184,7 +184,10 @@ den Stand, auf den sie sich zuletzt mit Drive geeinigt hat. Abgeglichen wird **p
 2. **Pro Rezept-`id`:** nur Drive geändert (Claude, v1, anderes Gerät) → Drive-Stand · nur in der
    App geändert → App-Stand · **beide** geändert → **pro Feld** zusammengeführt (hat dasselbe Feld
    auf beiden Seiten einen anderen Wert, gewinnt die App).
-3. **Neue Rezepte** beider Seiten bleiben. **Gelöscht** wird nur, was die andere Seite unverändert
+3. **Neue Rezepte** beider Seiten bleiben — auch wenn beide Seiten unabhängig **dieselbe `id`** für
+   zwei verschiedene Rezepte vergeben haben (z. B. eine importierte Datei): das Drive-Rezept behält
+   die `id`, das Rezept der App bekommt eine neue. Unterscheiden sich nur persönliche Felder
+   (♥, Bewertung …), ist es dasselbe Rezept. **Gelöscht** wird nur, was die andere Seite unverändert
    gelassen hat (Bearbeiten schlägt Löschen). Fehlen auf Drive auf einmal viele Rezepte (ab 5
    **oder** ab 20 %), **fragt** die App, bevor sie lokal etwas löscht.
 4. `updated` entscheidet **nicht** mehr, wer gewinnt — trotzdem bei jedem Schreiben im obigen
@@ -208,6 +211,35 @@ mitgeschrieben — dort nichts ablegen.
 **Damit Claudes Edit ankommt:** einfach die Datei in place bearbeiten und `updated` stempeln. Die
 App muss dafür nicht geschlossen sein; ein ♥ in einer noch offenen App überschreibt Claudes Edit
 nicht mehr (früher: Last-Write-Wins, siehe Git-Historie dieser Datei).
+
+## Export-/Import-Datei (`*.citchen.json`, seit v2.18)
+
+Rezepte lassen sich als Datei weitergeben („Für den Import in die App“) und in einer anderen
+Installation einlesen — ohne Drive auf beiden Seiten. Die Datei hat **dieselbe Form** wie
+`rezepte.json`: `{ "version": 3, "updated": "…", "recipes": [ … ] }`.
+
+- **Dateiname:** ein Rezept → `<Rezeptname>.citchen.json` · ganzes Kochbuch →
+  `citchen-rezepte-JJJJ-MM-TT.json`.
+- **Der Export lässt die persönlichen Felder weg:** `photos`, `feedback`, `favorite`, `rating`,
+  `cookedCount`, `lastCooked`. Alles andere (Inhalt, `image`-URL, `id`) steht in der Datei.
+  Inhalte sind immer das deutsche Original, nie eine Übersetzung.
+- **Der Import behandelt die Datei als fremden Kanal** und übernimmt nur, was er prüfen kann:
+
+| Prüfung | Verhalten |
+|---------|-----------|
+| Datei größer als 2 MB, kein JSON-Objekt, `version` fehlt / keine Zahl, kein `recipes`-Array | Datei abgelehnt, nichts importiert |
+| `version` größer als 3 (neueres Format) | Datei abgelehnt (wie beim Drive-Abgleich) |
+| Rezept verletzt das Schema oben (z. B. unbekannte `category`) | dieses Rezept übersprungen und mit Position gemeldet, der Rest wird importiert |
+| Rezept zu groß: `name` > 200 Zeichen · Zeile in `ingredients`/`steps`/`tags` oder `time`/`servings`/`cuisine`/`season` > 500 Zeichen · mehr als 200 Zeilen in einer Liste · `tips` > 5000 Zeichen | dieses Rezept übersprungen und gemeldet |
+| persönliche Felder (s. o.) | verworfen — auch `feedback`: eine fremde Datei darf Claude nichts auftragen |
+| unbekannte Felder im Rezept | verworfen (der Drive-Abgleich behält sie weiterhin) |
+| `image` ist keine `https:`-Adresse | Bild-Adresse geleert, Rezept wird importiert, Hinweis im Ergebnis |
+| Leerraum um die `id` | entfernt (`" r01 "` = `"r01"`) |
+
+- **Eine Import-`id` überschreibt nie ein vorhandenes Rezept.** Gleiche `id` und gleicher Inhalt →
+  übersprungen („bereits vorhanden“; so verdoppelt der eigene Vollexport nichts). Gleiche `id`,
+  anderer Inhalt → das importierte Rezept bekommt eine neue `id`. Ist die `id` frei, bleibt sie
+  erhalten (wichtig für Sicherung + Wiederherstellen: Übersetzungen und Wochenplan hängen an der `id`).
 
 ## Nebenbei: `einkaufsliste.json` (geteilte Einkaufsliste, seit v2.15.2 geprüft)
 
