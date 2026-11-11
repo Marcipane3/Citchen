@@ -6,33 +6,32 @@ notification on. **Allowed tools:** Bash, Read, Write, Edit, Glob, Grep, plus **
 Release prep and Proposer digest (they spawn the `koch-*` agents; without it the guard pass silently
 can't run). WebFetch/WebSearch are not needed.
 
-> **Status 2026-11-11:** Marcel approved this setup on 10 Nov and asked for a higher cadence (builder and
-> reviewer several times a night). **The five tasks he created still run their 27 Oct prompts and times
-> (last column): an agent session can neither edit nor start tasks it did not create.** Marcel changes
-> them at claude.ai/code/routines, or agent-created extra tasks add the extra runs. Reasons for every
+> **Status 2026-11-11:** Marcel approved this setup on 10 Nov and asked for a higher cadence. **The five
+> tasks still run their 27 Oct prompts and times (last column) until Marcel changes them himself** at
+> claude.ai/code/routines: an agent session can neither edit nor start a task it did not create. A task
+> created by an agent session is no way around that. Tested on 11 Nov: its runs have no GitHub API
+> access to the repo and inherit the session's model (Fable instead of Sonnet). Reasons for every
 > change: `AGENT-PIPELINE.md` §8 and §11.
->
-> **Usage:** scheduled runs and interactive sessions share one 5-hour window. On 10 Nov a long
-> interactive session used it up and the 01:42 builder run was rejected. Keep heavy sessions away from
-> the hours before the night runs, or expect the first run of the night to be skipped.
 
 | Task | Schedule (Europe/Berlin) | Cron | Live today |
 |------|--------------------------|------|------------|
-| Citchen · Refiner | Mon, Wed, Fri night 00:20 | `CRON_TZ=Europe/Berlin 20 0 * * 2,4,6` | Mon + Thu 07:39 |
-| Citchen · Builder | every night 00:50 | `CRON_TZ=Europe/Berlin 50 0 * * *` | 01:42 |
-| Citchen · Reviewer | every night 02:20 | `CRON_TZ=Europe/Berlin 20 2 * * *` | 06:58 |
-| Citchen · Release prep | Saturday 05:40 | `CRON_TZ=Europe/Berlin 40 5 * * 6` | Sat 08:17 |
-| Citchen · Release retry *(new)* | Wednesday 05:40 | `CRON_TZ=Europe/Berlin 40 5 * * 3` | — |
+| Citchen · Refiner | every night 01:30 | `CRON_TZ=Europe/Berlin 30 1 * * *` | Mon + Thu 07:39 |
+| Citchen · Builder | 02:10, 04:10, 06:10 | `CRON_TZ=Europe/Berlin 10 2,4,6 * * *` | 01:42 |
+| Citchen · Reviewer | 03:20, 05:20, 07:20 | `CRON_TZ=Europe/Berlin 20 3,5,7 * * *` | 06:58 |
+| Citchen · Release prep | Saturday 07:50 | `CRON_TZ=Europe/Berlin 50 7 * * 6` | Sat 08:17 |
+| Citchen · Release retry *(new)* | Wednesday 07:50 | `CRON_TZ=Europe/Berlin 50 7 * * 3` | — |
 | Citchen · Proposer digest | 1st of the month 10:17 | `CRON_TZ=Europe/Berlin 17 10 1 * *` | same |
 
-Cron days: `2,4,6` at 00:20 are the nights *after* Monday, Wednesday and Friday.
+In the Refiner prompt, replace "Target: 3 ready issues" with "Target: 5 ready issues (replaces the 3 in
+the skill)" and "buffer k/3" with "buffer k/5": three builder runs a night empty a buffer of three.
 
-**Why this order.** Refiner → Builder → Reviewer, all in one night: an answer you give during the day
-is turned into a ready issue at 00:20, built at 00:50 and (CI takes about 6 minutes) reviewed and
-merged at 02:20. Before, the same path took up to four days. All three run inside one 5-hour usage
-window that has reset before you get up, so your own sessions start with a full window. Release prep
-is the one heavy run (Opus subagents) and gets its own window early on Saturday; the release PR is
-waiting when you have time for the device test.
+**Why these times.** Refiner → Builder → Reviewer, three rounds a night: an answer given during the
+day is refined at 01:30, built at 02:10 and merged at 03:20; up to three issues a night instead of one.
+Scheduled runs and your own sessions share one 5-hour usage window, and on 10 Nov a long evening
+session used it up, so the 01:42 builder was rejected ("usage limit reached"). A window you open at
+21:00 has reset by 02:00, which is why nothing starts before 01:30. The last reviewer at 07:20 leaves
+you a window that is already running when you start and resets at 12:20. Release prep (the one heavy
+run, Opus review agents) follows the last reviewer on Saturday.
 
 **Every prompt starts on `next`.** Scheduled sessions clone `main`, but merged work and pipeline fixes
 live on `next`. Only PRs that Marcel merges can change `.claude/` there (the `policy` check blocks

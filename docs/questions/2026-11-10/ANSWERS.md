@@ -13,8 +13,9 @@ next release bump (they are being rewritten by release prep for v2.18, so they a
 
 **What Claude could not do.** An agent session can neither edit nor start the five scheduled tasks
 Marcel created (the platform allows that only for tasks an agent created itself). Marcel changes
-those five by hand (times and prompts are in `SCHEDULED-TASKS.md`), or keeps them and lets
-agent-created extra tasks add the additional runs.
+those five by hand (times and prompts are in `SCHEDULED-TASKS.md`). Extra tasks created by an agent
+session are no alternative: tested on 11 Nov, their runs have no GitHub API access to the repo and run
+on the session's model (Fable) instead of Sonnet. The test task was deleted.
 
 **What the night showed.** The long interactive session of 10 Nov used up the 5-hour usage window.
 The 01:42 builder run was rejected with "usage limit reached", and the 03:05 continuation of the session
