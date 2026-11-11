@@ -6,9 +6,15 @@ notification on. **Allowed tools:** Bash, Read, Write, Edit, Glob, Grep, plus **
 Release prep and Proposer digest (they spawn the `koch-*` agents; without it the guard pass silently
 can't run). WebFetch/WebSearch are not needed.
 
-> **Status 2026-11-10:** this page describes the **proposed** setup (second version). The live tasks
-> still run the 27 Oct prompts and times shown in the last column until Marcel confirms
-> (`docs/questions/2026-11-10/1-pipeline.md`). Reasons for every change: `AGENT-PIPELINE.md` §8 and §11.
+> **Status 2026-11-11:** Marcel approved this setup on 10 Nov and asked for a higher cadence (builder and
+> reviewer several times a night). **The five tasks he created still run their 27 Oct prompts and times
+> (last column): an agent session can neither edit nor start tasks it did not create.** Marcel changes
+> them at claude.ai/code/routines, or agent-created extra tasks add the extra runs. Reasons for every
+> change: `AGENT-PIPELINE.md` §8 and §11.
+>
+> **Usage:** scheduled runs and interactive sessions share one 5-hour window. On 10 Nov a long
+> interactive session used it up and the 01:42 builder run was rejected. Keep heavy sessions away from
+> the hours before the night runs, or expect the first run of the night to be skipped.
 
 | Task | Schedule (Europe/Berlin) | Cron | Live today |
 |------|--------------------------|------|------------|
