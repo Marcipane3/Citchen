@@ -1,5 +1,7 @@
 # Open questions — 10 Nov 2026
 
+> **All four files were answered on 10 Nov.** The answers and what was done with them: [ANSWERS.md](ANSWERS.md).
+
 Four files, independent of each other. Take them in any order, or hand each to its own Claude session.
 Every question has a recommended answer; **`ok` accepts all recommendations in that file.**
 

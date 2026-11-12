@@ -1,7 +1,8 @@
 # ADR R1 — Ingredient model, unit rules, recipe ownership and file format 4
 
-- **Status:** **draft for sign-off** (2026-11-10). Nothing here is built. Marcel's open decisions are
-  marked **R1-Q1 … R1-Q7** and collected in `docs/questions/2026-11-10/3-data-model-R1.md`.
+- **Status:** **accepted** — Marcel signed off all seven recommendations (R1-Q1 … R1-Q7) on
+  2026-11-10. Nothing is built yet; the build steps are issues #61 (R2.1) and #62 (R3.1) onward.
+  Where a section below says "Recommended", that is now the decision.
 - **Owner:** Marcel · written by Claude Code
 - **Related:** `ROADMAP-V2.md` Epic R (R1–R6), L (L1–L3), P6, G3 · `ROADMAP-V3.md` D8, D10, D11,
   slice 2 · `docs/v3/03-QUESTIONS.md` C-27 · `SCHEMA.md`

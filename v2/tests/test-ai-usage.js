@@ -91,6 +91,20 @@ test("Q3: normalizeUsage — fehlende Felder = 0, Cache + web_fetch werden mitge
   assertDeepEqual(addUsage({ in: 1, out: 2, cr: 3, cw: 4, wf: 5 }, { in: 10, out: 20, cr: 30, cw: 40, wf: 50 }), { in: 11, out: 22, cr: 33, cw: 44, wf: 55 });
 });
 
+test("Verbrauch: Modell mit Datumsstempel („…-20251001“, so meldet es die API) bekommt den Preis des Namens ohne Stempel", () => {
+  const u = { in: 1e6, out: 1e6, cr: 1e6, cw: 1e6, wf: 0 };
+  assertEqual(costOf("claude-haiku-4-5-20251001", u), costOf("claude-haiku-4-5", u));
+  assert(costOf("claude-haiku-4-5-20251001", u) > 0, "nicht mehr 0 $");
+  assertEqual(costOf("gpt-9000-20251001", u), null, "unbekannt bleibt unbekannt");
+  // Marcels echtes Protokoll (27.10.–8.11.2026, 5 Aufrufe): vorher 5 × „ohne Preis“, 0 $
+  const s = summarizeUsage([
+    { t: "2026-10-27T16:03:37.073Z", a: "assistant", m: "claude-haiku-4-5-20251001", in: 32, out: 280, cr: 0, cw: 6356, wf: 0 },
+    { t: "2026-10-27T16:04:08.626Z", a: "assistant", m: "claude-haiku-4-5-20251001", in: 368, out: 848, cr: 6356, cw: 0, wf: 0 },
+  ]);
+  assertEqual(s.total.unpriced, 0);
+  assert(Math.abs(s.total.cost - (400 * 1 + 1128 * 5 + 6356 * 1.25 + 6356 * 0.1) / 1e6) < 1e-12);
+});
+
 test("Q3: costOf — Listenpreis inkl. Cache-Schreiben/-Lesen; unbekanntes Modell → null", () => {
   // Haiku 4.5: 1 Mio rein ($1) + 1 Mio raus ($5) + 1 Mio Cache gelesen ($0.10) + 1 Mio geschrieben ($1.25)
   const c = costOf("claude-haiku-4-5", { in: 1e6, out: 1e6, cr: 1e6, cw: 1e6, wf: 0 });

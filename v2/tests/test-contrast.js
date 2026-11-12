@@ -69,3 +69,16 @@ for (const selector of [".sl-undo-btn", ".tab-badge"]) {
     });
   }
 }
+
+// Marcel 2026-11-10 (Frage 2.4 = b): das Paar gilt für ALLE gefüllten Akzent-Flächen, nicht nur für
+// Rückgängig + Badge. Keine Regel darf mehr Weiß fest auf den Akzent setzen. (Die zwei Verläufe der
+// Match-Ansicht sind ausgenommen: sie fällt mit V3 weg, Entscheidung F8.)
+test("#39 / 2.4b: keine Regel kombiniert mehr `background: var(--accent)` mit festem Weiß", () => {
+  const css = appCss + readFileSync(join(styles, "base.css"), "utf8");
+  const offenders = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+    .filter(([, , body]) => /background:\s*var\(--accent\)\s*;/.test(body) && /(?:^|[;\s])color:\s*#fff\b/.test(body))
+    .map(([, sel]) => sel.trim());
+  assert(offenders.length === 0, "Weiß auf var(--accent): " + offenders.join(" | "));
+  const filled = [...css.matchAll(/background:\s*var\(--accent-fill\)/g)].length;
+  assert(filled >= 11, `alle gefüllten Akzent-Flächen nutzen --accent-fill (gefunden: ${filled})`);
+});
