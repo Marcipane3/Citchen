@@ -1193,7 +1193,7 @@ export const DICT = {
    DE-Namen entsprechen toLocaleDateString("de-DE", {month:"long"}).
    ============================================================ */
 export const DE_MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-const MONTH_DICT = {
+export const MONTH_DICT = {
   en: ["January","February","March","April","May","June","July","August","September","October","November","December"],
   es: ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"],
   da: ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"],

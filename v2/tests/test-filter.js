@@ -271,6 +271,28 @@ test("Zeit-Chips (F4): ≤ 15 / ≤ 30 / ≤ 60 filtern nach Gesamtzeit; ein Chi
   assert(fast.includes("__t15") && !fast.includes("__quick") && !fast.includes("__t60"));
 });
 
+test("cookedMonthKey: Nicht-Monatswörter („Martes“, „Mayonesa“) zählen nicht als Monat", () => {
+  assertEqual(cookedMonthKey("Martes 2025"), 202500);
+  assertEqual(cookedMonthKey("Mayonesa 2025"), 202500);
+  assertEqual(cookedMonthKey("Maibowle 2025"), 202500);
+  assertEqual(cookedMonthKey("Augustiner 2025"), 202500);
+});
+
+test("cookedMonthKey: alle 12 Monate in DE/EN/ES/DA, voller Name und 3-Buchstaben-Kürzel", () => {
+  const langs = [
+    ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
+    ["January","February","March","April","May","June","July","August","September","October","November","December"],
+    ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"],
+    ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"],
+  ];
+  for (const names of langs) names.forEach((n, i) => {
+    const want = 202600 + i + 1;
+    assertEqual(cookedMonthKey(`${n} 2026`), want, n);
+    assertEqual(cookedMonthKey(`${n.slice(0, 3)}. 2026`), want, n.slice(0, 3));
+    assertEqual(cookedMonthKey(`${n.slice(0, 3).toUpperCase()} 2026`), want, n.slice(0, 3));
+  });
+});
+
 test("cookedMonthKey: „Mai 2026“ und Varianten → JJJJMM, leer/unbekannt → 0", () => {
   assertEqual(cookedMonthKey("Mai 2026"), 202605);
   assertEqual(cookedMonthKey("Oktober 2026"), 202610);
@@ -280,6 +302,7 @@ test("cookedMonthKey: „Mai 2026“ und Varianten → JJJJMM, leer/unbekannt �
   assertEqual(cookedMonthKey("2026"), 202600);
   assertEqual(cookedMonthKey(""), 0);
   assertEqual(cookedMonthKey(undefined), 0);
+  assertEqual(cookedMonthKey("märz 2025"), 202503);
   assertEqual(cookedMonthKey("irgendwann"), 0);
 });
 
