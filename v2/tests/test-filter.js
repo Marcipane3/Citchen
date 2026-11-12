@@ -274,6 +274,8 @@ test("Zeit-Chips (F4): ≤ 15 / ≤ 30 / ≤ 60 filtern nach Gesamtzeit; ein Chi
 test("cookedMonthKey: Nicht-Monatswörter („Martes“, „Mayonesa“) zählen nicht als Monat", () => {
   assertEqual(cookedMonthKey("Martes 2025"), 202500);
   assertEqual(cookedMonthKey("Mayonesa 2025"), 202500);
+  assertEqual(cookedMonthKey("Maibowle 2025"), 202500);
+  assertEqual(cookedMonthKey("Augustiner 2025"), 202500);
 });
 
 test("cookedMonthKey: alle 12 Monate in DE/EN/ES/DA, voller Name und 3-Buchstaben-Kürzel", () => {

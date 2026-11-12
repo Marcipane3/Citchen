@@ -147,8 +147,7 @@ export function cookedMonthKey(v) {
   if (num) return +num[2] * 100 + +num[1];
   const y = /(\d{4})/.exec(v);
   if (!y) return 0;
-  const m = DE_MONTHS.findIndex((name) => v.includes(name));
-  return +y[1] * 100 + (m >= 0 ? m + 1 : monthFromWord(v));
+  return +y[1] * 100 + monthFromWord(v);
 }
 
 /** Monatswörter in DE, EN, ES, DA: nur GANZE Wörter — voller Name oder 3-Buchstaben-Kürzel („Mär.“, „mayo“, „maj“). */
