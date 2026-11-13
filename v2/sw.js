@@ -64,6 +64,8 @@ const SHELL = [
   "./src/features/cooking/cooking.js",
   "./src/features/match/match.js",
   "./src/data/catalog.js",
+  "./src/data/units.js",
+  "./src/data/ingredients.js",
   "./src/features/shopping/logic.js",
   "./src/features/shopping/shopping.js",
   "./src/features/shopping/listMerge.js",
