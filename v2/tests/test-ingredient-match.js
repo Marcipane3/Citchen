@@ -36,7 +36,7 @@ const MASTER = {
     ing("parsley", "Petersilie"),
     ing("peas-carrots-canned", "Erbsen & Karotten"),
     ing("onion", "Zwiebel", { plural: { de: "Zwiebeln" }, aliases: { de: ["rote Zwiebel"] }, units: { piece: 80 } }),
-    ing("garlic", "Knoblauch", { units: { clove: 3 } }),
+    ing("garlic", "Knoblauch", { aliases: { de: ["Knoblauchzehe", "Knoblauchzehen"] }, units: { clove: 3 } }),
     ing("kidney-beans-canned", "rote Bohnen"),
     ing("sugar", "Zucker"),
   ],
@@ -313,6 +313,17 @@ test("leer, nur Emoji, sehr lang, kein String: nichts wirft", () => {
   assert(Date.now() - t0 < 2000, `zu langsam: ${Date.now() - t0} ms`);
   for (const bad of [null, undefined, 42, {}]) assertEqual(matchLine(bad, index).length, 1);
   assertEqual(matchLine("Reis", null).length, 1);
+});
+
+test("ausgelieferter Stamm: 3 Knoblauchzehen → clove, 9 g (Alias „Knoblauchzehen“ verdeckt die Einheit nicht)", () => {
+  const master = read("../data/ingredients.json");
+  const shipped = buildIndex(master);
+  for (const line of ["3 Knoblauchzehen", "3 Knoblauchzehen, gehackt", "3 Zehen Knoblauch"]) {
+    const [it] = matchLine(line, shipped);
+    assertDeepEqual([it.ing, it.amount, it.unit], ["garlic", 3, "clove"], line);
+    assertEqual(gramsOf(it, master), 9, line); // ADR §4 Regel 3
+  }
+  assertEqual(matchLine("1 Knoblauchzehe", shipped)[0].unit, "clove");
 });
 
 /* ---------- Abdeckung: Basis-Kochbuch × ausgelieferter Stamm ---------- */

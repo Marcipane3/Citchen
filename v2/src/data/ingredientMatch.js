@@ -47,11 +47,14 @@ export function buildIndex(master, lang = "de") {
   return { byName, byId, maxWords };
 }
 
-/** Ein einzelnes Wort: genau, als „…zehe(n)“ (→ Einheit clove) oder mit abgeschnittener Plural-Endung. */
+/**
+ * Ein einzelnes Wort: als „…zehe(n)“ (→ Einheit clove), genau oder mit abgeschnittener Plural-Endung.
+ * Die Zehe kommt zuerst: „Knoblauchzehen“ steht im Stamm auch als Alias, die Einheit darf dabei nicht verloren gehen.
+ */
 function lookupWord(word, index) {
-  if (index.byName.has(word)) return { ing: index.byName.get(word) };
   const clove = word.match(CLOVE_RE);
   if (clove && index.byName.has(clove[1])) return { ing: index.byName.get(clove[1]), unit: "clove" };
+  if (index.byName.has(word)) return { ing: index.byName.get(word) };
   for (const end of PLURAL_ENDINGS) {
     const stem = word.slice(0, -end.length);
     if (word.endsWith(end) && stem.length >= 4 && index.byName.has(stem)) return { ing: index.byName.get(stem) };
