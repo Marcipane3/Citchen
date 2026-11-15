@@ -62,6 +62,7 @@ const SHELL = [
   "./src/features/cookbook/export.js",
   "./src/features/cookbook/importFile.js",
   "./src/features/cooking/cooking.js",
+  "./src/features/cooking/portions.js",
   "./src/features/match/match.js",
   "./src/data/catalog.js",
   "./src/data/units.js",

@@ -32,6 +32,7 @@ import "./test-contrast.js";
 import "./test-units.js";
 import "./test-ingredients.js";
 import "./test-ingredient-match.js";
+import "./test-cook-portions.js";
 import { run } from "./runner.js";
 
 const { fail } = await run();

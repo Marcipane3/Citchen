@@ -10,6 +10,7 @@ import { parseMinutes, parseTipps, hasStructuredTipps, scaleIngredient, parseSer
 import { esc } from "../../ui/helpers.js";
 import { navigate } from "../../router.js";
 import { t, tn } from "../../i18n.js";
+import { getFactor, setFactor, startFor } from "./portions.js";
 
 /* ---------- Wake Lock ---------- */
 let wakeLock = null;
@@ -59,8 +60,9 @@ export function renderCook(container, id) {
   let cur = 0;
   let ingOpen = true;
   let tippOpen = false;
-  let factor = 1;          // Portions-Faktor
-  let target = baseServings; // Ziel-Portionen (wenn Basis bekannt)
+  // QW-2: zuletzt gewählte Portionen dieses Rezepts (nur auf diesem Gerät), sonst Faktor 1
+  // target = Ziel-Portionen (wenn Basis bekannt), factor = Portions-Faktor
+  let { target, factor } = startFor(baseServings, getFactor(id));
   let intervals = [];
   let prog = { steps: {}, ings: {} };
 
@@ -242,6 +244,7 @@ export function renderCook(container, id) {
           i = Math.max(0, Math.min(stepsF.length - 1, i + (b.dataset.scale === "+" ? 1 : -1)));
           factor = stepsF[i];
         }
+        setFactor(id, factor); // Faktor 1 entfernt den gemerkten Wert
         paint();
       };
     });
