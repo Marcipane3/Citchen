@@ -62,6 +62,41 @@ test("Kochmodus: aus dem Rezept öffnen, skalieren, abhaken, Seitenansicht, schl
   await expect(page.locator("nav.tabbar")).toBeVisible();
 });
 
+test("Kochmodus merkt sich die Portionen pro Rezept (QW-2): ändern → schließen → wieder öffnen", async ({ page }) => {
+  await openApp(page, "cook/r01");
+  await expect(page.locator(".scaler .val")).toHaveText("4 Portionen");
+  await expect(page.locator(".scaler .note")).toHaveCount(0);
+  await page.locator('[data-scale="-"]').click();
+  await page.locator('[data-scale="-"]').click();
+  await expect(page.locator(".scaler .val")).toHaveText("2 Portionen");
+
+  // Schließen und aus dem Rezept wieder öffnen → gleiche Portionen, Mengen skaliert, Hinweis da.
+  await page.locator(".cook-top .close").click();
+  await expect(page).toHaveURL(/#\/cookbook$/);
+  const detail = await openRecipe(page, R.name);
+  await detail.locator(".act-cook").click();
+  await expect(page.locator(".scaler .val")).toHaveText("2 Portionen");
+  await expect(page.locator(".scaler .note")).toHaveText("Mengen angepasst");
+  await expect(page.locator(".cook-ing").nth(1)).toContainText("200g Kichererbsen");
+
+  // Nur dieses Rezept, nur auf dem Gerät: ein anderes Rezept öffnet ohne „Mengen angepasst“.
+  const other = snapshot().recipes.find((r) => r.id !== "r01" && (r.ingredients || []).length);
+  await page.goto("/v2/#/cook/" + other.id);
+  await expect(page.locator(".cook h2")).toHaveText(other.name);
+  await expect(page.locator(".scaler .note")).toHaveCount(0);
+
+  // Zurück auf die eigene Portionsgröße → gespeicherter Wert weg, auch nach Neustart.
+  await page.goto("/v2/#/cook/r01");
+  await expect(page.locator(".scaler .val")).toHaveText("2 Portionen");
+  await page.locator('[data-scale="+"]').click();
+  await page.locator('[data-scale="+"]').click();
+  await expect(page.locator(".scaler .val")).toHaveText("4 Portionen");
+  expect(await page.evaluate(() => localStorage.getItem("kochv2_cookPortions"))).toBeNull();
+  await page.reload();
+  await expect(page.locator(".scaler .val")).toHaveText("4 Portionen");
+  await expect(page.locator(".scaler .note")).toHaveCount(0);
+});
+
 test("Kochmodus: Schritt-Timer zählt herunter und meldet „fertig“", async ({ page }) => {
   await page.clock.install();
   await openApp(page, "cook/r01");
