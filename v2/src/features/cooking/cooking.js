@@ -10,7 +10,7 @@ import { parseMinutes, parseTipps, hasStructuredTipps, scaleIngredient, parseSer
 import { esc } from "../../ui/helpers.js";
 import { navigate } from "../../router.js";
 import { t, tn } from "../../i18n.js";
-import { getFactor, setFactor, targetFor } from "./portions.js";
+import { getFactor, setFactor, startFor } from "./portions.js";
 
 /* ---------- Wake Lock ---------- */
 let wakeLock = null;
@@ -61,9 +61,8 @@ export function renderCook(container, id) {
   let ingOpen = true;
   let tippOpen = false;
   // QW-2: zuletzt gewählte Portionen dieses Rezepts (nur auf diesem Gerät), sonst Faktor 1
-  const storedFactor = getFactor(id);
-  let target = targetFor(baseServings, storedFactor); // Ziel-Portionen (wenn Basis bekannt)
-  let factor = baseServings !== null ? target / baseServings : storedFactor; // Portions-Faktor
+  // target = Ziel-Portionen (wenn Basis bekannt), factor = Portions-Faktor
+  let { target, factor } = startFor(baseServings, getFactor(id));
   let intervals = [];
   let prog = { steps: {}, ings: {} };
 

@@ -2,7 +2,7 @@
 // Reiner Helfer (features/cooking/portions.js) gegen einen Speicher-Stub; den Weg durch die
 // Oberfläche (ändern → schließen → wieder öffnen) prüft e2e 05.
 import { test, assertEqual, assertDeepEqual } from "./runner.js";
-import { getFactor, setFactor, clearFactor, targetFor, PORTIONS_KEY } from "../src/features/cooking/portions.js";
+import { getFactor, setFactor, clearFactor, targetFor, startFor, PORTIONS_KEY } from "../src/features/cooking/portions.js";
 
 function memStore(initial = {}) {
   const m = new Map(Object.entries(initial));
@@ -88,4 +88,31 @@ test("QW-2: targetFor — Ziel-Portionen aus Faktor, gerundet und auf 1…24 beg
   assertEqual(targetFor(4, 100), 24);
   assertEqual(targetFor(4, 0.01), 1);
   assertEqual(targetFor(null, 1.5), null, "ohne Zahl bei servings gibt es kein Ziel, nur den ×-Faktor");
+});
+
+// Review PR #71: ohne gemerkten Wert öffnet der Kochmodus exakt wie bisher — auch bei
+// Rezepten außerhalb des −/+-Bereichs (mehr als 24, 0 oder halbe Portionen).
+test("QW-2: startFor — ohne gespeicherten Wert bleibt die eigene Portionsgröße (Faktor 1, kein Runden/Begrenzen)", () => {
+  for (const base of [40, 30, 25, 2.5, 0, 4, 1, 24]) {
+    assertDeepEqual(startFor(base, 1), { target: base, factor: 1 }, `Basis ${base}`);
+  }
+});
+
+test("QW-2: startFor — gespeicherter Wert bestimmt Ziel und Faktor", () => {
+  assertDeepEqual(startFor(4, 0.5), { target: 2, factor: 0.5 });
+  assertDeepEqual(startFor(6, 0.5), { target: 3, factor: 0.5 }, "servings später geändert: Faktor gilt für die neue Basis");
+  assertDeepEqual(startFor(40, 0.5), { target: 20, factor: 0.5 });
+});
+
+test("QW-2: startFor — Basis 0 (oder Unsinn) mit gespeichertem Wert → Faktor 1, nie Infinity/NaN", () => {
+  for (const base of [0, -2, NaN, Infinity]) {
+    const s = startFor(base, 0.5);
+    assertEqual(s.factor, 1, `Faktor bei Basis ${base}`);
+    assertEqual(Object.is(s.target, base), true, `Ziel bleibt die Basis ${base}`);
+  }
+});
+
+test("QW-2: startFor — servings ohne Zahl: kein Ziel, der gemerkte ×-Faktor gilt direkt", () => {
+  assertDeepEqual(startFor(null, 1.5), { target: null, factor: 1.5 });
+  assertDeepEqual(startFor(null, 1), { target: null, factor: 1 });
 });

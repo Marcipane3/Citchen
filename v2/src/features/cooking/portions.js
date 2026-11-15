@@ -48,3 +48,17 @@ export function targetFor(baseServings, factor) {
   if (baseServings === null) return null;
   return Math.max(MIN_TARGET, Math.min(MAX_TARGET, Math.round(baseServings * factor)));
 }
+
+/**
+ * Startwerte beim Öffnen des Kochmodus. Ohne gemerkten Wert (Faktor 1) exakt wie vor QW-2:
+ * die eigene Portionsgröße, ungerundet und unbegrenzt (z. B. 40 Kekse). Nur ein gemerkter
+ * Wert geht durch targetFor; eine Basis, die nicht > 0 ist, kann nicht skaliert werden.
+ */
+export function startFor(baseServings, storedFactor) {
+  if (baseServings === null) return { target: null, factor: storedFactor };
+  if (storedFactor === 1 || !(baseServings > 0) || !Number.isFinite(baseServings)) {
+    return { target: baseServings, factor: 1 };
+  }
+  const target = targetFor(baseServings, storedFactor);
+  return { target, factor: target / baseServings };
+}
