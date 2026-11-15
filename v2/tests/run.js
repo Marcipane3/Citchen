@@ -31,6 +31,7 @@ import "./test-ai-usage.js";
 import "./test-contrast.js";
 import "./test-units.js";
 import "./test-ingredients.js";
+import "./test-ingredient-match.js";
 import { run } from "./runner.js";
 
 const { fail } = await run();

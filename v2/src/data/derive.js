@@ -94,7 +94,7 @@ export function hasStructuredTipps(parsed) {
 
 // Einheiten, die direkt an der Zahl oder mit Leerzeichen folgen können.
 const UNITS = [
-  "kg", "g", "ml", "l", "EL", "TL", "Pck\\.?", "Päckchen", "Prise[n]?", "Dose[n]?",
+  "kg", "g", "ml", "l", "Liter", "EL", "TL", "Pck\\.?", "Päckchen", "Prise[n]?", "Dose[n]?",
   "Bund", "Zehe[n]?", "Stück", "Scheibe[n]?", "Tasse[n]?", "Becher", "Glas", "Würfel",
   "cm", "Daumen", // v2.15.3 (TW-13): „2 cm Ingwer“ → Artikel „Ingwer“, nicht „cm Ingwer“
 ];
@@ -141,7 +141,7 @@ export function parseIngredient(raw) {
     // Einheit direkt nach der Zahl ("400g", "2 EL")
     const u = s.match(UNIT_RE);
     if (u) {
-      out.unit = u[1].replace(/\.$/, "");
+      out.unit = /^(l|liter)$/i.test(u[1]) ? "l" : u[1].replace(/\.$/, ""); // R3.1: „Liter“/„L“ → l
       s = s.slice(u[0].length).trim();
     }
   }
