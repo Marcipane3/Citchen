@@ -3,7 +3,10 @@
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import * as gate from "../src/ai/gate.js";
 import { extractJson, coerceRecipe, coerceSuggestions, coercePlanDays, tippsToString } from "../src/ai/parse.js";
-import { buildSystemPrompt, buildCollectionContext, suggestUserPrompt, fromStockUserPrompt, planUserPrompt } from "../src/ai/prompts.js";
+import {
+  buildSystemPrompt, buildCollectionContext, suggestUserPrompt, fromStockUserPrompt, planUserPrompt,
+  profileBlock, DEFAULT_PROFILE, DEFAULT_INSTRUCTIONS, TEMPLATE_VARIABLES, missingVariables,
+} from "../src/ai/prompts.js";
 import { validateRecipe } from "../src/data/schema.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -211,4 +214,247 @@ test("planUserPrompt: enthält Plan, Locks und JSON-Format", () => {
   assert(p.includes("(Reste von Mo)"));
   assert(p.includes("Gesperrt (NICHT ändern): Mo"));
   assert(p.includes('"type":"plan"'));
+});
+
+/* ---------- Q4.1 (#69): Assistenten-Anweisungen als Vorlage ---------- */
+
+const TPL_RX = [
+  { id: "r01", name: "Linsen-Dal", category: "Vegetarische Hauptgerichte", effort: "alltag", cuisine: "Indisch", rating: 5 },
+  { id: "r02", name: "Zimtschnecken", category: "Kuchen & Süßes", toTry: true },
+];
+const TPL_FRIDGE = [{ name: "Zucchini", menge: "2 Stück" }, { name: "Feta" }];
+
+// Eingefrorene Kopie der Ausgabe von buildSystemPrompt VOR #69 (Stand next, 15.11.2026).
+// Nicht aus dem Code ableiten und nicht „mitziehen“: genau diese Bytes müssen ohne Vorlage herauskommen.
+// FROZEN_CONTRACT = der feste Ausgabe-Vertrag (Regeln 2–4), der an jede Vorlage angehängt wird.
+const FROZEN_CONTRACT = `
+2. Antworte mit GENAU EINEM JSON-Objekt (ohne Markdown-Zaun, ohne Text davor/danach):
+   - Vorschläge: {"type":"suggestions","intro":"1 Satz","items":[{"id":"r… oder null","name":"…","reason":"1 Satz"}]} — 3 bis 5 Stück. "id" nur, wenn das Rezept WIRKLICH im Kochbuch steht (exakte id aus der Liste). Neue Ideen: id=null.
+   - Vollrezept: {"type":"recipe","intro":"1 Satz","recipe":{…}} — Schema unten.
+   - Sonst: {"type":"text","text":"…"}
+3. Rezept-Schema (flach, Schema v3):
+   {"name":str,"category":str (EXAKT eine von: Frühstück & Brunch / Schnelle Wochentags-Gerichte / Pasta & Nudeln / Reis & Getreide / Suppen & Eintöpfe / Salate & leichte Gerichte / Wochenend-Gerichte / Vegetarische Hauptgerichte / Deutsche Hausmannskost / Middle Eastern & Mediterran / Asiatisch inspiriert / Backen: Brot & Herzhaftes / Backen: Süßes & Kuchen / Muffins & Kleingebäck / Sourdough & Sauerteig / Grundrezepte & Basissoßen),"time":"25 Min","servings":"~4","effort":"alltag"|"besonders","difficulty":"einfach"|"mittel"|"aufwändig","cuisine":str,"prepTime":int,"cookTime":int,"totalTime":int,"mealPrep":bool,"toTry":true,"season":str|"","tags":[str],"ingredients":[str],"steps":[str],"tips":str}
+   - ingredients: eine Zutat pro Eintrag, mit Menge ("400g Kichererbsen (Dose)"). Zutaten, die NICHT im Vorrat sind, bekommen am Ende " 🛒".
+   - steps: kurze, nummerierbare Schritte; Zeitangaben als "X Min" schreiben (die App macht daraus Timer).
+   - tips: ein String nach der Konvention "Topping: … Swap: … Alltags-Upgrade: …".
+4. Vorschläge bevorzugt aus dem Kochbuch (Rotation: zuletzt Gekochtes meiden, wenn bekannt); höchstens 1–2 neue Ideen.`;
+const FROZEN = [
+  { label: "Kühlschrank leer", args: { recipes: TPL_RX, staples: ["Mehl", "Reis"] }, head: `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
+
+KOCH-PROFIL:
+- Anfänger bis Mittelstufe, pragmatisch. Hauptsächlich vegetarisch (Eier/Fisch ok, kein Fleisch im Regelkauf).
+- Immer ~4 Portionen (Reste werden über mehrere Tage gegessen).
+- Wochentags: Schnell, 20–30 Min. Wochenende: Aufwendiger, Experimente, Backen.
+- Einkauf: Dänische Supermärkte + Middle-Eastern-Bazaars.
+- Ausstattung: Herd, Backofen, Mikrowelle, Mixer, Reiskocher. Kein Spezialgerät voraussetzen.
+
+VORRAT (immer da — alles andere muss gekauft werden):
+Mehl, Reis
+Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.
+
+KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
+r01|Linsen-Dal|Vegetarische Hauptgerichte|alltag|Indisch|★5
+r02|Zimtschnecken|Kuchen & Süßes|neu
+
+REGELN:
+1. Antworte IMMER auf Deutsch, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in Deutsch.` },
+  { label: "Kühlschrank gefüllt", args: { recipes: TPL_RX, staples: ["Mehl", "Reis"], fridge: TPL_FRIDGE }, head: `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
+
+KOCH-PROFIL:
+- Anfänger bis Mittelstufe, pragmatisch. Hauptsächlich vegetarisch (Eier/Fisch ok, kein Fleisch im Regelkauf).
+- Immer ~4 Portionen (Reste werden über mehrere Tage gegessen).
+- Wochentags: Schnell, 20–30 Min. Wochenende: Aufwendiger, Experimente, Backen.
+- Einkauf: Dänische Supermärkte + Middle-Eastern-Bazaars.
+- Ausstattung: Herd, Backofen, Mikrowelle, Mixer, Reiskocher. Kein Spezialgerät voraussetzen.
+
+VORRAT (immer da — alles andere muss gekauft werden):
+Mehl, Reis
+Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.
+
+FRISCH IM KÜHLSCHRANK (jetzt verfügbar — bevorzugt verwerten):
+Zucchini (2 Stück), Feta
+
+KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
+r01|Linsen-Dal|Vegetarische Hauptgerichte|alltag|Indisch|★5
+r02|Zimtschnecken|Kuchen & Süßes|neu
+
+REGELN:
+1. Antworte IMMER auf Deutsch, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in Deutsch.` },
+  { label: "lang en", args: { recipes: TPL_RX, staples: ["Mehl", "Reis"], lang: "en" }, head: `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
+
+KOCH-PROFIL:
+- Anfänger bis Mittelstufe, pragmatisch. Hauptsächlich vegetarisch (Eier/Fisch ok, kein Fleisch im Regelkauf).
+- Immer ~4 Portionen (Reste werden über mehrere Tage gegessen).
+- Wochentags: Schnell, 20–30 Min. Wochenende: Aufwendiger, Experimente, Backen.
+- Einkauf: Dänische Supermärkte + Middle-Eastern-Bazaars.
+- Ausstattung: Herd, Backofen, Mikrowelle, Mixer, Reiskocher. Kein Spezialgerät voraussetzen.
+
+VORRAT (immer da — alles andere muss gekauft werden):
+Mehl, Reis
+Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.
+
+KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
+r01|Linsen-Dal|Vegetarische Hauptgerichte|alltag|Indisch|★5
+r02|Zimtschnecken|Kuchen & Süßes|neu
+
+REGELN:
+1. Antworte IMMER auf Englisch, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in Englisch.` },
+  { label: "Profil ohne shopping/notes", args: { recipes: TPL_RX, staples: ["Reis"], profile: { shopping: "", notes: "" } }, head: `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
+
+KOCH-PROFIL:
+- Anfänger bis Mittelstufe, pragmatisch. Hauptsächlich vegetarisch (Eier/Fisch ok, kein Fleisch im Regelkauf).
+- Immer ~4 Portionen (Reste werden über mehrere Tage gegessen).
+- Wochentags: Schnell, 20–30 Min. Wochenende: Aufwendiger, Experimente, Backen.
+- Ausstattung: Herd, Backofen, Mikrowelle, Mixer, Reiskocher. Kein Spezialgerät voraussetzen.
+
+VORRAT (immer da — alles andere muss gekauft werden):
+Reis
+Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.
+
+KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
+r01|Linsen-Dal|Vegetarische Hauptgerichte|alltag|Indisch|★5
+r02|Zimtschnecken|Kuchen & Süßes|neu
+
+REGELN:
+1. Antworte IMMER auf Deutsch, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in Deutsch.` },
+  { label: "Profil mit notes, lang da", args: { recipes: TPL_RX, staples: ["Reis"], profile: { notes: "Keine Pilze" }, lang: "da" }, head: `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
+
+KOCH-PROFIL:
+- Anfänger bis Mittelstufe, pragmatisch. Hauptsächlich vegetarisch (Eier/Fisch ok, kein Fleisch im Regelkauf).
+- Immer ~4 Portionen (Reste werden über mehrere Tage gegessen).
+- Wochentags: Schnell, 20–30 Min. Wochenende: Aufwendiger, Experimente, Backen.
+- Einkauf: Dänische Supermärkte + Middle-Eastern-Bazaars.
+- Ausstattung: Herd, Backofen, Mikrowelle, Mixer, Reiskocher. Kein Spezialgerät voraussetzen.
+- Keine Pilze
+
+VORRAT (immer da — alles andere muss gekauft werden):
+Reis
+Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.
+
+KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
+r01|Linsen-Dal|Vegetarische Hauptgerichte|alltag|Indisch|★5
+r02|Zimtschnecken|Kuchen & Süßes|neu
+
+REGELN:
+1. Antworte IMMER auf Dänisch, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in Dänisch.` },
+];
+
+const TPL_ARGS = { recipes: TPL_RX, staples: ["Mehl", "Reis"], fridge: TPL_FRIDGE, lang: "en" };
+const F_PROFILE = profileBlock();
+const F_STOCK = "VORRAT (immer da — alles andere muss gekauft werden):\nMehl, Reis\nGewürze nur: " + DEFAULT_PROFILE.spices + ". Andere Gewürze gelten als zu kaufen.";
+const F_FRIDGE = "FRISCH IM KÜHLSCHRANK (jetzt verfügbar — bevorzugt verwerten):\nZucchini (2 Stück), Feta";
+const F_RECIPES = "KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):\n" + buildCollectionContext(TPL_RX);
+const GERMAN_RULE = "(name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch";
+
+test("Q4.1: DEFAULT_INSTRUCTIONS + TEMPLATE_VARIABLES exportiert, Vorlage = heutiger Text bis Regel 1", () => {
+  assertDeepEqual(TEMPLATE_VARIABLES, ["profile", "stock", "fridge", "recipes", "language"]);
+  assert(DEFAULT_INSTRUCTIONS.startsWith("Du bist der Koch-Assistent in einer persönlichen Kochbuch-App."), "Persona-Zeile fehlt");
+  assert(DEFAULT_INSTRUCTIONS.endsWith('nur "intro", "reason" und "text" in {language}.'), "endet nicht mit Regel 1");
+  assert(DEFAULT_INSTRUCTIONS.includes("REGELN:\n1. Antworte IMMER auf {language}, kurz und klar."), "Regel 1 fehlt");
+  for (const v of TEMPLATE_VARIABLES) assert(DEFAULT_INSTRUCTIONS.includes("{" + v + "}"), "Platzhalter fehlt: " + v);
+  for (const raw of ["KOCH-PROFIL", "VORRAT", "FRISCH IM", "KOCHBUCH", "Deutsch,", "2. Antworte"]) {
+    assert(!DEFAULT_INSTRUCTIONS.includes(raw), "Block/Vertrag steht noch fest in der Vorlage: " + raw);
+  }
+});
+
+test("Q4.1: ohne Vorlage byte-identisch zur eingefrorenen Ausgabe (leer, null, Leerraum, Default-Text)", () => {
+  for (const f of FROZEN) {
+    const want = f.head + FROZEN_CONTRACT;
+    assertEqual(buildSystemPrompt(f.args), want, f.label + ": ohne template");
+    for (const template of [undefined, null, "", "  \n\t "]) {
+      assertEqual(buildSystemPrompt({ ...f.args, template }), want, f.label + ": template=" + JSON.stringify(template));
+    }
+    assertEqual(buildSystemPrompt({ ...f.args, template: DEFAULT_INSTRUCTIONS }), want, f.label + ": Default-Text als template");
+  }
+});
+
+test("Q4.1: jede Variable wird zu ihrem ganzen Block inkl. Überschrift", () => {
+  const body = (template, args = TPL_ARGS) => {
+    const sys = buildSystemPrompt({ ...args, template });
+    return sys.slice(0, sys.indexOf(FROZEN_CONTRACT));
+  };
+  assertEqual(body("A {profile} B"), "A " + F_PROFILE + " B");
+  assertEqual(body("A {stock} B"), "A " + F_STOCK + " B");
+  assertEqual(body("A {fridge} B"), "A " + F_FRIDGE + " B");
+  assertEqual(body("A {recipes} B"), "A " + F_RECIPES + " B");
+  assertEqual(body("A {language} B"), "A Englisch B");
+  assertEqual(body("{language}", { ...TPL_ARGS, lang: "xx" }), "Deutsch", "unbekannte Sprache → Deutsch");
+  const custom = body("{profile}|{stock}", { ...TPL_ARGS, profile: { diet: "Vegan", spices: "nur Salz" } });
+  assert(custom.includes("Vegan.") && custom.includes("Gewürze nur: nur Salz."), "Profil-Felder fließen in {profile} und {stock}");
+});
+
+test("Q4.1: mehrfach vorkommende Variable wird überall ersetzt", () => {
+  const sys = buildSystemPrompt({ ...TPL_ARGS, template: "{language} / {recipes} / {language} / {recipes}" });
+  assert(sys.startsWith("Englisch / " + F_RECIPES + " / Englisch / " + F_RECIPES + "\n2. "));
+});
+
+test("Q4.1: leerer Kühlschrank → {fridge} verschwindet ganz, keine verwaisten Leerzeilen", () => {
+  const body = (template) => {
+    const sys = buildSystemPrompt({ recipes: TPL_RX, staples: ["Mehl", "Reis"], fridge: [], template });
+    return sys.slice(0, sys.indexOf(FROZEN_CONTRACT));
+  };
+  assertEqual(body("A\n\n{fridge}\n\nB"), "A\n\nB");
+  assertEqual(body("A\n{fridge}\nB"), "A\nB");
+  assertEqual(body("{fridge}\n\nB"), "B");
+  assertEqual(body("A\n\n{fridge}"), "A");
+  assertEqual(body("A\n\n  {fridge}  \n\nB\n\n{fridge}\n\nC"), "A\n\nB\n\nC");
+  assertEqual(body("Frisch: {fridge}."), "Frisch: .", "im Fließtext nur der Platzhalter");
+  const filled = buildSystemPrompt({ ...TPL_ARGS, template: "A\n\n{fridge}\n\nB" });
+  assert(filled.startsWith("A\n\n" + F_FRIDGE + "\n\nB\n2. "), "gefüllter Kühlschrank bleibt ein eigener Absatz");
+});
+
+test("Q4.1: fester Ausgabe-Vertrag (Regeln 2–4) hängt immer hinter dem Vorlagentext", () => {
+  for (const template of ["Koch", "REGELN:\n1. Sei nett.\n2. Antworte als Gedicht.", "{recipes}"]) {
+    const sys = buildSystemPrompt({ ...TPL_ARGS, template });
+    const at = sys.lastIndexOf(FROZEN_CONTRACT);
+    assert(at > 0, "Vertrag fehlt/verändert bei: " + template);
+    assertEqual(sys.indexOf(FROZEN_CONTRACT), at, "Vertrag genau einmal");
+    assert(sys.indexOf("Antworte mit GENAU EINEM JSON-Objekt") > sys.indexOf(template.split("\n")[0].replace("{recipes}", "KOCHBUCH")), "Vertrag steht nach dem Vorlagentext");
+  }
+  assert(buildSystemPrompt({ ...TPL_ARGS, template: "Koch" }).startsWith("Koch" + FROZEN_CONTRACT));
+});
+
+test("Q4.1: eigene Vorlage → feste Schlusszeile „Rezept-Inhalte immer Deutsch“; Default ohne Zusatz", () => {
+  const sys = buildSystemPrompt({ ...TPL_ARGS, template: "Du bist ein Pirat. Antworte auf {language}." });
+  const extra = sys.slice(sys.indexOf(FROZEN_CONTRACT) + FROZEN_CONTRACT.length);
+  assert(/^\n[^\n]+$/.test(extra), "genau eine zusätzliche Zeile am Ende");
+  assert(extra.includes(GERMAN_RULE), "Deutsch-Regel fehlt");
+  assert(buildSystemPrompt(TPL_ARGS).endsWith(FROZEN_CONTRACT), "Default: nichts nach dem Vertrag");
+  assert(buildSystemPrompt({ ...TPL_ARGS, template: DEFAULT_INSTRUCTIONS }).endsWith(FROZEN_CONTRACT), "Default-Text: nichts nach dem Vertrag");
+});
+
+test("Q4.1: unbekannte Platzhalter und unbalancierte Klammern bleiben wie getippt, nichts wirft", () => {
+  for (const template of ["{foo}", "a {foo} b {Recipes} c { recipes } d", "{recipes", "recipes}", "{", "}", "{}", "}{", "{{", "{profile {stock", "$& $1 {foo} $$"]) {
+    const sys = buildSystemPrompt({ ...TPL_ARGS, template });
+    assert(sys.startsWith(template + FROZEN_CONTRACT), "verändert: " + template);
+  }
+  assert(buildSystemPrompt({ ...TPL_ARGS, template: "{{language}}" }).startsWith("{Englisch}" + FROZEN_CONTRACT));
+});
+
+test("Q4.1: Ersetzung in einem Durchgang — Platzhalter in eingesetzten Daten werden nicht expandiert", () => {
+  const args = {
+    recipes: [{ id: "r01", name: "Suppe {stock} $& {language}", category: "Suppen & Eintöpfe" }],
+    staples: ["Reis {recipes}"], fridge: [{ name: "Feta {profile}" }], profile: { notes: "Notiz {recipes} {fridge}" }, lang: "en",
+  };
+  const sys = buildSystemPrompt({ ...args, template: "{profile}\n{stock}\n{fridge}\n{recipes}\n{language}" });
+  for (const raw of ["r01|Suppe {stock} $& {language}|", "Reis {recipes}\n", "Feta {profile}\n", "- Notiz {recipes} {fridge}\n"]) {
+    assert(sys.includes(raw), "eingesetzte Daten verändert: " + raw);
+  }
+  assertEqual(sys.split("KOCHBUCH (").length - 1, 1, "{recipes} aus den Daten wurde expandiert");
+  assertEqual(sys.split("VORRAT (").length - 1, 1, "{stock} aus den Daten wurde expandiert");
+  assertEqual(sys.split("KOCH-PROFIL:").length - 1, 1, "{profile} aus den Daten wurde expandiert");
+  const def = buildSystemPrompt(args);
+  assert(def.includes("r01|Suppe {stock} $& {language}|") && def.split("VORRAT (").length - 1 === 1, "auch mit der Default-Vorlage");
+});
+
+test("Q4.1: missingVariables — fehlende Variablen in fester Reihenfolge", () => {
+  assertDeepEqual(missingVariables(DEFAULT_INSTRUCTIONS), []);
+  assertDeepEqual(missingVariables("Hallo"), ["profile", "stock", "fridge", "recipes", "language"]);
+  assertDeepEqual(missingVariables("{language} dann {stock}"), ["profile", "fridge", "recipes"]);
+  assertDeepEqual(missingVariables("{recipes}{recipes} {Profile} {fridge"), ["profile", "stock", "fridge", "language"]);
+  for (const t of [undefined, null, "", 42]) assertDeepEqual(missingVariables(t), ["profile", "stock", "fridge", "recipes", "language"]);
+});
+
+test("Q4.1: Planner-Aufruf (nur recipes + staples) unverändert", () => {
+  assertEqual(buildSystemPrompt({ recipes: TPL_RX, staples: ["Mehl", "Reis"] }), FROZEN[0].head + FROZEN_CONTRACT);
 });
