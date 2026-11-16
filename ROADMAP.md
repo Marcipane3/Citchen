@@ -1,7 +1,7 @@
 # 🍳 Koch — Roadmap index
 
 > Start here. This page says **what is next** and where everything else lives.
-> **Last updated: 2026-10-27** (refinement: G2.1 + P8.1 ready · v2.15b merged · v2.16 AI housekeeping built · v2.16.2 sync follow-ups + v2.17 find recipes built, PRs open) · Live: **v2.15b** (its database migration still needs one manual step; v2.16 goes live on merge)
+> **Last updated: 2026-11-16** (domain **citchen.de** bought · refinement: G2.1 + P8.1 ready · v2.15b merged · v2.16 AI housekeeping built · v2.16.2 sync follow-ups + v2.17 find recipes built, PRs open) · Live: **v2.15b** (its database migration still needs one manual step; v2.16 goes live on merge)
 
 ## The two roadmaps
 
@@ -19,8 +19,8 @@ Background and reasoning for V3: [`docs/v3/`](docs/v3/README.md). New idea after
 
 | When | V2 line | V3 line |
 |------|---------|---------|
-| **Oct 2026** | ✅ v2.14 friends link live (4 Oct) · ✅ e2e tests (12 Oct) + v2.14.1 hotfix · ✅ **v2.15** one sync core (19 Oct) · ✅ **v2.15.1** safe recipe sync · ✅ **v2.15.2** list data safety · ✅ **v2.15.3** list identity + Lager rules · ✅ **v2.16b** shopping list clarity (pulled forward from Nov) · ✅ **v2.15b** backend hardening (pulled forward from Nov) · ✅ **v2.16** AI housekeeping (built, pulled forward from Nov) · two-account sharing proof | ✅ Decisions D8, A10, D9, A11, E6, G7 answered (4 Oct) · open: D10, C7 availability |
-| **Nov 2026** | ✅ **v2.17** find recipes faster (built 27 Oct) · **v2.18** export/import · ★ **R1 data-model spike** (ingredient model, format 4) | Long-lead: domain (Citchen), Play account, 12 testers |
+| **Oct 2026** | ✅ v2.14 friends link live (4 Oct) · ✅ e2e tests (12 Oct) + v2.14.1 hotfix · ✅ **v2.15** one sync core (19 Oct) · ✅ **v2.15.1** safe recipe sync · ✅ **v2.15.2** list data safety · ✅ **v2.15.3** list identity + Lager rules · ✅ **v2.16b** shopping list clarity (pulled forward from Nov) · ✅ **v2.15b** backend hardening (pulled forward from Nov) · ✅ **v2.16** AI housekeeping (built, pulled forward from Nov) · two-account sharing proof | ✅ Decisions D8, A10, D9, A11, E6, G7 answered (4 Oct) · open: D10 |
+| **Nov 2026** | ✅ **v2.17** find recipes faster (built 27 Oct) · **v2.18** export/import · ★ **R1 data-model spike** (ingredient model, format 4) | Long-lead: ✅ domain **citchen.de** bought (16 Nov) · support e-mail on it · Play account · 12 testers |
 | **Dec 2026** | **v2.19** ingredient master + calories | Spikes (TWA, sign-in, photos, **backend + hosting**) · ADRs · V3 plan · **scope freeze 31 Dec** |
 | **Jan–Mar 2027** | **v2.19b** structured recipe editor + capture · **v2.20** assistant edits recipes + editable instructions · **v2.21** move helper + English format/UI (before the domain switch) · v2.22+ small wins if time | **v3.0-a1 … a9** = slices 1, **1b backend**, 2–7, 9 (slice 8 moved to v3.x) · closed test from slice 3 |
 | **Apr 2027** | Fixes only | **v3.0 launch, target 30 Apr** |
@@ -51,7 +51,7 @@ below every time an item is crossed off.
 
 **Waiting on Marcel — 5-minute answers that unblock the queue** (details in `ROADMAP-V3.md` §6):
 **D10** timing: accounts + recipe sharing in v3.0 or first in v3.x (recommended: v3.x) · **D11** sharing = send/invite, not public (recommended) · **R1** sign-off on the ingredient/unit spec (Nov) · **L1 nutrition** now resolved by R2, please confirm ·
-**C7** check `citchen.app` / `citchen.de` availability, then buy. *Answered 2026-10-04 and now unblocked:*
+✅ **C7** domain bought: **`citchen.de`** (16 Nov). Not connected to the app yet: that happens in V3 slice 1, after the move helper (P5, v2.21). *Answered 2026-10-04 and now unblocked:*
 G7 → v2.17 · E6 + A11 → v2.20 · D8 English → v2.21 · A10 → v3.x · D9 → P7 + slice 1b · C-20 same repo.
 
 ---

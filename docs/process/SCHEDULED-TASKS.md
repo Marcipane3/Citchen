@@ -6,6 +6,12 @@ notification on. **Allowed tools:** Bash, Read, Write, Edit, Glob, Grep, plus **
 Release prep and Proposer digest (they spawn the `koch-*` agents; without it the guard pass silently
 can't run). WebFetch/WebSearch are not needed.
 
+> **Status 2026-11-16:** *Citchen · Release retry* now exists. Created from an interactive session at
+> Marcel's request (Sonnet 5.5, push on). Because agent-created tasks start without the repository, its
+> prompt has one extra paragraph: attach and clone `Marcipane3/Citchen` with `add_repo` when it is
+> missing. Its first run (Wed 18 Nov) shows whether that works; if it reports "no repo access",
+> Marcel recreates it at claude.ai/code/routines with the prompt below.
+>
 > **Status 2026-11-11:** Marcel approved this setup on 10 Nov and asked for a higher cadence. **The five
 > tasks still run their 27 Oct prompts and times (last column) until Marcel changes them himself** at
 > claude.ai/code/routines: an agent session can neither edit nor start a task it did not create. A task
@@ -19,7 +25,7 @@ can't run). WebFetch/WebSearch are not needed.
 | Citchen · Builder | 02:10, 04:10, 06:10 | `CRON_TZ=Europe/Berlin 10 2,4,6 * * *` | 01:42 |
 | Citchen · Reviewer | 03:20, 05:20, 07:20 | `CRON_TZ=Europe/Berlin 20 3,5,7 * * *` | 06:58 |
 | Citchen · Release prep | Saturday 07:50 | `CRON_TZ=Europe/Berlin 50 7 * * 6` | Sat 08:17 |
-| Citchen · Release retry *(new)* | Wednesday 07:50 | `CRON_TZ=Europe/Berlin 50 7 * * 3` | — |
+| Citchen · Release retry | Wednesday 07:50 | `CRON_TZ=Europe/Berlin 50 7 * * 3` | same (created 16 Nov) |
 | Citchen · Proposer digest | 1st of the month 10:17 | `CRON_TZ=Europe/Berlin 17 10 1 * *` | same |
 
 In the Refiner prompt, replace "Target: 3 ready issues" with "Target: 5 ready issues (replaces the 3 in
