@@ -15,7 +15,7 @@
 | D4 | Data and sync | **Decided for v3.0** (amended 2026-10-04) | Recipes in each user's own Google Drive. A production Supabase backend is **in v3.0** for sharing (D9); how much more it holds is D10. |
 | D5 | AI and money | **Decided** | BYOK with guided key setup. No subscription. Spend display is v3.x; payment is v3.5/v4 at the earliest. |
 | D6 | Content | **Decided** | Photos: ~30 own + ~75 AI. Calories in v2.x. Longevity hub page in V3. |
-| D7 | Domain and old versions | **Decided** | Custom domain, landing page, retire v1. Name open (C7); repository layout open (check C-20). |
+| D7 | Domain and old versions | **Decided** | Custom domain **`citchen.de`** (bought 2026-11-16), landing page, retire v1. Name **Citchen** (C7); same repository (C-20, decided). |
 | D8 | Main language | **Open (L1)** | Marcel proposes English instead of German. Recommended: yes, staged, early in V3. |
 | D9 | Backend in v3.0 | **Decided 2026-10-04** | Supabase is a proper v3.0 backend, not an exception. Hosting/ops recommendation and D10 (scope) in `ROADMAP-V3.md` §6. |
 

@@ -33,7 +33,7 @@ Process: `docs/v3/01-PROCESS.md`. A gate is passed only with its evidence.
 |-------|------|--------|-----------------|
 | 0 Intent | G0 | ✅ passed 2026-10-02 | — |
 | 1 Discovery | G1 | 🟡 mostly done | Partner's view of the app |
-| 2 Decisions | G2 | 🟡 D1–D9 decided (4 Oct) | **D10** backend scope · C7 name availability · ADRs not yet written (incl. backend + hosting ADR) |
+| 2 Decisions | G2 | 🟡 D1–D9 decided (4 Oct) | **D10** backend scope · ADRs not yet written (incl. backend + hosting ADR) |
 | 3 Spikes | G3 | ⏳ Dec 2026 | TWA on the domain (C-1), Google sign-in production (C-8), photo pipeline (C-21), repo layout (C-20) |
 | 4 Plan | G4 | ⏳ Dec 2026 | V3 phase plan (written after G2 + G3) |
 | 5 Build | G5 | ⏳ Jan–Mar 2027 | Slices 1–9 below |
@@ -50,7 +50,7 @@ the data-safety fixes T1–T5 (Epic T) — V3 must not migrate a cookbook that s
 
 | Version | Theme | Contains | Target | Status |
 |---------|-------|----------|--------|--------|
-| *pre-V3* | Long-lead items (Marcel) | Check name availability and buy the domain (C7: `citchen.app` or `citchen.de`), support e-mail on it, Play developer account ($25, identity check takes days), list 12+ Android testers | Nov 2026 | open |
+| *pre-V3* | Long-lead items (Marcel) | ✅ Domain **`citchen.de`** bought (C7, 16 Nov) · support e-mail on it (C-26) · Play developer account ($25, identity check takes days) · list 12+ Android testers | Nov 2026 | in progress |
 | *pre-V3* | Spikes + decisions | C-1, C-8, C-21 spikes · **backend spike (C-30)** · ADRs D1–D10 in `docs/v3/adr/` · V3 phase plan | Dec 2026 | open |
 | — | **Scope freeze** | v3.0 content fixed; new ideas → v3.x | **31 Dec 2026** | — |
 | **v3.0-a1 … a9** | Internal slice builds | One build per slice (§4), tested in one session each | Jan–Mar 2027 | planned |
@@ -73,7 +73,7 @@ Source: `docs/v3/02-SCOPE.md` (slice order) and `00-INTENT-AND-USER-STORIES.md` 
 
 | # | Build | Slice | Stories | Size | Target | Depends on |
 |---|-------|-------|---------|------|--------|------------|
-| 1 | v3.0-a1 | Custom domain **(Citchen)**, hosting, landing page (4 languages, privacy policy incl. backend), support e-mail | US-02, US-28 | M | Jan 2027 | C7 domain bought · C-20 = same repo (decided) |
+| 1 | v3.0-a1 | Custom domain **`citchen.de`**, hosting, landing page (4 languages, privacy policy incl. backend), support e-mail | US-02, US-28 | M | Jan 2027 | ✅ C7 `citchen.de` bought · C-20 = same repo (decided) · move helper P5 live first |
 | 1b | v3.0-a1b | **Production backend (D9/D10):** Supabase prod project in the EU, migrations as files, row-level security, backups/pause plan, friends link + shared-list data moved onto it, privacy policy + Play data-safety updated; **schema designed for owners, recipe content vs personal state, `forkedFrom` (from V2 R1)**, even if accounts ship later | *new* (US-08c) | M–L | Jan–Feb 2027 | D10 · C-30 spike · V2 P7 · slice 1 (domain) |
 | 2 | v3.0-a2 | Data slice: move helper live in v2 (V2 P5); **English stored data → file format 4 + migration (D8 = yes, firm)** | US-04, US-16, US-27 | M–L | Jan 2027 | V2 P5/P6/P8 |
 | 3 | v3.0-a3 | TWA build on the internal test track; **closed test starts** (14-day clock) | US-01 | L | Feb 2027 | Slice 1 · Play account · 12 testers |
@@ -151,7 +151,7 @@ assistant edits recipes (G3), capture on Sonnet 5.5 (Q1).
 |----|----------|--------|
 | **L1 / D8** | **English is the main language**: interface default *and* stored recipe data (a + b). Your own recipes stay in the language you wrote them. | Slice 2: file format 4 + migration; V2 P6 firm; V2 P8 English default UI |
 | **A10** | Shared weekly plan → **v3.x**, with the shared cookbook | Slice 8 removed from v3.0 |
-| **C7** | Name **Citchen** everywhere. Domain: `citchen.app` or `citchen.de` (Marcel checks availability, order not final) | Slice 1; fallbacks in `docs/v3/03-QUESTIONS.md` |
+| **C7** | Name **Citchen** everywhere. Domain: **`citchen.de`**, bought by Marcel 2026-11-16 | Slice 1 unblocked; the app moves there only after the move helper (P5) |
 | **D9** | Supabase is **a proper backend in v3.0**, not an exception. Needs hosting/ops done right (see below) | New slice 1b, V2 P7, ADR, D10 |
 | **A11** | **(b)** users edit the assistant's instructions themselves, with variables (profile, stock, …) flowing into the prompt | V2 Q4 (v2.20) |
 | **E6** | Assistant may create + edit recipes, **delete only user-created ones, never the default base recipes**; every change asks for confirmation | V2 G3 (v2.20) |
@@ -184,7 +184,6 @@ assistant edits recipes (G3), capture on Sonnet 5.5 (Q1).
 |----|----------|--------|----------------|
 | **D10** *(direction set 2026-10-05)* | What does the backend hold, and when? **(a)** sharing only, no accounts · **(b)** (a) + accounts, recipes can be shared between users · **(c)** all user data incl. recipes moves from Drive to the backend. Marcel's answer: **many users should be able to share, so (b) is the direction.** Open: is (b) in v3.0, or the first step of v3.x? | Slice 1b size, privacy policy, sync design, risk R1 | **v3.0 = (a) plus a schema ready for (b); accounts + recipe sharing as the first v3.x release (target Jun–Sep 2027).** (c) later and only if wanted. Reason: accounts, privacy review, Play data-safety, the English format migration and the structured-recipe rebuild already fill the 2–3 h/week budget until April |
 | **D11** *(new)* | Sharing model: **send/invite to people or a household** (receiver gets a linked copy) vs **public publishing/browsing** of user recipes. Public needs moderation, takedown, recipe/photo copyright and probably a bigger legal setup, and contradicts the earlier "no public links, no social feed" answers (E4, A6) | US-08d design, privacy policy | **Send/invite only; the curated base catalog is the only public content** |
-| **C7** | Name/domain availability: `citchen.app` / `citchen.de` | Slice 1, long-lead items | Marcel checks, then buys |
 | **L1 (nutrition)** | Nutrition model (a)+(b) vs (b) only | V2 v2.19 | (a) bundled table + (b) AI fallback later |
 
 Full question list and Claude's technical checks: `docs/v3/03-QUESTIONS.md`.

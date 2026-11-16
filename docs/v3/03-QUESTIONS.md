@@ -10,7 +10,7 @@ has been answered. Tick as you go; write the answer next to the question.
 ## Part 1 · Open questions for Marcel
 
 > **2026-10-04:** L1, A10, C7 (name), D9, A11, E6, G7 are answered, see Part 3 · Round 3. Their old text
-> is kept below for the record. **Still open: D10** (backend scope), C7 domain availability, nutrition model (V2 L1).
+> is kept below for the record. **Still open: D10** (backend scope), nutrition model (V2 L1). C7 domain: `citchen.de` bought 2026-11-16.
 
 ### Blocking — needed before the V3 plan can be written
 
@@ -69,7 +69,14 @@ has been answered. Tick as you go; write the answer next to the question.
 
 ### Marcel's task list (no decision needed, just doing)
 
-- [ ] Look up the domain candidates and buy one (C7). Then create the support address on it
+- [x] Look up the domain candidates and buy one (C7): **`citchen.de`**, 2026-11-16.
+- [ ] Domain safety, 10 min (added 2026-11-16): auto-renew on, two-factor login at the registrar,
+      verify `citchen.de` in GitHub (Settings → Pages → *Add a verified domain*, one TXT record).
+      Do **not** enter it as the Pages custom domain yet: that moves v1 and v2 to the new address
+      and leaves browser-only data behind (R13). The switch is V3 slice 1, after the move helper (P5).
+- [ ] Decide whose postal address goes into the website's *Impressum* (needed for the landing page
+      in slice 1, January): your own, or a paid c/o address service.
+- [ ] Create the support address on it
       (e.g. `hello@…`), forwarded to your mailbox.
 - [ ] Open the Google Play developer account ($25 once; identity verification takes days).
 - [ ] Write down 12+ Android testers with their Google e-mail addresses.
@@ -177,7 +184,7 @@ No answers needed from Marcel here. Changes since 2026-10-01 are marked.
 |----|----------|-----------------|
 | L1 / D8 | Main language | **English**, interface *and* stored recipe data (a + b). Own recipes stay as written. → V2 P6, P8; slice 2 |
 | A10 | Shared weekly plan | **v3.x**, not v3.0 (with the shared cookbook) |
-| C7 | Name and domain | **Citchen** everywhere ("Citchen everywhere": agreed). Domain `citchen.app` or `citchen.de` (".de is the German way, also fine"); Marcel checks availability and confirms |
+| C7 | Name and domain | **Citchen** everywhere ("Citchen everywhere": agreed). Domain `citchen.app` or `citchen.de` (".de is the German way, also fine"); Marcel checks availability and confirms. **2026-11-16: `citchen.de` bought.** |
 | D9 | Supabase | Not an exception: a **proper backend** (Supabase) belongs in **v3.0**; asked what the right way is, incl. a friend's tip on Vercel. → ROADMAP-V3 §6 (hosting: Vercel Hobby = non-commercial only, little benefit for a static PWA; Supabase free pauses after 1 week) and **new D10** (backend scope) |
 | A11 | Which prompt | **(b)** users edit the assistant's instructions, with variables flowing in. → V2 Q4 |
 | E6 | Assistant edits | Create + edit; **delete only recipes the user created, never defaults**; confirm every change. → V2 G3 |
