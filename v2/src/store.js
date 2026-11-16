@@ -9,7 +9,7 @@
 // treffen das deutsche Objekt und überleben das Overlay sauber.
 
 import * as sync from "./data/sync.js";
-import { makeIdFactory, withDefaults, validateRecipe } from "./data/schema.js";
+import { makeIdFactory, withDefaults, validateRecipe, ORIGIN_USER } from "./data/schema.js";
 import { buildLangMap, localizeRecipes } from "./data/baseLang.js";
 import { sameCollection } from "./data/recipeMerge.js";
 import { planImport } from "./data/recipeImport.js";
@@ -108,21 +108,30 @@ async function persist(change) {
 export async function updateRecipe(id, fn) {
   const idx = recipesDe.findIndex((r) => r.id === id);
   if (idx < 0) throw new Error("Rezept nicht gefunden: " + id);
-  const copy = { ...recipesDe[idx] };
-  fn(copy);
+  // origin gehört dem Anlegen, nie dem Bearbeiten (#72): nach fn() gilt wieder der Wert von vorher.
+  const edit = (r) => {
+    const c = { ...r };
+    fn(c);
+    if (r.origin === undefined) delete c.origin; else c.origin = r.origin;
+    return c;
+  };
+  const copy = edit(recipesDe[idx]);
   const v = validateRecipe(copy);
   if (!v.valid) throw new Error("Ungültiges Rezept:\n" + v.errors.join("\n"));
   recipesDe = recipesDe.map((r, i) => (i === idx ? copy : r));
   recomputeView();
   emit();
-  await persist((list) => list.map((r) => { if (r.id !== id) return r; const c = { ...r }; fn(c); return c; }));
+  await persist((list) => list.map((r) => (r.id === id ? edit(r) : r)));
   return getRecipe(id) || copy;
 }
 
-/** Neues Rezept (vorn einfügen, v1-Verhalten). Gibt das Rezept mit ID zurück. */
+/**
+ * Neues Rezept (vorn einfügen, v1-Verhalten). Gibt das Rezept mit ID zurück.
+ * Stempelt immer `origin: "user"` — Formular, Erfassung und Assistent laufen alle hier durch (#72).
+ */
 export async function addRecipe(fields) {
   const nextId = makeIdFactory(recipesDe.map((r) => r.id));
-  const recipe = withDefaults({ id: nextId(), lastCooked: "", ...fields });
+  const recipe = withDefaults({ id: nextId(), lastCooked: "", ...fields, origin: ORIGIN_USER });
   const v = validateRecipe(recipe);
   if (!v.valid) throw new Error("Ungültiges Rezept:\n" + v.errors.join("\n"));
   recipesDe = [recipe, ...recipesDe];

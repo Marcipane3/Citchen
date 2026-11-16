@@ -107,3 +107,58 @@ test("AR-13: menu.js exportiert getRecipesDe(), nie state.recipes (Verdrahtungs-
   assert(/exportFile\(getRecipesDe\(\)\)/.test(src), "Datei-Export nicht kanonisch");
   assert(!/(copyExport|exportFile)\(state\.recipes\)/.test(src), "menu.js exportiert die Anzeige-Sicht");
 });
+
+// ---- origin (#72): der Store ist die einzige Stelle, die das Feld setzt ----
+import { addRecipe, updateRecipe, setRecipes, setSaveChangeForTest } from "../src/store.js";
+
+/** Fake-Warteschlange: wendet die Änderung auf `disk` an und merkt sich, was geschrieben würde. */
+async function withFakeDisk(disk, fn) {
+  const box = { stored: null };
+  setRecipes(disk.map((x) => ({ ...x })), null);
+  setSaveChangeForTest(async (change) => { box.stored = change(disk.map((x) => ({ ...x }))); return { meta: {}, recipes: box.stored }; });
+  try { await fn(box); } finally { setSaveChangeForTest(null); }
+}
+const BASE72 = { id: "r01", name: "Grundrezept", category: "Vegetarische Hauptgerichte" };
+const MINE72 = { id: "r02", name: "Eigenes", category: "Pasta & Nudeln", origin: "user" };
+
+test("origin: addRecipe speichert immer origin \"user\", egal was die Felder sagen", async () => {
+  for (const incoming of [undefined, "shared", "base", ""]) {
+    await withFakeDisk([BASE72], async (box) => {
+      const fields = { name: "Neu", category: "Pasta & Nudeln" };
+      if (incoming !== undefined) fields.origin = incoming;
+      const saved = await addRecipe(fields);
+      assertEqual(saved.origin, "user", "Rückgabe bei " + JSON.stringify(incoming));
+      assertEqual(box.stored.find((x) => x.id === saved.id).origin, "user", "gespeichert bei " + JSON.stringify(incoming));
+      assert(!("origin" in box.stored.find((x) => x.id === "r01")), "Bestand unberührt");
+    });
+  }
+});
+
+test("origin: updateRecipe fügt bei einem Grundrezept nie origin hinzu", async () => {
+  await withFakeDisk([BASE72, MINE72], async (box) => {
+    await updateRecipe("r01", (x) => { x.name = "Geändert"; x.origin = "user"; });
+    const got = box.stored.find((x) => x.id === "r01");
+    assertEqual(got.name, "Geändert");
+    assert(!("origin" in got), "Grundrezept bleibt ohne origin");
+  });
+});
+
+test("origin: updateRecipe ändert oder entfernt origin bei einem Nutzerrezept nie", async () => {
+  await withFakeDisk([BASE72, MINE72], async (box) => {
+    await updateRecipe("r02", (x) => { x.name = "Geändert"; x.origin = "shared"; });
+    assertEqual(box.stored.find((x) => x.id === "r02").origin, "user", "nicht geändert");
+    await updateRecipe("r02", (x) => { delete x.origin; x.favorite = true; });
+    assertEqual(box.stored.find((x) => x.id === "r02").origin, "user", "nicht entfernt");
+    // Formular-Pfad: Object.assign mit Feldern ohne origin
+    await updateRecipe("r02", (x) => Object.assign(x, { name: "Formular", tips: "t" }));
+    assertEqual(box.stored.find((x) => x.id === "r02").origin, "user", "Formular-Edit behält user");
+  });
+});
+
+test("origin: Sammlung ohne origin wird nach Laden + Speichern ohne origin zurückgeschrieben", async () => {
+  await withFakeDisk(DE, async (box) => {
+    await updateRecipe("r01", (x) => { x.favorite = false; });
+    assert(box.stored.every((x) => !("origin" in x)), "kein Rezept bekommt origin");
+    assert(!toFileString({ version: 3, updated: "x", recipes: box.stored }).includes("origin"), "Datei enthält kein origin");
+  });
+});

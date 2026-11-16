@@ -91,6 +91,7 @@
 | `toTry` | boolean | nein | `true` bei neuen, noch nie gekochten Ideen. Treibt einen App-Filter. |
 | `season` | string | nein | Saison, falls relevant, z.B. `"Herbst"`, `"Sommer"`. |
 | `tags` | string[] | nein | Freie Schlagworte (z.B. `["bowl","mealprep","scharf"]`). |
+| `origin` | string | nein | Herkunft, **additives Feld** (`version` bleibt `3`). `"user"` = vom Nutzer in der App angelegt (Formular, Erfassung, Assistent, Datei-Import). **Fehlt das Feld = Grundrezept.** **App-verwaltet — Claude NICHT setzen oder ändern** (siehe unten). |
 
 ### Vorrat vs. „neu kaufen": die `🛒`-Konvention (wichtig für Claude)
 Zutaten, die **nicht** auf der Vorratsliste des Nutzers stehen (`Projektwissen1.md` →
@@ -171,6 +172,22 @@ ungefragt Rezepte umschreiben. Niemals `feedback` ohne Einarbeiten löschen.
 12. **App-eigene Felder eines bestehenden Rezepts durchreichen:** `photos`, `rating`,
     `favorite`, `cookedCount` gehören der App. Beim Editieren **unverändert übernehmen**,
     nicht zurücksetzen.
+13. **`origin` nie setzen und nie ändern.** Das Feld vergibt nur die App, wenn der Nutzer ein Rezept
+    anlegt. Ein neues Rezept von Claude bekommt **kein** `origin` (zählt als Grundrezept); steht bei
+    einem bestehenden Rezept `"origin": "user"`, beim Editieren **unverändert übernehmen**.
+
+### Herkunft: das Feld `origin`
+
+`origin` sagt der App, welche Rezepte der Nutzer selbst angelegt hat (Grundlage dafür, dass der
+Assistent später nur eigene Rezepte löschen darf).
+
+- `"origin": "user"` → in der App angelegt: Formular, Erfassung (einzeln und Stapel), Assistent,
+  Datei-Import. **Feld fehlt** → Grundrezept. Bestehende Rezepte bekommen das Feld nicht nachträglich.
+- Die App prüft nur den **Typ** (String). Ein anderer String (ein späterer Wert wie `"shared"`) macht
+  die Datei nicht ungültig; er zählt nur nicht als „vom Nutzer angelegt“. Kein String → Rezept ungültig.
+- Bearbeiten ändert die Herkunft nicht: ein bearbeitetes Grundrezept bleibt ohne `origin`, ein
+  Nutzerrezept behält `"user"`.
+- `origin` ist **kein** persönliches Feld: es steht in der Export-Datei.
 
 ## Re-Sync & Zusammenführen (seit v2.15.1) — entscheidend für G1
 
@@ -233,6 +250,7 @@ Installation einlesen — ohne Drive auf beiden Seiten. Die Datei hat **dieselbe
 | Rezept zu groß: `name` > 200 Zeichen · Zeile in `ingredients`/`steps`/`tags` oder `time`/`servings`/`cuisine`/`season` > 500 Zeichen · mehr als 200 Zeilen in einer Liste · `tips` > 5000 Zeichen | dieses Rezept übersprungen und gemeldet |
 | persönliche Felder (s. o.) | verworfen — auch `feedback`: eine fremde Datei darf Claude nichts auftragen |
 | unbekannte Felder im Rezept | verworfen (der Drive-Abgleich behält sie weiterhin) |
+| `origin` | jedes importierte Rezept wird als `"user"` gespeichert, egal was in der Datei steht; beim Vergleich „bereits vorhanden“ zählt `origin` nicht mit |
 | `image` ist keine `https:`-Adresse | Bild-Adresse geleert, Rezept wird importiert, Hinweis im Ergebnis |
 | Leerraum um die `id` | entfernt (`" r01 "` = `"r01"`) |
 
