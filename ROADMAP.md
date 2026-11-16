@@ -47,7 +47,7 @@ below every time an item is crossed off.
 
 *Answered 2026-10-27:* G2-Q1…Q3 (Markdown always English), G3-Q1/Q2, Q4-Q1/Q2, P8-Q1 — all as suggested; items are `planned` and get promoted as the ready buffer frees up.
 
-**Waiting on Marcel — from v2.16, a yes/no:** **Q5** move the chat to the 5.5 generation? Haiku 5.5 is ~10× cheaper than today's Haiku 4.5 default and caches from 512 tokens (so v2.16's prompt caching hits for every cookbook size); Sonnet 5.5 would replace Sonnet 4.6 as the stronger option. Recommended: yes, after the v2.16 usage numbers are in (details: `ROADMAP-V2.md` Q5).
+✅ **Q5 answered** (10 + 16 Nov): the chat moves to Haiku 5.5 (default) and Sonnet 5.5, high priority → issue #79, milestone v2.19.
 
 **Waiting on Marcel — 5-minute answers that unblock the queue** (details in `ROADMAP-V3.md` §6):
 **D10** timing: accounts + recipe sharing in v3.0 or first in v3.x (recommended: v3.x) · **D11** sharing = send/invite, not public (recommended) · **R1** sign-off on the ingredient/unit spec (Nov) · **L1 nutrition** now resolved by R2, please confirm ·
