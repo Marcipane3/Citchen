@@ -2,7 +2,7 @@
 // Bestand planen. Kein DOM, kein Store. Dateiform = rezepte.json ({version, updated, recipes[]}).
 // Eine Import-ID überschreibt NIE ein vorhandenes Rezept: Kollisionen bekommen eine frische ID.
 
-import { validateRecipe, withDefaults, makeIdFactory, envelopeProblem, RECIPE_FIELDS, PERSONAL_FIELDS } from "./schema.js";
+import { validateRecipe, withDefaults, makeIdFactory, envelopeProblem, RECIPE_FIELDS, PERSONAL_FIELDS, ORIGIN_USER } from "./schema.js";
 import { sameContent } from "./recipeMerge.js";
 
 // Eine Import-Datei ist ein FREMDER Kanal (#36): Grenzen weit über echten Rezepten (längster Name im
@@ -68,10 +68,16 @@ export function parseImportFile(text) {
   return { recipes, errors, notes };
 }
 
-/** Gleiche ID und gleicher Inhalt (ohne persönliche Felder + Fotos) → dasselbe Rezept. */
-export function isSameRecipe(a, b) { return a.id === b.id && sameContent(a, b); }
+/** Gleiche ID und gleicher Inhalt (ohne persönliche Felder, Fotos und `origin`) → dasselbe Rezept. */
+export function isSameRecipe(a, b) {
+  // sameContent ignoriert origin (#72): sonst käme dieselbe Datei beim zweiten Mal als „anderer Inhalt“ an.
+  return a.id === b.id && sameContent(a, b);
+}
 
-/** Plant das Hinzufügen: → {toAdd, skipped, renamed}. Identische Rezepte werden übersprungen. Mutiert keine Eingabe. */
+/**
+ * Plant das Hinzufügen: → {toAdd, skipped, renamed}. Identische Rezepte werden übersprungen. Mutiert keine Eingabe.
+ * Alles in toAdd bekommt `origin: "user"`, egal was die Datei sagt: importiert = vom Nutzer angelegt (#72).
+ */
 export function planImport(incoming, existing, now = Date.now) {
   const nextId = makeIdFactory([...existing, ...incoming].map((r) => r.id), now); // auch Import-IDs sperren
   const taken = new Set(existing.map((r) => r.id));
@@ -83,10 +89,10 @@ export function planImport(incoming, existing, now = Date.now) {
     } else if (taken.has(r.id)) {
       const id = nextId();
       renamed.push({ from: r.id, to: id, name: r.name });
-      toAdd.push({ ...r, id });
+      toAdd.push({ ...r, id, origin: ORIGIN_USER });
       taken.add(id);
     } else {
-      toAdd.push({ ...r });
+      toAdd.push({ ...r, origin: ORIGIN_USER });
       taken.add(r.id);
     }
   }

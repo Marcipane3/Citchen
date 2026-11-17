@@ -31,7 +31,7 @@ export const DIFFICULTY_VALUES = Object.freeze(["", "einfach", "mittel", "aufwä
 export const RECIPE_FIELDS = Object.freeze([
   "id", "name", "category", "time", "servings", "lastCooked", "rating", "favorite", "cookedCount",
   "image", "photos", "feedback", "ingredients", "steps", "tips", "effort", "difficulty", "cuisine",
-  "prepTime", "cookTime", "totalTime", "mealPrep", "toTry", "season", "tags",
+  "prepTime", "cookTime", "totalTime", "mealPrep", "toTry", "season", "tags", "origin",
 ]);
 
 /**
@@ -53,6 +53,13 @@ export function envelopeProblem(json) {
   return null;
 }
 
+/**
+ * Herkunft (#72, G3-Q1): `origin: "user"` = vom Nutzer in der App angelegt; fehlt das Feld, ist es ein
+ * Grundrezept. EINZIGE Definition. Jeder andere Wert (später z. B. "shared") zählt nicht als eigenes Rezept.
+ */
+export const ORIGIN_USER = "user";
+export function isUserRecipe(recipe) { return !!recipe && recipe.origin === ORIGIN_USER; }
+
 const isStr = (v) => typeof v === "string";
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 const isBool = (v) => typeof v === "boolean";
@@ -69,7 +76,8 @@ export function validateRecipe(r) {
   if (!CATEGORIES.includes(r.category)) errors.push(`category ungültig: ${JSON.stringify(r.category)}`);
 
   // Optionale Felder: nur Typen prüfen, wenn vorhanden
-  const optStr = ["time", "servings", "lastCooked", "image", "feedback", "tips", "cuisine", "season"];
+  // origin: nur der Typ zählt — ein späterer Wert macht eine Datei in dieser App nie ungültig (#72).
+  const optStr = ["time", "servings", "lastCooked", "image", "feedback", "tips", "cuisine", "season", "origin"];
   for (const f of optStr) {
     if (r[f] !== undefined && !isStr(r[f])) errors.push(`${f} muss String sein`);
   }

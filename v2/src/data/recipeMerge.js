@@ -67,11 +67,15 @@ function stable(v) {
   return JSON.stringify(v);
 }
 
-/** Gleicher Rezept-INHALT: persönliche Felder (♥, Bewertung, Fotos …) und fehlende Standardwerte zählen nicht. */
-const PERSONAL = new Set(PERSONAL_FIELDS);
+/**
+ * Gleicher Rezept-INHALT: persönliche Felder (♥, Bewertung, Fotos …), `origin` und fehlende Standardwerte
+ * zählen nicht. `origin` (#72) ist kein persönliches Feld (der Export behält es), aber auch kein Inhalt:
+ * ein importiertes Rezept mit "user" ist dasselbe wie sein Zwilling ohne Feld auf Drive.
+ */
+const NOT_CONTENT = new Set([...PERSONAL_FIELDS, "origin"]);
 function contentOnly(r) {
   const full = withDefaults(r), out = {};
-  for (const k of Object.keys(full)) if (!PERSONAL.has(k)) out[k] = full[k];
+  for (const k of Object.keys(full)) if (!NOT_CONTENT.has(k)) out[k] = full[k];
   return out;
 }
 export function sameContent(a, b) { return stable(contentOnly(a)) === stable(contentOnly(b)); }

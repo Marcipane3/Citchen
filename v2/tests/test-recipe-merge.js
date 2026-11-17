@@ -1,7 +1,8 @@
 // Tests: data/recipeMerge.js (v2.15.1, Epic T1/T2) — reine Funktionen, die Spezifikation der
 // sicheren Rezept-Synchronisation: Drei-Wege-Merge pro Rezept + Prüfung eingehender Drive-Dateien.
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
-import { mergeRecipes, inspectRemote, sameRecipe, suspiciousDrop, RemoteRejected } from "../src/data/recipeMerge.js";
+import { mergeRecipes, inspectRemote, sameRecipe, sameContent, suspiciousDrop, RemoteRejected } from "../src/data/recipeMerge.js";
+import { planImport } from "../src/data/recipeImport.js";
 
 const r = (id, name, extra = {}) => ({ id, name, category: "Vegetarische Hauptgerichte", ...extra });
 const names = (list) => list.map((x) => x.name);
@@ -107,6 +108,34 @@ test("#49: gleiche id, gleicher Inhalt, nur persönliche Felder anders → dasse
   assertEqual(out.merged.length, 2);
   assertDeepEqual(out.forked, []);
   assertEqual(out.merged.find((x) => x.id === "n1").cookedCount, 2, "wie bisher: Drive-Stand");
+});
+
+test("origin (#72): sameContent ignoriert origin, aber nicht den Inhalt", () => {
+  assert(sameContent(r("a", "A"), r("a", "A", { origin: "user" })), "nur origin anders → gleicher Inhalt");
+  assert(sameContent(r("a", "A", { origin: "user" }), r("a", "A", { origin: "shared" })), "andere origin-Werte → gleicher Inhalt");
+  assert(!sameContent(r("a", "A", { origin: "user" }), r("a", "B", { origin: "user" })), "anderer Name bleibt anderer Inhalt");
+});
+
+test("origin (#72): mergeRecipes — ein lokaler Zwilling, der sich von Drive nur in origin unterscheidet, ist dasselbe Rezept", () => {
+  const base = [r("a", "A")];
+  const local = [r("n1", "Importiert", { origin: "user" }), r("a", "A")];
+  const remote = [r("a", "A"), r("n1", "Importiert")];
+  const out = mergeRecipes({ base, local, remote, now: () => 5000 });
+  assertEqual(out.merged.length, 2, "keine Kopie");
+  assertDeepEqual(out.forked, []);
+  assertEqual(new Set(ids(out.merged)).size, 2);
+});
+
+test("origin (#72): Backup importieren, danach anmelden — Drive kennt das Rezept ohne origin → keine Doppelung", () => {
+  const base = [r("r-old", "Alt")];
+  const backup = [r("r-claude-1", "Von Claude")];
+  const { toAdd } = planImport(backup, base);
+  assertEqual(toAdd[0].origin, "user", "Import stempelt");
+  const local = [...toAdd, ...base];
+  const remote = [r("r-claude-1", "Von Claude"), r("r-old", "Alt")];
+  const out = mergeRecipes({ base, local, remote, now: () => 1700000000000 });
+  assertDeepEqual(ids(out.merged).sort(), ["r-claude-1", "r-old"]);
+  assertDeepEqual(out.forked, []);
 });
 
 test("#49: ohne Basis bleibt die alte Regel (Umstieg: sonst verdoppelten sich alle geänderten Rezepte)", () => {

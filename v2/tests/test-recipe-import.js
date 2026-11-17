@@ -371,3 +371,53 @@ test("#52: importRecipes([]) fasst den Store nicht an — kein emit, kein Speich
     assertEqual(state.recipes.length, 1);
   } finally { off(); setSaveChangeForTest(null); }
 });
+
+// ---- origin (#72): was der Datei-Import hinzufügt, hat der Nutzer angelegt ----
+test("origin: planImport stempelt jedes hinzugefügte Rezept mit \"user\", egal was die Datei sagt", () => {
+  const { recipes, errors } = parseImportFile(file([
+    r("a", "Ohne"), r("b", "Fremd", { origin: "shared" }), r("c", "Schon", { origin: "user" }), r("d", "Kollision", { origin: "base" }),
+  ]));
+  assertEqual(errors.length, 0);
+  const incoming = JSON.stringify(recipes);
+  const plan = planImport(recipes, [r("d", "Anderes Rezept")]);
+  assertEqual(plan.toAdd.length, 4);
+  for (const x of plan.toAdd) assertEqual(x.origin, "user", x.name);
+  assertEqual(plan.renamed.length, 1, "Kollision bekommt neue ID und trotzdem origin user");
+  assertEqual(JSON.stringify(recipes), incoming, "Eingabe nicht mutiert");
+});
+
+test("origin: zählt nicht bei „bereits vorhanden“ — dieselbe Datei zweimal importieren fügt nichts hinzu", () => {
+  const text = file([r("a", "Ohne origin", { tips: "t" }), r("b", "Mit origin", { origin: "shared" })]);
+  const first = planImport(parseImportFile(text).recipes, []);
+  assertEqual(first.toAdd.length, 2);
+  const second = planImport(parseImportFile(text).recipes, first.toAdd);
+  assertEqual(second.toAdd.length, 0, "zweiter Import fügt nichts hinzu");
+  assertEqual(second.skipped.length, 2);
+  assertEqual(second.renamed.length, 0);
+});
+
+test("origin: eigener Vollexport verdoppelt weder Grund- noch Nutzerrezepte", () => {
+  const existing = [r("base1", "Grundrezept"), r("mine1", "Eigenes", { origin: "user" })];
+  const plan = planImport(parseImportFile(file(existing)).recipes, existing);
+  assertEqual(plan.toAdd.length, 0);
+  assertEqual(plan.skipped.length, 2);
+});
+
+test("origin: anderer Inhalt bei gleicher ID bleibt ein anderes Rezept (nur origin wird ignoriert)", () => {
+  const plan = planImport([r("a", "Neu", { origin: "user" })], [r("a", "Alt", { origin: "user" })]);
+  assertEqual(plan.toAdd.length, 1);
+  assertEqual(plan.renamed.length, 1);
+});
+
+test("origin: importRecipes speichert die Rezepte mit origin \"user\", der Bestand bleibt ohne Feld", async () => {
+  setRecipes([r("a", "Alt")], null);
+  let stored;
+  setSaveChangeForTest(async (change) => { stored = change([r("a", "Alt")]); return { meta: {}, recipes: stored }; });
+  try {
+    await importRecipes([r("n1", "Importiert"), r("n2", "Fremd", { origin: "shared" })]);
+    assertEqual(stored.find((x) => x.id === "n1").origin, "user");
+    assertEqual(stored.find((x) => x.id === "n2").origin, "user");
+    assert(!("origin" in stored.find((x) => x.id === "a")), "vorhandenes Rezept nicht gestempelt");
+    assertEqual(state.recipes.find((x) => x.id === "n1").origin, "user", "Anzeige zeigt denselben Stand");
+  } finally { setSaveChangeForTest(null); }
+});

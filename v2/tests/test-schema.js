@@ -1,6 +1,6 @@
 // Tests: schema.js — Kategorien, Validierung, ID-Vergabe, Defaults.
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
-import { CATEGORIES, validateRecipe, validateCollection, makeIdFactory, withDefaults } from "../src/data/schema.js";
+import { CATEGORIES, validateRecipe, validateCollection, makeIdFactory, withDefaults, isUserRecipe, RECIPE_FIELDS, PERSONAL_FIELDS } from "../src/data/schema.js";
 
 test("CATEGORIES: exakt 16, exakte Strings (SCHEMA.md)", () => {
   assertEqual(CATEGORIES.length, 16);
@@ -81,4 +81,40 @@ test("withDefaults: füllt genau die v1-Felder, ändert Vorhandenes nicht", () =
   assertEqual(out.image, "");
   assertEqual(out.feedback, "");
   assertEqual(r.favorite, undefined, "Original darf nicht mutiert werden");
+});
+
+// ---- origin (#72, G3-Q1): "user" = in der App angelegt; fehlt = Grundrezept ----
+const base72 = () => ({ id: "r72", name: "Test", category: "Pasta & Nudeln" });
+
+test("origin: validateRecipe akzeptiert ohne origin, mit \"user\" und mit späteren Werten wie \"shared\"", () => {
+  assert(validateRecipe(base72()).valid, "ohne origin");
+  assert(validateRecipe({ ...base72(), origin: "user" }).valid, "origin user");
+  assert(validateRecipe({ ...base72(), origin: "shared" }).valid, "anderer String macht die Datei nie ungültig");
+});
+
+test("origin: validateRecipe lehnt Nicht-Strings ab (Zahl, Boolean, Objekt)", () => {
+  for (const bad of [1, true, {}, null, ["user"]]) {
+    const res = validateRecipe({ ...base72(), origin: bad });
+    assert(!res.valid, "abgelehnt: " + JSON.stringify(bad));
+    assert(res.errors.some((e) => e.includes("origin")), "Fehler nennt origin");
+  }
+});
+
+test("origin: isUserRecipe ist nur bei origin === \"user\" wahr", () => {
+  assertEqual(isUserRecipe({ ...base72(), origin: "user" }), true);
+  for (const o of [undefined, "", "shared", "base", "User", " user", 1, true]) {
+    assertEqual(isUserRecipe({ ...base72(), origin: o }), false, JSON.stringify(o));
+  }
+  assertEqual(isUserRecipe(base72()), false, "ohne Feld = Grundrezept");
+  assertEqual(isUserRecipe(null), false);
+  assertEqual(isUserRecipe(undefined), false);
+});
+
+test("origin: steht in RECIPE_FIELDS und ist kein persönliches Feld", () => {
+  assert(RECIPE_FIELDS.includes("origin"), "origin fehlt in RECIPE_FIELDS");
+  assert(!PERSONAL_FIELDS.includes("origin"), "origin darf kein persönliches Feld sein");
+});
+
+test("origin: withDefaults ergänzt das Feld nie (bestehende Rezepte bleiben unberührt)", () => {
+  assert(!("origin" in withDefaults(base72())));
 });

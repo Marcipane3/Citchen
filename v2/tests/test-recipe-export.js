@@ -1,6 +1,7 @@
 // Tests: data/recipeExport.js + features/cookbook/export.js (G2.2) — Export-Datei.
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import { buildExportFile, exportFileName } from "../src/data/recipeExport.js";
+import { RECIPE_FIELDS, PERSONAL_FIELDS } from "../src/data/schema.js";
 import { deliverExportFile } from "../src/features/cookbook/export.js";
 
 const full = () => ({
@@ -86,4 +87,12 @@ test("deliver: ohne canShare → Download-Link mit Dateiname", async () => {
     globalThis.document = realDoc; URL.createObjectURL = realURL; URL.revokeObjectURL = realRevoke;
   }
   assertDeepEqual(clicks, ["d.citchen.json"]);
+});
+
+test("export: origin ist Vertragsfeld, nicht persönlich, und bleibt in der Datei (#72)", () => {
+  assert(RECIPE_FIELDS.includes("origin"), "origin fehlt in RECIPE_FIELDS");
+  assert(!PERSONAL_FIELDS.includes("origin"), "origin darf kein persönliches Feld sein");
+  const [mine, baseRecipe] = buildExportFile([{ ...full(), origin: "user" }, { ...full(), id: "r2" }]).recipes;
+  assertEqual(mine.origin, "user");
+  assert(!("origin" in baseRecipe), "Grundrezept bekommt beim Export kein origin");
 });
