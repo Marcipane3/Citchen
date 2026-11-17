@@ -17,6 +17,9 @@ export class FakeAnthropic {
   /** Nächste Antwort: Text (z.B. JSON.stringify(recipe)) oder { status, error } für Fehler. */
   reply(textOrError) { this.queue.push(textOrError); }
 
+  /** Nächste Antwort mit eigenen Inhaltsblöcken (z.B. leerer thinking-Block vor dem Text). */
+  replyBlocks(content) { this.queue.push({ content }); }
+
   async handle(route) {
     const req = route.request();
     if (req.method() === "OPTIONS") {
@@ -26,7 +29,7 @@ export class FakeAnthropic {
     this.requests.push({ url: req.url(), headers: req.headers(), body });
 
     const next = this.queue.length ? this.queue.shift() : this.fallback;
-    if (next && typeof next === "object") {
+    if (next && typeof next === "object" && !next.content) {
       return route.fulfill({
         status: next.status, headers: { ...CORS, "content-type": "application/json" },
         body: JSON.stringify({ type: "error", error: { type: "api_error", message: next.error || "fake error" } }),
@@ -37,7 +40,7 @@ export class FakeAnthropic {
       headers: { ...CORS, "content-type": "application/json" },
       body: JSON.stringify({
         id: "msg_e2e", type: "message", role: "assistant", model: body?.model || "fake",
-        content: [{ type: "text", text: next }],
+        content: next && next.content ? next.content : [{ type: "text", text: next }],
         stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10 },
       }),
     });

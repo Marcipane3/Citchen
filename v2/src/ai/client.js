@@ -5,7 +5,7 @@
 // "anthropic-dangerous-direct-browser-access: true" (CORS-Opt-in der API).
 
 import { getKey, getModel } from "./gate.js";
-import { TASKS, VISION_MODEL, FALLBACK_BETA } from "./models.js";
+import { TASKS, CHAT_MODELS, VISION_MODEL, FALLBACK_BETA } from "./models.js";
 import { normalizeUsage, addUsage, recordUsage } from "./usage.js";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
@@ -34,17 +34,21 @@ function headers(key, beta = "") {
 
 /**
  * Pur & testbar: der Anfrage-Body. Mit `task` (models.TASKS) kommen Modell, Effort, Token-Limit
- * und Fallback aus der Konfiguration; sonst das gewählte Textmodell.
+ * und Fallback aus der Konfiguration; sonst das gewählte Textmodell mit seiner Konfiguration aus
+ * models.CHAT_MODELS (effort, Token-Boden, Fallback nur wo das Modell ihn kennt).
  * cacheSystem (Q2): der System-Prompt wird als Block mit cache_control gesendet → Folge-Anfragen
  * mit demselben Prompt lesen ihn aus dem Cache (~10 % des Preises). Unter der Mindestlänge des
- * Modells (Haiku 4.5: 4096 Tokens) cached die API still nicht — kein Fehler.
+ * Modells (5.5-Modelle: 512 Tokens) cached die API still nicht — kein Fehler.
  */
 export function buildRequest({ system, messages, maxTokens = 4096, model = null, tools = null, task = null, cacheSystem = false }) {
-  const cfg = task ? TASKS[task] : null;
-  if (task && !cfg) throw new Error(`Unbekannte KI-Aufgabe: ${task}`);
+  const taskCfg = task ? TASKS[task] : null;
+  if (task && !taskCfg) throw new Error(`Unbekannte KI-Aufgabe: ${task}`);
+  const id = (taskCfg && taskCfg.model) || model || getModel();
+  const chatCfg = taskCfg ? null : CHAT_MODELS.find((m) => m.id === id) || null;
+  const cfg = taskCfg || chatCfg;
   const body = {
-    model: (cfg && cfg.model) || model || getModel(),
-    max_tokens: (cfg && cfg.maxTokens) || maxTokens,
+    model: id,
+    max_tokens: taskCfg ? taskCfg.maxTokens : Math.max(maxTokens, (chatCfg && chatCfg.maxTokens) || 0),
     system: system ? (cacheSystem ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] : system) : undefined,
     messages,
     tools: tools || undefined,
