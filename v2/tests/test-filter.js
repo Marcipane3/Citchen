@@ -2,7 +2,7 @@
 import { test, assert, assertEqual } from "./runner.js";
 import {
   availableChips, chipLabel, filterRecipes, distinctValues, isSpecialChip, activeFilterCount,
-  sortRecipes, cookedMonthKey, searchNorm, SORTS,
+  sortRecipes, cookedMonthKey, searchNorm, SORTS, similarRecipe, similarShown,
 } from "../src/features/cookbook/filter.js";
 import { exportMarkdown, recipeToMarkdown, CATEGORY_LABELS_EN, shareRecipeText } from "../src/features/cookbook/export.js";
 import { setLang, DE_MONTHS } from "../src/i18n.js";
@@ -352,4 +352,91 @@ test("sortRecipes (F4): echte Daten — neueste zuerst ist die Umkehr der Basis-
   assertEqual(sorted.length, R.length);
   assertEqual(sorted[0].id, R[R.length - 1].id);
   assertEqual(sorted[sorted.length - 1].id, "r01");
+});
+
+/* ---------- #65 (QW-4): ähnlicher Name schon im Kochbuch ---------- */
+
+const BOOK = [
+  { id: "a", name: "Süßkartoffel-Curry mit Kichererbsen" },
+  { id: "b", name: "Chili sin Carne" },
+  { id: "c", name: "Pasta e Ceci" },
+];
+
+test("#65 similarRecipe: gleicher Name → das vorhandene Rezept", () => {
+  assertEqual(similarRecipe("Pasta e Ceci", BOOK)?.id, "c");
+});
+
+test("#65 similarRecipe: andere Groß-/Kleinschreibung und Akzente zählen nicht", () => {
+  assertEqual(similarRecipe("PASTA E CÉCI", BOOK)?.id, "c");
+});
+
+test("#65 similarRecipe: „ß“ und „ss“ sind gleich", () => {
+  assertEqual(similarRecipe("Susskartoffel-Curry mit Kichererbsen", BOOK)?.id, "a");
+});
+
+test("#65 similarRecipe: Klammer-Zusatz wird ignoriert („Chili (vegan)“ → „chili“)", () => {
+  assertEqual(similarRecipe("Chili sin Carne (vegan)", BOOK)?.id, "b");
+  assertEqual(similarRecipe("Chili (vegan)", [{ id: "x", name: "Chili" }])?.id, "x");
+  assertEqual(similarRecipe("Chili", [{ id: "y", name: "Chili [scharf]" }])?.id, "y");
+});
+
+test("#65 similarRecipe: andere Wortreihenfolge und Satzzeichen zählen nicht", () => {
+  assertEqual(similarRecipe("Kichererbsen mit Süßkartoffel Curry", BOOK)?.id, "a");
+  assertEqual(similarRecipe("Carne, sin Chili!", BOOK)?.id, "b");
+});
+
+test("#65 similarRecipe: klar anderer Name → null", () => {
+  assertEqual(similarRecipe("Linsen-Dal", BOOK), null);
+});
+
+test("#65 similarRecipe: ein zusätzliches echtes Wort passt NICHT", () => {
+  assertEqual(similarRecipe("Pasta e Ceci al Forno", BOOK), null);
+  assertEqual(similarRecipe("Chili sin Carne Bowl", BOOK), null);
+});
+
+test("#65 similarRecipe: leerer Name passt nie (auch nicht auf leere Namen)", () => {
+  const withEmpty = [...BOOK, { id: "e", name: "" }, { id: "f", name: "(ohne)" }];
+  assertEqual(similarRecipe("", withEmpty), null);
+  assertEqual(similarRecipe("   ", withEmpty), null);
+  assertEqual(similarRecipe("( )", withEmpty), null);
+  assertEqual(similarRecipe(undefined, withEmpty), null);
+  assertEqual(similarRecipe("Pasta", [{ id: "n" }]), null);
+});
+
+test("#65 similarRecipe: das ERSTE passende Rezept gewinnt", () => {
+  assertEqual(similarRecipe("chili", [{ id: "1", name: "Chili" }, { id: "2", name: "CHILI" }])?.id, "1");
+});
+
+test("#65 similarShown: passt gegen Anzeige-Namen UND deutsche Originale, zeigt den Anzeige-Namen", () => {
+  const de = [{ id: "a", name: "Linsensuppe" }, { id: "b", name: "Pasta e Ceci" }];
+  const shown = [{ id: "a", name: "Lentil soup" }, { id: "b", name: "Pasta e Ceci" }];
+  assertEqual(similarShown("lentil soup", shown, de)?.name, "Lentil soup");      // übersetzter Name
+  assertEqual(similarShown("Linsensuppe", shown, de)?.name, "Lentil soup");      // deutsches Original → Anzeige
+  assertEqual(similarShown("Pasta e Ceci", shown, de)?.name, "Pasta e Ceci");
+  assertEqual(similarShown("Gazpacho", shown, de), null);
+  assertEqual(similarShown("Linsensuppe", shown, []), null);
+  // Deutsches Original ohne Anzeige-Gegenstück (sollte nie passieren) → das Original selbst
+  assertEqual(similarShown("Linsensuppe", [], de)?.name, "Linsensuppe");
+});
+
+test("#65 similarNoteHtml: vorhandener Name wird escaped, Text in DE/EN/ES/DA mit geschwungenen Anführungen", async () => {
+  const { similarNoteHtml } = await import("../src/features/cookbook/form.js");
+  const { setRecipes } = await import("../src/store.js");
+  setRecipes([{ id: "x1", name: "Toast <b>&</b> Ei" }]);
+  try {
+    const want = {
+      de: "Schon in deinem Kochbuch: „Toast &lt;b&gt;&amp;&lt;/b&gt; Ei“",
+      en: "Already in your cookbook: “Toast &lt;b&gt;&amp;&lt;/b&gt; Ei”",
+      es: "Ya está en tu recetario: “Toast &lt;b&gt;&amp;&lt;/b&gt; Ei”",
+      da: "Allerede i din kogebog: „Toast &lt;b&gt;&amp;&lt;/b&gt; Ei“",
+    };
+    for (const [lang, html] of Object.entries(want)) {
+      setLang(lang);
+      assertEqual(similarNoteHtml("ei toast <b>&</b>"), html, lang);
+    }
+    assertEqual(similarNoteHtml("Rührei"), "");
+  } finally {
+    setLang("de");
+    setRecipes([]);
+  }
 });

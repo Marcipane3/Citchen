@@ -66,6 +66,32 @@ export function searchNorm(s) {
   return String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/ß/g, "ss");
 }
 
+/**
+ * #65 (QW-4): Namens-Schlüssel für „schon im Kochbuch?“ — searchNorm, Klammer-Teile weg
+ * („Chili (vegan)“ → „chili“), Satzzeichen → Leerzeichen, Wörter sortiert. Leer → "".
+ */
+function nameKey(name) {
+  return searchNorm(name).replace(/\([^)]*\)|\[[^\]]*\]/g, " ").replace(/[^\p{L}\p{N}]+/gu, " ")
+    .split(" ").filter(Boolean).sort().join(" ");
+}
+
+/** Erstes Rezept, dessen Name nach nameKey gleich ist, sonst null. Ein leerer Name passt nie. */
+export function similarRecipe(name, recipes) {
+  const key = nameKey(name);
+  if (!key) return null;
+  return (recipes || []).find((r) => r && nameKey(r.name) === key) || null;
+}
+
+/**
+ * Wie similarRecipe, aber gegen die Anzeige-Namen UND die deutschen Originale (übersetzte UI);
+ * zurück kommt immer das Rezept, wie es angezeigt wird.
+ */
+export function similarShown(name, shown, de) {
+  const hit = similarRecipe(name, shown) || similarRecipe(name, de);
+  if (!hit) return null;
+  return (shown || []).find((r) => r.id === hit.id) || hit;
+}
+
 /** Jedes Wort der Suche muss in Name, Zutaten, Tipps oder Küche vorkommen (Reihenfolge egal). */
 function matchesQuery(r, q) {
   const words = searchNorm(q).split(/\s+/).filter(Boolean);

@@ -2,11 +2,21 @@
 // Validierung gegen Schema v3 vor dem Speichern.
 
 import { CATEGORIES, EFFORT_VALUES, DIFFICULTY_VALUES } from "../../data/schema.js";
-import { addRecipe, updateRecipe, isTranslated } from "../../store.js";
+import { addRecipe, updateRecipe, isTranslated, state, getRecipesDe } from "../../store.js";
+import { similarShown } from "./filter.js";
 import { esc, makeListEditor } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "./detail.js";
 import { t, tCat } from "../../i18n.js";
+
+/**
+ * #65 (QW-4): Hinweis „Schon in deinem Kochbuch: …“ für einen Entwurfs-Namen (HTML, Name escaped),
+ * oder "" ohne Treffer. Vergleicht mit Anzeige-Namen und deutschen Originalen; blockiert nie.
+ */
+export function similarNoteHtml(name) {
+  const hit = similarShown(name, state.recipes, getRecipesDe());
+  return hit ? t("form.similar", { name: esc(hit.name) }) : "";
+}
 
 /**
  * Neues Rezept / Bearbeiten / Entwurf prüfen.
@@ -47,6 +57,7 @@ export function openForm(existing, { draft = false, onSubmit = null } = {}) {
     <label>${t("form.ingredients")}</label><div id="f-ing"></div>
     <label>${t("form.steps")}</label><div id="f-steps"></div>
     <label>${t("form.tips")}</label><textarea class="f" id="f-tips" rows="3" placeholder="${t("form.tipsPlaceholder")}"></textarea>
+    ${draft ? `<p class="set-note similar-note" id="f-similar" aria-live="polite" hidden></p>` : ""}
     <button class="save-btn">${onSubmit ? t("form.apply") : t("common.save")}</button>
   `;
 
@@ -64,6 +75,13 @@ export function openForm(existing, { draft = false, onSubmit = null } = {}) {
     el.querySelector("#f-season").value = prefill.season || "";
     el.querySelector("#f-mealprep").checked = !!prefill.mealPrep;
     el.querySelector("#f-totry").checked = !!prefill.toTry;
+  }
+  if (draft) {
+    const nameInput = el.querySelector("#f-name");
+    const note = el.querySelector("#f-similar");
+    const showSimilar = () => { note.innerHTML = similarNoteHtml(nameInput.value); note.hidden = !note.innerHTML; };
+    nameInput.addEventListener("input", showSimilar);
+    showSimilar();
   }
   const getIng = makeListEditor(el.querySelector("#f-ing"), prefill ? prefill.ingredients : [], t("form.ingPlaceholder"), false);
   const getSteps = makeListEditor(el.querySelector("#f-steps"), prefill ? prefill.steps : [], t("form.stepPlaceholder"), true);

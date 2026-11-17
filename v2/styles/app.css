@@ -386,6 +386,9 @@ label.check input { width: auto; }
 .bulk-row .bulk-meta { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .bulk-row .bulk-name { font-weight: 600; }
 .bulk-row .bulk-sub { font-size: 12px; color: var(--muted); }
+.similar-note, .bulk-row .bulk-similar { color: var(--accent-fill); font-weight: 600; }
+.similar-note { margin: 12px 0 0; }
+.bulk-row .bulk-similar { font-size: 12px; display: block; }
 .bulk-row .bulk-edit { padding: 5px 10px; font-size: 12px; }
 
 /* ---------- Guide ---------- */
