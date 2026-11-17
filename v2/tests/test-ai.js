@@ -2,6 +2,7 @@
 // Gating: kein Key → kein Premium; Parsing: Modell-JSON → schema-valide Rezepte.
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import * as gate from "../src/ai/gate.js";
+import { CHAT_MODELS, DEFAULT_CHAT_MODEL } from "../src/ai/models.js";
 import { extractJson, coerceRecipe, coerceSuggestions, coercePlanDays, tippsToString } from "../src/ai/parse.js";
 import {
   buildSystemPrompt, buildCollectionContext, suggestUserPrompt, fromStockUserPrompt, planUserPrompt,
@@ -28,13 +29,38 @@ test("gate: ohne Key kein Premium; mit Key Premium; Entfernen sperrt wieder", ()
   assertEqual(gate.getKey(), "");
 });
 
-test("gate: Modell-Default haiku, Wechsel nur auf bekannte IDs (IDs aus models.js)", () => {
-  assertEqual(gate.getModel(), "claude-haiku-4-5");
-  gate.setModel("claude-sonnet-4-6");
-  assertEqual(gate.getModel(), "claude-sonnet-4-6");
+test("gate: Modell-Default Haiku 5.5, Wechsel nur auf bekannte IDs (IDs aus models.js)", () => {
+  assertEqual(gate.getModel(), "claude-haiku-5-5");
+  gate.setModel("claude-sonnet-5-5");
+  assertEqual(gate.getModel(), "claude-sonnet-5-5");
   gate.setModel("gpt-9000"); // unbekannt → ignoriert
-  assertEqual(gate.getModel(), "claude-sonnet-4-6");
-  gate.setModel("claude-haiku-4-5");
+  assertEqual(gate.getModel(), "claude-sonnet-5-5");
+  gate.setModel("claude-haiku-5-5");
+});
+
+test("#79: Textmodelle sind Haiku 5.5 (Standard) und Sonnet 5.5; die 4.x-IDs sind nicht mehr wählbar", () => {
+  assertDeepEqual(CHAT_MODELS.map((m) => [m.id, m.label]), [
+    ["claude-haiku-5-5", "Haiku 5.5 — schnell & günstig (Standard)"],
+    ["claude-sonnet-5-5", "Sonnet 5.5 — stärker"],
+  ]);
+  assertEqual(DEFAULT_CHAT_MODEL, "claude-haiku-5-5");
+  gate.setModel("claude-sonnet-4-6");
+  assertEqual(gate.getModel(), "claude-haiku-5-5", "4.x lässt sich nicht mehr neu wählen");
+});
+
+// gate.resolveModel(gespeichert) ist genau das, was getModel() mit dem Wert aus localStorage macht.
+test("#79: gespeicherte Wahl Haiku 4.5 → Haiku 5.5", () => {
+  assertEqual(gate.resolveModel("claude-haiku-4-5"), "claude-haiku-5-5");
+});
+
+test("#79: gespeicherte Wahl Sonnet 4.6 → Sonnet 5.5", () => {
+  assertEqual(gate.resolveModel("claude-sonnet-4-6"), "claude-sonnet-5-5");
+});
+
+test("#79: andere unbekannte gespeicherte Wahl → Standard (wie bisher); gültige Wahl bleibt", () => {
+  assertEqual(gate.resolveModel("claude-opus-3"), DEFAULT_CHAT_MODEL);
+  assertEqual(gate.resolveModel(null), DEFAULT_CHAT_MODEL, "nichts gespeichert");
+  assertEqual(gate.resolveModel("claude-sonnet-5-5"), "claude-sonnet-5-5");
 });
 
 test("gate: looksLikeKey", () => {
