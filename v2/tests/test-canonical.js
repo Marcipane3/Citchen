@@ -155,6 +155,17 @@ test("origin: updateRecipe ändert oder entfernt origin bei einem Nutzerrezept n
   });
 });
 
+test("origin: updateRecipe stellt nur einen String-Wert wieder her; ein kaputtes origin blockiert das Bearbeiten nicht", async () => {
+  for (const bad of [null, 42, true, { x: 1 }]) {
+    await withFakeDisk([{ ...BASE72, origin: bad }], async (box) => {
+      await updateRecipe("r01", (x) => { x.favorite = true; });
+      const got = box.stored.find((x) => x.id === "r01");
+      assertEqual(got.favorite, true, "Edit gespeichert bei " + JSON.stringify(bad));
+      assert(!("origin" in got), "kaputtes origin entfernt bei " + JSON.stringify(bad));
+    });
+  }
+});
+
 test("origin: Sammlung ohne origin wird nach Laden + Speichern ohne origin zurückgeschrieben", async () => {
   await withFakeDisk(DE, async (box) => {
     await updateRecipe("r01", (x) => { x.favorite = false; });

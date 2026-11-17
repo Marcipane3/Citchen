@@ -188,6 +188,8 @@ Assistent später nur eigene Rezepte löschen darf).
 - Bearbeiten ändert die Herkunft nicht: ein bearbeitetes Grundrezept bleibt ohne `origin`, ein
   Nutzerrezept behält `"user"`.
 - `origin` ist **kein** persönliches Feld: es steht in der Export-Datei.
+- `origin` ist aber auch **kein Inhalt**: beim Drive-Abgleich und beim Import gelten zwei Rezepte mit
+  derselben `id`, die sich nur in `origin` unterscheiden, als dasselbe Rezept (keine Kopie).
 
 ## Re-Sync & Zusammenführen (seit v2.15.1) — entscheidend für G1
 

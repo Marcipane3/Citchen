@@ -109,10 +109,11 @@ export async function updateRecipe(id, fn) {
   const idx = recipesDe.findIndex((r) => r.id === id);
   if (idx < 0) throw new Error("Rezept nicht gefunden: " + id);
   // origin gehört dem Anlegen, nie dem Bearbeiten (#72): nach fn() gilt wieder der Wert von vorher.
+  // Nur ein String wird wiederhergestellt; ein kaputter Wert (null, Zahl …) fällt weg, sonst scheiterte jede Bearbeitung.
   const edit = (r) => {
     const c = { ...r };
     fn(c);
-    if (r.origin === undefined) delete c.origin; else c.origin = r.origin;
+    if (typeof r.origin === "string") c.origin = r.origin; else delete c.origin;
     return c;
   };
   const copy = edit(recipesDe[idx]);

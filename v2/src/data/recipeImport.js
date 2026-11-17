@@ -70,9 +70,8 @@ export function parseImportFile(text) {
 
 /** Gleiche ID und gleicher Inhalt (ohne persönliche Felder, Fotos und `origin`) → dasselbe Rezept. */
 export function isSameRecipe(a, b) {
-  // origin stempelt der Import selbst (#72): sonst käme dieselbe Datei beim zweiten Mal als „anderer Inhalt“ an.
-  const { origin: _a, ...ca } = a, { origin: _b, ...cb } = b;
-  return a.id === b.id && sameContent(ca, cb);
+  // sameContent ignoriert origin (#72): sonst käme dieselbe Datei beim zweiten Mal als „anderer Inhalt“ an.
+  return a.id === b.id && sameContent(a, b);
 }
 
 /**
