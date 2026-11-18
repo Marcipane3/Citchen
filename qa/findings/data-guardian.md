@@ -1,7 +1,12 @@
-# Data-Guardian — findings (2026-11-18T20:58Z)
-_Build 2026-10-27-v2.17 (release bump to 2.18 not yet in tree) · CACHE koch-v2.17-1 · tests 583/583 · HEAD fe191d6 · mode DELTA (`origin/main..HEAD`)_
+# Data-Guardian — findings (2026-11-18, delta re-verify)
+_Build 2026-10-27-v2.17 (release bump to 2.18 not yet in tree) · CACHE koch-v2.17-1 · tests 583/583 · HEAD 40ed058 · mode DELTA (`origin/main..HEAD`, re-verify of c39ec1f → HEAD)_
 
 How I tested: node probes imported the real pure modules (`recipeMerge`, `recipeImport`, `recipeExport`, `migrate`, `schema`, `baseLang`, `derive`, `listMerge`, `listFile`, `logic`). For `store.js` I used its test hook `setSaveChangeForTest` with an in-memory "disk". Scratch scripts ran outside the repo. Nothing touched Drive, Supabase, Anthropic or any repo file except this report. The repo-root `rezepte.json` is gone. The round trip used `rezepte.seed.json` (1 recipe) and `v2/data/rezepte.snapshot.json` (105 recipes).
+
+## Delta since the last pass (c39ec1f → 40ed058)
+- Only two files changed: `v2/tests/test-recipe-export.js` (#95, DG-17 test now passes a fixed `now` to `buildExportFile`) and `docs/process/SCHEDULED-TASKS.md`. Nothing under `v2/src/`, `SCHEMA.md` or `supabase/` changed (`git diff --name-only c39ec1f..HEAD -- v2/src SCHEMA.md supabase` is empty).
+- The test fix is sound: `buildExportFile(recipes, now = new Date())` (`v2/src/data/recipeExport.js:8`) really takes the clock, so the assertion still compares content and only the 1 ms `updated` race is gone. It does not weaken the DG-17 guard (the symbol checks above it are unchanged).
+- Unit suite re-run: 583/583 green. All findings below are carried over from the c39ec1f pass unchanged; the E1 probes were not re-run because the code they exercised is byte-identical.
 
 ## Field reports
 None open in my lens. FR-01 is marked fixed (v2.15.2 / v2.15.3), and my probes confirm the fix (DG-04, DG-08 and DG-09 below).
@@ -28,9 +33,11 @@ The last committed report is from v2.14 (DG-01…DG-14). A later run produced DG
 | DG-15 (#49) | An import id that exists only on Drive silently replaces a recipe | ✅ fixed | `recipeMerge.js:121` and `:151-162`: the local twin gets a new id (`forked`). E1 and test `test-sync-core.js:413`. Issue #49 is still open on GitHub and should close with the release. |
 | DG-16 (#48) | Whole-cookbook import doubles the base recipes | ✅ fixed | `recipeImport.js:72-75`: `isSameRecipe` uses `sameContent`. E1 on the 105-recipe snapshot with personal fields set: 105 skipped, 0 added. Exceptions in DG-19. |
 | DG-17 (#83) | Canonical guard lost on a `{...r}` copy | ✅ fixed | `baseLang.js:81-84`: an enumerable symbol. E1: `{...r}` and `Object.assign` are rejected. JSON and `structuredClone` copies pass, which is intended because the marker never reaches a file. |
+| DG-19 | Re-import of own export duplicates recipes with unknown field / non-https image | ⏳ open | Re-verified by code read: `recipeImport.js:59-65` still cleans only the incoming copy before `isSameRecipe` (`:72-75`, `:87`). Body below. |
 | DG-18 (#50) | Import accepts any version and untrimmed ids | ✅ fixed | `recipeImport.js:50-52` and `:61`. E1: v99, `"3"` and `3e999` are rejected; `" r01 "` becomes `r01`. The export file is documented in `SCHEMA.md:234-262`. |
 
 ## New findings
+None in this delta. DG-19 (from the c39ec1f pass) is still open and kept here for reference.
 
 ### DG-19 [P2] Re-importing your own export duplicates recipes that have an unknown field or a non-https image · confidence: high · evidence: E1
 - **Asset at risk:** The cookbook stays free of duplicates. This breaks the SCHEMA promise "so verdoppelt der eigene Vollexport nichts" (`SCHEMA.md:260`) for backup and restore.
@@ -104,7 +111,7 @@ No new P0/P1.
 - → release-captain: issues #48, #49, #50 and #83 are fixed on `next` but still open on GitHub.
 
 ## Summary
-P0: 0 · P1: 0 · P2: 1 (DG-19) · P3: 0 new. All 18 earlier findings are fixed.
+P0: 0 · P1: 0 · P2: 1 open (DG-19, carried) · P3: 0 · new in this delta: none. All 18 earlier findings are fixed.
 
 The most valuable item is DG-19. Make `planImport` compare the existing recipe after the same cleaning as the import, so a full-cookbook restore never duplicates recipes. Effort S; it can follow in v2.18.x.
 

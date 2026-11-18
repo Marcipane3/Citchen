@@ -1,7 +1,16 @@
-# Bug-Hunter — findings (2026-11-18T00:00:00Z)
-_Build 2026-10-27-v2.17 · CACHE koch-v2.17-1 · tests 583/583 · HEAD fe191d6 · mode DELTA (origin/main..HEAD, release candidate v2.18)_
+# Bug-Hunter — findings (2026-11-18T12:00:00Z)
+_Build 2026-10-27-v2.17 · CACHE koch-v2.17-1 · tests 583/583 (5 consecutive runs green) · HEAD 40ed058 · mode DELTA (origin/main..HEAD, release candidate v2.18)_
 
-## Δ since origin/main
+## Δ since 578152b (quick re-verify)
+Since the previous pass (HEAD fe191d6, findings unchanged in 578152b), nothing under `v2/src` or `v2/add.html` has changed.
+`git diff --name-only fe191d6..HEAD -- v2/` lists only `v2/tests/test-recipe-export.js` (dd3b840, #95). That commit pins the clock in the
+DG-17 test, using `buildExportFile(de, now)`. The signature `buildExportFile(recipes, now = new Date())` at
+`data/recipeExport.js:8` supports this, so the test is now deterministic. The suite ran 5 times in a row at 583/583.
+The other changes in this range are docs/QA only (`docs/process/SCHEDULED-TASKS.md`, `qa/findings/data-guardian.md`).
+There are no new findings. All findings and statuses below are carried forward from the fe191d6 pass. Their line numbers are still
+current, because no app code changed.
+
+## Δ since origin/main (carried from the fe191d6 pass)
 The previous report (HEAD 95ae0f3) already covered the first 8 commits of this range. This run hunted the code
 that changed **after** 95ae0f3: 29 files under `v2/src`. Main areas: import hardening and dedup (#36 #48 #49 #50 #52,
 `data/recipeImport.js`, `schema.js` `envelopeProblem`/`PERSONAL_FIELDS`/`origin`), the Drive fork rule
