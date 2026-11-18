@@ -78,8 +78,10 @@ export function localizeRecipes(recipes, langMap) {
     const tr = langMap.get(r.id);
     if (!tr) return r;
     const out = { ...r };
-    // Markierung (nicht enumerierbar → nie in JSON/Spread): ausgehende Builder lehnen so etwas ab.
-    Object.defineProperty(out, LOCALIZED, { value: true });
+    // Markierung als enumerierbares Symbol (DG-17): überlebt {...r} und Object.assign, damit
+    // ausgehende Builder auch Kopien ablehnen; JSON.stringify und structuredClone (IndexedDB)
+    // ignorieren Symbol-Schlüssel, der Marker erreicht also nie Datei oder Speicher.
+    out[LOCALIZED] = true;
     if (typeof tr.name === "string" && tr.name.trim() && !edited(tr, r, "name")) out.name = tr.name;
     if (Array.isArray(tr.ingredients) && tr.ingredients.length && !edited(tr, r, "ingredients")) out.ingredients = tr.ingredients.slice();
     if (Array.isArray(tr.steps) && tr.steps.length && !edited(tr, r, "steps")) out.steps = tr.steps.slice();
