@@ -7,7 +7,8 @@ import { testKey, AiError } from "../../ai/client.js";
 import { getUsageLog, summarizeUsage, clearUsage } from "../../ai/usage.js";
 import * as drive from "../../data/drive.js";
 import * as sync from "../../data/sync.js";
-import { getTheme, setTheme, getProfile, setProfile, resetProfile } from "../../data/settings.js";
+import { getTheme, setTheme, getProfile, setProfile, resetProfile, getInstructions, setInstructions, resetInstructions } from "../../data/settings.js";
+import { TEMPLATE_VARIABLES, missingVariables, addBackVariables, appendedFixedPart } from "../../ai/prompts.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { navigate } from "../../router.js";
 import { BUILD } from "../../version.js";
@@ -72,6 +73,32 @@ export function renderSettings(container) {
         <p class="set-note" id="prof-status"></p>
       </div>
 
+      <div class="card set-card" id="instr-card">
+        <h3>${t("settings.instrHeading")}</h3>
+        <p class="set-note">${t("settings.instrNote")}</p>
+        <textarea class="f" id="instr-text" rows="14" spellcheck="false" style="font-family:monospace;font-size:13px"></textarea>
+        <label style="margin-top:10px">${t("settings.instrVarsHeading")}</label>
+        <ul class="set-note" id="instr-vars" style="margin:0;padding-left:18px">
+          ${TEMPLATE_VARIABLES.map((v) => `<li><code>${esc("{" + v + "}")}</code> — ${t("settings.instrVar." + v)}</li>`).join("")}
+        </ul>
+        <details id="instr-fixed" style="margin-top:10px">
+          <summary>${t("settings.instrFixed")}</summary>
+          <pre id="instr-fixed-text" class="set-note" style="white-space:pre-wrap;font-size:12px;margin:6px 0 0"></pre>
+        </details>
+        <div id="instr-warn" style="display:none;margin-top:10px">
+          <p class="set-note" id="instr-warn-text" style="color:var(--danger)"></p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-primary" id="instr-addback">${t("settings.instrAddBack")}</button>
+            <button class="btn-sec" id="instr-anyway">${t("settings.instrSaveAnyway")}</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn-primary" id="instr-save">${t("settings.instrSave")}</button>
+          <button class="btn-sec" id="instr-reset">${t("settings.instrReset")}</button>
+        </div>
+        <p class="set-note" id="instr-status"></p>
+      </div>
+
       <div class="card set-card">
         <h3>${t("settings.driveHeading")}</h3>
         <p class="set-note">${t("settings.driveNote")}</p>
@@ -124,6 +151,36 @@ export function renderSettings(container) {
     if (!confirm(t("settings.profileReset") + "?")) return;
     fillProfile(await resetProfile());
     profStatus.textContent = t("settings.profileResetDone");
+  };
+
+  /* ---------- Assistenten-Anweisungen (Q4.2) ---------- */
+  const instrText = container.querySelector("#instr-text");
+  const instrStatus = container.querySelector("#instr-status");
+  const instrWarn = container.querySelector("#instr-warn");
+  const showInstr = (text, msg) => {
+    instrText.value = text;
+    instrWarn.style.display = "none";
+    instrStatus.textContent = msg;
+  };
+  container.querySelector("#instr-fixed-text").textContent = appendedFixedPart();
+  getInstructions().then((text) => { instrText.value = text; });
+  const saveInstr = async (text) => {
+    const empty = text.trim() === ""; // leer = Reset: der Assistent läuft nie ohne Anweisungen
+    showInstr(await setInstructions(text), t(empty ? "settings.instrResetDone" : "settings.instrSaved"));
+  };
+  container.querySelector("#instr-save").onclick = async () => {
+    const text = instrText.value;
+    const missing = text.trim() === "" ? [] : missingVariables(text);
+    if (!missing.length) { await saveInstr(text); return; }
+    container.querySelector("#instr-warn-text").textContent = t("settings.instrMissing", { vars: missing.map((v) => "{" + v + "}").join(", ") });
+    instrWarn.style.display = "";
+    instrStatus.textContent = "";
+  };
+  container.querySelector("#instr-addback").onclick = () => saveInstr(addBackVariables(instrText.value, missingVariables(instrText.value)));
+  container.querySelector("#instr-anyway").onclick = () => saveInstr(instrText.value);
+  container.querySelector("#instr-reset").onclick = async () => {
+    if (!confirm(t("settings.instrReset") + "?")) return;
+    showInstr(await resetInstructions(), t("settings.instrResetDone"));
   };
 
   /* ---------- KI / Key ---------- */

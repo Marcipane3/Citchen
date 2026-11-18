@@ -7,7 +7,9 @@ import { extractJson, coerceRecipe, coerceSuggestions, coercePlanDays, tippsToSt
 import {
   buildSystemPrompt, buildCollectionContext, suggestUserPrompt, fromStockUserPrompt, planUserPrompt,
   profileBlock, DEFAULT_PROFILE, DEFAULT_INSTRUCTIONS, TEMPLATE_VARIABLES, missingVariables,
+  appendedFixedPart, addBackVariables,
 } from "../src/ai/prompts.js";
+import { getInstructions, setInstructions, resetInstructions } from "../src/data/settings.js";
 import { validateRecipe } from "../src/data/schema.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -483,4 +485,90 @@ test("Q4.1: missingVariables — fehlende Variablen in fester Reihenfolge", () =
 
 test("Q4.1: Planner-Aufruf (nur recipes + staples) unverändert", () => {
   assertEqual(buildSystemPrompt({ recipes: TPL_RX, staples: ["Mehl", "Reis"] }), FROZEN[0].head + FROZEN_CONTRACT);
+});
+
+/* ---------- Q4.2 (#70): Anweisungen speichern, fester Teil, „wieder einfügen“ ---------- */
+
+// Minimales IndexedDB-Double (nur was db.js für kv get/put/delete braucht) — Node hat kein IndexedDB.
+function installFakeIndexedDB() {
+  const stores = new Map();
+  const later = (fn) => setTimeout(fn, 0);
+  const database = {
+    objectStoreNames: { contains: (n) => stores.has(n) },
+    createObjectStore: (n, { keyPath }) => { stores.set(n, { keyPath, rows: new Map() }); },
+    transaction(name) {
+      const st = stores.get(name);
+      const t = {};
+      const reqs = [];
+      const op = (fn) => { const r = {}; reqs.push(() => { r.result = fn(); r.onsuccess && r.onsuccess(); }); return r; };
+      t.objectStore = () => ({
+        get: (k) => op(() => { const v = st.rows.get(k); return v === undefined ? undefined : structuredClone(v); }),
+        put: (v) => op(() => { st.rows.set(v[st.keyPath], structuredClone(v)); }),
+        delete: (k) => op(() => { st.rows.delete(k); }),
+      });
+      later(() => { while (reqs.length) reqs.shift()(); t.oncomplete && t.oncomplete(); });
+      return t;
+    },
+  };
+  globalThis.indexedDB = {
+    open() {
+      const req = { result: database };
+      later(() => { req.onupgradeneeded && req.onupgradeneeded(); req.onsuccess && req.onsuccess(); });
+      return req;
+    },
+  };
+  return stores;
+}
+const IDB = globalThis.indexedDB ? null : installFakeIndexedDB();
+const kvRows = () => IDB.get("kv").rows;
+
+test("Q4.2: getInstructions — nichts gespeichert → mitgelieferte Default-Anweisungen", async () => {
+  await resetInstructions();
+  assertEqual(await getInstructions(), DEFAULT_INSTRUCTIONS);
+});
+
+test("Q4.2: setInstructions → getInstructions (Round-Trip, Text unverändert, nur Geräte-kv)", async () => {
+  const mine = "Antworte wie ein Pirat.\n{profile}\n{stock}\n{fridge}\n{recipes}\nSprache: {language}  ";
+  assertEqual(await setInstructions(mine), mine);
+  assertEqual(await getInstructions(), mine);
+  assertDeepEqual([...kvRows().keys()], ["assistantInstructions"], "genau ein kv-Schlüssel, sonst nichts");
+  await resetInstructions();
+});
+
+test("Q4.2: resetInstructions löscht den Eintrag; danach wieder Default", async () => {
+  await setInstructions("Kurz und knapp {recipes}");
+  assertEqual(await resetInstructions(), DEFAULT_INSTRUCTIONS);
+  assert(!kvRows().has("assistantInstructions"), "Eintrag gelöscht");
+  assertEqual(await getInstructions(), DEFAULT_INSTRUCTIONS);
+});
+
+test("Q4.2: leerer Text speichern = Reset (nie ohne Anweisungen)", async () => {
+  await setInstructions("Eigene {recipes}");
+  for (const empty of ["", "   \n\t ", null, undefined]) {
+    await setInstructions("Eigene {recipes}");
+    assertEqual(await setInstructions(empty), DEFAULT_INSTRUCTIONS);
+    assert(!kvRows().has("assistantInstructions"), "leer → Eintrag gelöscht: " + JSON.stringify(empty));
+    assertEqual(await getInstructions(), DEFAULT_INSTRUCTIONS);
+  }
+});
+
+test("Q4.2: appendedFixedPart = genau das, was buildSystemPrompt an eine eigene Vorlage anhängt", () => {
+  const fixed = appendedFixedPart();
+  assert(fixed.startsWith(FROZEN_CONTRACT), "beginnt mit dem festen Ausgabe-Vertrag");
+  assert(fixed.length > FROZEN_CONTRACT.length && fixed.includes("IMMER auf Deutsch"), "plus Deutsch-Regel");
+  for (const template of ["Pirat {recipes}", "{profile}\n{stock}\n{recipes}\n{language}", "nur Text"]) {
+    const sys = buildSystemPrompt({ ...TPL_ARGS, template });
+    assert(sys.endsWith(fixed), "endet mit dem festen Teil: " + template);
+    assertEqual(sys.length - fixed.length, sys.lastIndexOf(fixed), "fester Teil genau einmal am Ende");
+  }
+  assertEqual(buildSystemPrompt({ ...TPL_ARGS, template: "nur Text" }), "nur Text" + fixed);
+});
+
+test("Q4.2: addBackVariables — fehlende Variablen ans Ende, jede in eigener Zeile", () => {
+  assertEqual(addBackVariables("Pirat {profile}", ["recipes"]), "Pirat {profile}\n{recipes}");
+  assertEqual(addBackVariables("Pirat\n", ["stock", "recipes"]), "Pirat\n{stock}\n{recipes}");
+  assertEqual(addBackVariables("Pirat", []), "Pirat");
+  const back = addBackVariables(DEFAULT_INSTRUCTIONS.replace("{recipes}", ""), ["recipes"]);
+  assert(back.endsWith("\n{recipes}"));
+  assertDeepEqual(missingVariables(back), []);
 });

@@ -102,6 +102,19 @@ export function missingVariables(template) {
   return TEMPLATE_VARIABLES.filter((v) => !text.includes("{" + v + "}"));
 }
 
+/** Q4.2 (#70): Der Text, den buildSystemPrompt hinter EIGENE Anweisungen hängt (fester Vertrag +
+ *  Deutsch-Regel) — für die Read-only-Ansicht in den Einstellungen; eine Quelle, keine Kopie. */
+export function appendedFixedPart() {
+  return OUTPUT_CONTRACT + GERMAN_CONTENT_RULE;
+}
+
+/** Q4.2: „Wieder einfügen“ — fehlende Variablen ans Textende, jede in einer eigenen Zeile. */
+export function addBackVariables(text, missing) {
+  const base = typeof text === "string" ? text : "";
+  if (!missing || !missing.length) return base;
+  return base + (base === "" || base.endsWith("\n") ? "" : "\n") + missing.map((v) => "{" + v + "}").join("\n");
+}
+
 export function buildSystemPrompt({ recipes, staples, fridge = [], profile = DEFAULT_PROFILE, lang = "de", template = null }) {
   const p = { ...DEFAULT_PROFILE, ...(profile || {}) };
   const custom = typeof template === "string" && template.trim() !== "" && template !== DEFAULT_INSTRUCTIONS;
@@ -126,7 +139,7 @@ ${buildCollectionContext(recipes)}`,
       .replace(/\n+[ \t]*\{fridge\}[ \t]*(?=\n|$)/g, "");
   }
   // Ein Durchgang: Platzhalter in eingesetzten Daten (Rezeptname, Profil-Notiz) bleiben Text.
-  return text.replace(VARIABLE_RE, (_, name) => blocks[name]) + OUTPUT_CONTRACT + (custom ? GERMAN_CONTENT_RULE : "");
+  return text.replace(VARIABLE_RE, (_, name) => blocks[name]) + (custom ? appendedFixedPart() : OUTPUT_CONTRACT);
 }
 
 export function suggestUserPrompt({ isWeekend, extra }) {
