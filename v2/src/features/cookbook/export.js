@@ -85,18 +85,20 @@ export async function copyExport(recipes) {
   }
 }
 
-/** Export-Datei teilen (Share-Sheet mit Datei) oder als Download anbieten; Abbruch ist still. */
+/**
+ * Export-Datei teilen (Share-Sheet mit Datei) oder als Download anbieten. Abbruch ist still;
+ * scheitert das Teilen anders (z. B. Safari NotAllowedError), gibt es die Datei als Download (BH-15).
+ */
 export async function deliverExportFile(file, name) {
   const blob = new Blob([JSON.stringify(file, null, 2)], { type: "application/json" });
   const f = new File([blob], name, { type: "application/json" });
   if (navigator.canShare && navigator.canShare({ files: [f] })) {
     try {
       await navigator.share({ files: [f], title: name });
+      return;
     } catch (e) {
       if (e && e.name === "AbortError") return;
-      throw e;
     }
-    return;
   }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -108,6 +110,7 @@ export async function deliverExportFile(file, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function exportFile(recipes) {
+// async: ein Builder-Fehler (z. B. lokalisierte Kopie) kommt als abgelehntes Promise beim Menü an.
+export async function exportFile(recipes) {
   return deliverExportFile(buildExportFile(recipes), exportFileName(recipes));
 }

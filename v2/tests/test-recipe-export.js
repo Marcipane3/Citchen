@@ -2,7 +2,8 @@
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import { buildExportFile, exportFileName } from "../src/data/recipeExport.js";
 import { RECIPE_FIELDS, PERSONAL_FIELDS } from "../src/data/schema.js";
-import { deliverExportFile } from "../src/features/cookbook/export.js";
+import { deliverExportFile, exportFile, exportMarkdown } from "../src/features/cookbook/export.js";
+import { localizeRecipes, buildLangMap } from "../src/data/baseLang.js";
 
 const full = () => ({
   id: "r1", name: "Süßkartoffel-Curry", category: "Vegetarische Hauptgerichte", time: "30 Min", servings: "2",
@@ -65,14 +66,43 @@ test("deliver: canShare({files}) true → navigator.share mit der Datei", async 
   assertEqual(shared.files[0].name, "x.citchen.json");
 });
 
-test("deliver: AbortError ist still, andere Fehler werden geworfen", async () => {
-  await withNavigator({ canShare: () => true, share: async () => { const e = new Error("x"); e.name = "AbortError"; throw e; } },
-    async () => { await deliverExportFile({ version: 3, recipes: [] }, "a.json"); });
+function withDownloadStub() {
+  const clicks = [];
+  const realDoc = globalThis.document, realURL = URL.createObjectURL, realRevoke = URL.revokeObjectURL;
+  globalThis.document = { body: { appendChild() {} }, createElement: () => ({ click() { clicks.push(this.download); }, remove() {} }) };
+  URL.createObjectURL = () => "blob:x";
+  URL.revokeObjectURL = () => {};
+  return { clicks, restore() { globalThis.document = realDoc; URL.createObjectURL = realURL; URL.revokeObjectURL = realRevoke; } };
+}
+
+test("deliver: AbortError ist still (kein Download, kein Fehler)", async () => {
+  const dl = withDownloadStub();
+  try {
+    await withNavigator({ canShare: () => true, share: async () => { const e = new Error("x"); e.name = "AbortError"; throw e; } },
+      async () => { await deliverExportFile({ version: 3, recipes: [] }, "a.json"); });
+  } finally { dl.restore(); }
+  assertDeepEqual(dl.clicks, []);
+});
+
+test("deliver: anderer Share-Fehler (z. B. NotAllowedError) → Download statt Fehler (BH-15)", async () => {
+  const dl = withDownloadStub();
   let threw = false;
-  await withNavigator({ canShare: () => true, share: async () => { throw new Error("boom"); } }, async () => {
-    try { await deliverExportFile({ version: 3, recipes: [] }, "a.json"); } catch { threw = true; }
-  });
-  assert(threw, "anderer Fehler wird geworfen");
+  try {
+    await withNavigator({ canShare: () => true, share: async () => { const e = new Error("boom"); e.name = "NotAllowedError"; throw e; } },
+      async () => { try { await deliverExportFile({ version: 3, recipes: [] }, "a.citchen.json"); } catch { threw = true; } });
+  } finally { dl.restore(); }
+  assert(!threw, "Share-Fehler darf nicht geworfen werden");
+  assertDeepEqual(dl.clicks, ["a.citchen.json"]);
+});
+
+test("exportFile: Builder-Fehler wirft nie synchron, sondern als abgelehntes Promise (BH-15)", async () => {
+  const view = localizeRecipes([full()], buildLangMap([{ id: "r1", name: "Translated", ingredients: ["x"], steps: ["y"], tips: "z" }]));
+  let p;
+  try { p = exportFile(view); } catch { assert(false, "exportFile wirft synchron"); }
+  assert(p && typeof p.then === "function", "exportFile liefert kein Promise");
+  let rejected = false;
+  await p.catch(() => { rejected = true; });
+  assert(rejected, "Promise wird nicht abgelehnt");
 });
 
 test("deliver: ohne canShare → Download-Link mit Dateiname", async () => {
@@ -95,4 +125,31 @@ test("export: origin ist Vertragsfeld, nicht persönlich, und bleibt in der Date
   const [mine, baseRecipe] = buildExportFile([{ ...full(), origin: "user" }, { ...full(), id: "r2" }]).recipes;
   assertEqual(mine.origin, "user");
   assert(!("origin" in baseRecipe), "Grundrezept bekommt beim Export kein origin");
+});
+
+// DG-17: der Marker überlebt Kopien, erreicht aber nie Datei oder Speicher.
+const localizedCopy = () => localizeRecipes([full()], buildLangMap([{ id: "r1", name: "Translated", ingredients: ["x"], steps: ["y"], tips: "z" }]))[0];
+const throws = (fn) => { try { fn(); return false; } catch { return true; } };
+
+test("DG-17: lokalisierte Kopie per {...r} wird von buildExportFile und exportMarkdown abgelehnt", () => {
+  const copy = { ...localizedCopy() };
+  assert(throws(() => buildExportFile([copy])), "buildExportFile lässt {...r}-Kopie durch");
+  assert(throws(() => exportMarkdown([copy])), "exportMarkdown lässt {...r}-Kopie durch");
+});
+
+test("DG-17: lokalisierte Kopie per Object.assign({}, r) wird von buildExportFile und exportMarkdown abgelehnt", () => {
+  const copy = Object.assign({}, localizedCopy());
+  assert(throws(() => buildExportFile([copy])), "buildExportFile lässt Object.assign-Kopie durch");
+  assert(throws(() => exportMarkdown([copy])), "exportMarkdown lässt Object.assign-Kopie durch");
+});
+
+test("DG-17: Marker erscheint nie in JSON/structuredClone; deutsche Rezepte exportieren unverändert", () => {
+  const view = localizedCopy();
+  const json = JSON.stringify(view);
+  assertDeepEqual(Object.keys(JSON.parse(json)).sort(), Object.keys(full()).sort());
+  assertEqual(Object.getOwnPropertySymbols(structuredClone(view)).length, 0);
+  assertEqual(Object.getOwnPropertySymbols(JSON.parse(json)).length, 0);
+  const de = [full(), { ...full(), id: "r2" }];
+  assertEqual(JSON.stringify(buildExportFile(de)), JSON.stringify(buildExportFile(JSON.parse(JSON.stringify(de)))));
+  assertEqual(JSON.stringify(buildExportFile(de)).includes("localized"), false);
 });
