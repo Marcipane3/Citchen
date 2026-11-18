@@ -173,3 +173,32 @@ test("origin: Sammlung ohne origin wird nach Laden + Speichern ohne origin zurü
     assert(!toFileString({ version: 3, updated: "x", recipes: box.stored }).includes("origin"), "Datei enthält kein origin");
   });
 });
+
+// ---- G3.2 (#73): Assistenten-Änderung bleibt kanonisch deutsch ----
+import { coerceUpdate, recipeChanges, applyContentFields } from "../src/ai/parse.js";
+import { attachedRecipeBlock } from "../src/ai/prompts.js";
+
+test("#73: Assistenten-Änderung wird gegen das deutsche Original gebaut und deutsch gespeichert (auch bei englischer Anzeige)", async () => {
+  const view = localizeRecipes(DE, buildLangMap(EN)); // englische Anzeige
+  assert(!attachedRecipeBlock(DE[0]).includes("Sweet potato"), "angehängt wird das deutsche Original");
+  const json = { type: "update", id: "r01", recipe: { ...DE[0], name: "Süßkartoffel-Curry mit Tofu", ingredients: [...DE[0].ingredients, "200g Tofu 🛒"], favorite: false, rating: 0 } };
+  const { recipe } = coerceUpdate(json, DE[0]);
+  const ch = recipeChanges(DE[0], recipe);
+  assertEqual(ch[0].before, "Süßkartoffel-Curry", "Karte zeigt den deutschen alten Namen, nicht " + view[0].name);
+  await withFakeDisk(DE, async (box) => {
+    await updateRecipe("r01", (x) => applyContentFields(x, recipe));
+    const got = box.stored.find((x) => x.id === "r01");
+    assertEqual(got.name, "Süßkartoffel-Curry mit Tofu");
+    assertEqual(got.steps[0], "Reis aufsetzen.", "deutsche Schritte bleiben");
+    assert(!JSON.stringify(got).includes("Sweet potato"), "nichts Englisches in der Datei");
+    assertEqual(got.favorite, true); assertEqual(got.rating, 4); assertEqual(got.cookedCount, 3); assertEqual(got.lastCooked, "Mai 2026");
+    assert(!("origin" in got), "Grundrezept bleibt Grundrezept");
+  });
+});
+
+test("#73: assistant.js baut Änderungen nur aus getRecipeDe, nie aus der Anzeige-Sicht (Verdrahtungs-Wächter)", () => {
+  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "src", "features", "assistant", "assistant.js"), "utf8");
+  assert(/coerceUpdate\(json, before\)/.test(src) && /const before = getRecipeDe\(/.test(src), "Update-Basis ist nicht getRecipeDe");
+  assert(/changeUserPrompt\(de, v\)/.test(src) && /const de = attachedId && getRecipeDe\(attachedId\)/.test(src), "angehängtes Rezept nicht deutsch");
+  assert(!/\bgetRecipe\(/.test(src), "assistant.js nutzt die Anzeige-Sicht getRecipe()");
+});

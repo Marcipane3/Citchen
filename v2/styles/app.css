@@ -307,7 +307,7 @@ label.check input { width: auto; }
 .ai-msg.ai { margin-right: auto; background: var(--card); border: 1.5px solid var(--line); border-bottom-left-radius: 4px; }
 .ai-msg.ai a { color: var(--accent); }
 .ai-busy { color: var(--muted); font-weight: 600; padding: 8px 0; }
-.ai-inputbar { position: fixed; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: 100%; max-width: var(--maxw); display: flex; gap: 8px; padding: 10px var(--pad); background: var(--paper); border-top: 1px solid var(--line-soft); z-index: 15; }
+.ai-inputbar { flex-wrap: wrap; position: fixed; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: 100%; max-width: var(--maxw); display: flex; gap: 8px; padding: 10px var(--pad); background: var(--paper); border-top: 1px solid var(--line-soft); z-index: 15; }
 .ai-inputbar input { flex: 1; border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 14px; font-size: 15px; background: var(--card); color: var(--ink); outline: none; }
 .ai-inputbar input:focus { outline: 2px solid var(--accent); }
 .ai-inputbar .btn-primary { padding: 12px 18px; }
@@ -316,6 +316,13 @@ label.check input { width: auto; }
 .ai-sug .btn-sec, .ai-recipe .btn-sec, .ai-recipe .btn-primary { padding: 9px 14px; font-size: 13px; margin-top: 8px; margin-right: 6px; }
 .sug-name { font-family: var(--font-display); font-size: 16px; font-weight: 600; }
 .sug-reason { font-size: 13px; color: var(--muted-strong); margin-top: 3px; }
+.ai-attach { flex-basis: 100%; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted-strong); }
+.ai-attach span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upd-changes { list-style: none; padding: 0; margin: 8px 0 0; font-size: 14px; }
+.upd-changes li { padding: 6px 0; border-top: 1px solid var(--line-soft); }
+.upd-old { text-decoration: line-through; color: var(--muted); }
+.upd-add { color: var(--accent); }
+.upd-rm { color: var(--danger); text-decoration: line-through; }
 .ai-recipe { background: var(--paper); border: 1.5px solid var(--accent); border-radius: 12px; padding: 12px; margin-top: 8px; }
 
 /* ---------- Einstellungen ---------- */

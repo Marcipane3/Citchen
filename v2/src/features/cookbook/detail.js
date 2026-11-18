@@ -10,6 +10,7 @@ import { openSheet, closeAllSheets } from "../../ui/sheet.js";
 import { recipeToMarkdown, shareRecipeText } from "./export.js";
 import { openForm } from "./form.js";
 import { navigate } from "../../router.js";
+import { isPremium } from "../../ai/gate.js";
 import { t, tn, tCat, tLastCooked } from "../../i18n.js";
 
 function tippsHTML(r) {
@@ -68,6 +69,7 @@ export function openDetail(id) {
       <button class="btn-primary cooked">${t("detail.cookedToday")}</button>
       <button class="btn-sec act-share">${t("detail.share")}</button>
       <button class="btn-sec edit">✎ ${t("common.edit")}</button>
+      ${isPremium() ? `<button class="btn-sec act-ai-change">${t("detail.changeWithAssistant")}</button>` : ""}
       <button class="btn-sec btn-del del">🗑 ${t("common.delete")}</button>
     </div>
     <button class="btn-sec back" style="width:100%;margin-top:10px">${t("detail.backToList")}</button>
@@ -191,6 +193,9 @@ export function openDetail(id) {
   // T3 (DG-02): bearbeitet wird immer das deutsche Original, nie die Übersetzung — sonst landet
   // der übersetzte Text in der deutschen Drive-Datei (geteilt mit v1 + Projekt-Claude).
   el.querySelector(".edit").onclick = () => { close(); openForm(getRecipeDe(r.id) || r); };
+  // G3.2 (#73): Assistent mit diesem Rezept (deutsches Original) im Anhang öffnen; ohne Schlüssel unsichtbar.
+  const aiChange = el.querySelector(".act-ai-change");
+  if (aiChange) aiChange.onclick = () => import("../assistant/assistant.js").then((m) => m.startChange(r.id));
   el.querySelector(".cooked").onclick = async (e) => {
     const btn = e.currentTarget;
     if (btn.disabled) return;
