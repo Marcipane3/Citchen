@@ -1,5 +1,7 @@
-# Test-Warden — findings (2026-11-18T00:00:00Z)
-_Build 2026-10-27-v2.17 (release candidate v2.18, version bump not yet applied) · CACHE koch-v2.17-1 · tests 583/583 · HEAD fe191d6 · mode DELTA (origin/main..HEAD)_
+# Test-Warden — findings (2026-11-18T12:00:00Z)
+_Build 2026-10-27-v2.17 · CACHE koch-v2.17-1 · tests 583/583 · HEAD 40ed058 · mode DELTA (origin/main..HEAD, re-verify)_
+
+**Re-verify at 40ed058 (release-bump/2.18):** suite re-run, 583 passed, 0 failed. Only change since the last pass is dd3b840 (`test-recipe-export.js`, fixed clock instead of a millisecond race; test-only, no app logic). `git diff 526250f..HEAD -- v2/src` is empty. No new P0/P1/P2/P3; TW-20..24 and TW-07/08/14 status unchanged (still open, low). Note: BUILD/CACHE still read v2.17 on this branch, so the version bump is not yet applied here (release-captain lens).
 
 Suite is green: 583 passed, 0 failed. DELTA touched 16 new files (8 modules/tests pairs: `ingredientMatch`, `ingredients`, `units`, `recipeImport`, `recipeExport`, `portions`, `timers`, `importFile`) and 25 changed files. Every new pure module has a test file wired in `run.js`. The new work is well covered. I found **no P0/P1** and no defect in unreleased logic that I could trigger with a probe. The gaps below are one pinned-behaviour question (TW-20), one open bug without a regression test (TW-21 = BH-14), and a few low-value pins. Probes are in `/tmp/claude-0/tw/{p,q,r,s}.mjs` (outside the repo).
 
