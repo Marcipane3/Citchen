@@ -7,7 +7,7 @@
 
 import { CATEGORIES } from "../../data/schema.js";
 import { getTotalMinutes } from "../../data/derive.js";
-import { t, tCat, DE_MONTHS } from "../../i18n.js";
+import { t, tCat, DE_MONTHS, MONTH_DICT } from "../../i18n.js";
 
 const SPECIAL_KEYS = {
   "__fav": "chip.fav", "__alltag": "chip.alltag", "__besonders": "chip.besonders",
@@ -64,6 +64,32 @@ function matchesChip(r, chip) {
 /** Für die Suche vergleichbar machen: klein, ohne Akzente, ß → ss („Süß“ und „suss“ finden dasselbe). */
 export function searchNorm(s) {
   return String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/ß/g, "ss");
+}
+
+/**
+ * #65 (QW-4): Namens-Schlüssel für „schon im Kochbuch?“ — searchNorm, Klammer-Teile weg
+ * („Chili (vegan)“ → „chili“), Satzzeichen → Leerzeichen, Wörter sortiert. Leer → "".
+ */
+function nameKey(name) {
+  return searchNorm(name).replace(/\([^)]*\)|\[[^\]]*\]/g, " ").replace(/[^\p{L}\p{N}]+/gu, " ")
+    .split(" ").filter(Boolean).sort().join(" ");
+}
+
+/** Erstes Rezept, dessen Name nach nameKey gleich ist, sonst null. Ein leerer Name passt nie. */
+export function similarRecipe(name, recipes) {
+  const key = nameKey(name);
+  if (!key) return null;
+  return (recipes || []).find((r) => r && nameKey(r.name) === key) || null;
+}
+
+/**
+ * Wie similarRecipe, aber gegen die Anzeige-Namen UND die deutschen Originale (übersetzte UI);
+ * zurück kommt immer das Rezept, wie es angezeigt wird.
+ */
+export function similarShown(name, shown, de) {
+  const hit = similarRecipe(name, shown) || similarRecipe(name, de);
+  if (!hit) return null;
+  return (shown || []).find((r) => r.id === hit.id) || hit;
 }
 
 /** Jedes Wort der Suche muss in Name, Zutaten, Tipps oder Küche vorkommen (Reihenfolge egal). */
@@ -147,8 +173,22 @@ export function cookedMonthKey(v) {
   if (num) return +num[2] * 100 + +num[1];
   const y = /(\d{4})/.exec(v);
   if (!y) return 0;
-  const m = DE_MONTHS.findIndex((name) => v.includes(name));
-  return +y[1] * 100 + (m >= 0 ? m + 1 : 0);
+  return +y[1] * 100 + monthFromWord(v);
+}
+
+/** Monatswörter in DE, EN, ES, DA: nur GANZE Wörter — voller Name oder 3-Buchstaben-Kürzel („Mär.“, „mayo“, „maj“). */
+const plain = (w) => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const MONTH_WORDS = new Map();
+for (const names of [DE_MONTHS, ...Object.values(MONTH_DICT)]) {
+  names.forEach((name, i) => {
+    const w = plain(name);
+    MONTH_WORDS.set(w, i + 1);
+    MONTH_WORDS.set(w.slice(0, 3), i + 1);
+  });
+}
+function monthFromWord(v) {
+  for (const w of plain(v).match(/[a-z]+/g) || []) if (MONTH_WORDS.has(w)) return MONTH_WORDS.get(w);
+  return 0;
 }
 
 /** Anlegezeit aus der id („r“ + Millisekunden); Basis-ids wie „r01“ → 0. */

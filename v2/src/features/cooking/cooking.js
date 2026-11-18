@@ -10,6 +10,8 @@ import { parseMinutes, parseTipps, hasStructuredTipps, scaleIngredient, parseSer
 import { esc } from "../../ui/helpers.js";
 import { navigate } from "../../router.js";
 import { t, tn } from "../../i18n.js";
+import { getFactor, setFactor, startFor } from "./portions.js";
+import { createTimers } from "./timers.js";
 
 /* ---------- Wake Lock ---------- */
 let wakeLock = null;
@@ -59,9 +61,12 @@ export function renderCook(container, id) {
   let cur = 0;
   let ingOpen = true;
   let tippOpen = false;
-  let factor = 1;          // Portions-Faktor
-  let target = baseServings; // Ziel-Portionen (wenn Basis bekannt)
-  let intervals = [];
+  // QW-2: zuletzt gewählte Portionen dieses Rezepts (nur auf diesem Gerät), sonst Faktor 1
+  // target = Ziel-Portionen (wenn Basis bekannt), factor = Portions-Faktor
+  let { target, factor } = startFor(baseServings, getFactor(id));
+  // QW-8: Timer-Zustand lebt außerhalb des DOM (timers.js) — paint() darf ihn nicht anfassen.
+  const timers = createTimers();
+  let ticker = null; // ein Intervall für alle Timer; läuft nur, solange einer läuft
   let prog = { steps: {}, ings: {} };
 
   const view = document.createElement("div");
@@ -77,45 +82,54 @@ export function renderCook(container, id) {
   });
 
   const saveProg = () => { db.kvSet(progKey(id), prog).catch(() => {}); };
-  const clearTimers = () => { intervals.forEach((i) => clearInterval(i)); intervals = []; };
+  const stopTicker = () => { if (ticker) { clearInterval(ticker); ticker = null; } };
+  const clearTimers = () => { timers.clear(); stopTicker(); };
   const exit = () => navigate("cookbook"); // cleanup macht der Router
 
-  /* ---------- Timer an Button binden (v1-Logik) ---------- */
-  function attachTimer(btn, mins, baseLabel) {
-    let iv = null, rem = 0;
-    const fmt = (s) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
-    btn.classList.remove("running", "fired");
-    btn.textContent = baseLabel;
-    btn.onclick = (e) => {
-      e.stopPropagation(); // nicht den Schritt abhaken
-      if (iv) {
-        clearInterval(iv); intervals = intervals.filter((x) => x !== iv); iv = null;
-        btn.classList.remove("running"); btn.textContent = baseLabel;
-        return;
-      }
-      let m = mins;
+  /* ---------- Timer (Zustand in timers.js, Buttons sind nur Anzeige) ---------- */
+  const fmt = (s) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+
+  function timerBaseLabel(btn) {
+    const m = parseInt(btn.dataset.mins, 10) || null;
+    return btn.classList.contains("pager-timer")
+      ? (t("cooking.countdown") + (m ? ` (${m} Min)` : ""))
+      : ("⏱" + (m ? ` ${m}′` : ""));
+  }
+
+  // Zeichnet alle sichtbaren Timer-Buttons aus dem Zustand (nach jedem paint() und bei jedem Tick).
+  function refreshTimers() {
+    const now = Date.now();
+    view.querySelectorAll(".step-timer, .pager-timer").forEach((btn) => {
+      const i = +btn.dataset.timer;
+      const run = timers.running(i, now), done = timers.fired(i, now);
+      btn.classList.toggle("running", run);
+      btn.classList.toggle("fired", done);
+      btn.textContent = run ? "⏱ " + fmt(timers.remaining(i, now)) : done ? t("cooking.timerDone") : timerBaseLabel(btn);
+    });
+  }
+
+  function tick() {
+    const now = Date.now();
+    if (timers.takeFired(now).length) alarm(); // auch wenn der Schritt gerade nicht gezeigt wird
+    if (!timers.anyRunning(now)) stopTicker();
+    refreshTimers();
+  }
+
+  function onTimerClick(btn) {
+    const i = +btn.dataset.timer;
+    if (timers.running(i, Date.now())) {
+      timers.stop(i);
+    } else {
+      let m = parseInt(btn.dataset.mins, 10) || null;
       if (!m) {
         const v = prompt(t("cooking.timerPrompt"), "5");
         m = parseInt(v, 10);
         if (!m || m <= 0) return;
       }
-      rem = m * 60;
-      btn.classList.remove("fired");
-      btn.classList.add("running");
-      btn.textContent = "⏱ " + fmt(rem);
-      iv = setInterval(() => {
-        rem--;
-        if (rem <= 0) {
-          clearInterval(iv); intervals = intervals.filter((x) => x !== iv); iv = null;
-          btn.classList.remove("running"); btn.classList.add("fired");
-          btn.textContent = t("cooking.timerDone");
-          alarm();
-          return;
-        }
-        btn.textContent = "⏱ " + fmt(rem);
-      }, 1000);
-      intervals.push(iv);
-    };
+      timers.start(i, m * 60, Date.now());
+      if (!ticker) ticker = setInterval(tick, 250);
+    }
+    refreshTimers();
   }
 
   const toggleStep = (i) => { prog.steps[i] = !prog.steps[i]; if (!prog.steps[i]) delete prog.steps[i]; saveProg(); };
@@ -169,7 +183,7 @@ export function renderCook(container, id) {
           return `<div class="cook-step ${prog.steps[i] ? "done" : ""}" data-step="${i}">
             <span class="cook-num">${i + 1}</span>
             <span class="cook-text">${esc(s)}</span>
-            <button class="step-timer" data-mins="${mins || ""}"></button>
+            <button class="step-timer" data-timer="${i}" data-mins="${mins || ""}"></button>
           </div>`;
         }).join("")}` : ""}`;
     }
@@ -187,7 +201,7 @@ export function renderCook(container, id) {
           <span class="cook-num big">${cur + 1}</span>
           <div class="pager-text">${esc(s)}</div>
         </div>
-        <button class="pager-timer" data-mins="${mins || ""}"></button>
+        <button class="pager-timer" data-timer="${cur}" data-mins="${mins || ""}"></button>
         ${upgradeHint}
         <div class="pager-nav">
           <button class="btn-sec pg-prev" ${cur === 0 ? "disabled" : ""}>←</button>
@@ -198,7 +212,6 @@ export function renderCook(container, id) {
   }
 
   function paint() {
-    clearTimers();
     view.innerHTML = `
       <div class="cook-top">
         <span class="ct">${t("cooking.title")}</span>
@@ -228,8 +241,7 @@ export function renderCook(container, id) {
       if (confirm(t("cooking.resetConfirm"))) { prog = { steps: {}, ings: {} }; saveProg(); paint(); }
     };
 
-    // Scaler: −/+ ändert Ziel-Portionen bzw. Faktor (Repaint nötig — Timer gehen
-    // dabei verloren; deshalb Hinweis: Mengen vor dem Kochen einstellen)
+    // Scaler: −/+ ändert Ziel-Portionen bzw. Faktor (Repaint; laufende Timer überleben, QW-8)
     view.querySelectorAll("[data-scale]").forEach((b) => {
       b.onclick = () => {
         if (baseServings !== null) {
@@ -242,6 +254,7 @@ export function renderCook(container, id) {
           i = Math.max(0, Math.min(stepsF.length - 1, i + (b.dataset.scale === "+" ? 1 : -1)));
           factor = stepsF[i];
         }
+        setFactor(id, factor); // Faktor 1 entfernt den gemerkten Wert
         paint();
       };
     });
@@ -273,11 +286,9 @@ export function renderCook(container, id) {
     if (chk) chk.onclick = () => { toggleStep(cur); paint(); };
 
     view.querySelectorAll(".step-timer, .pager-timer").forEach((btn) => {
-      const m = parseInt(btn.dataset.mins, 10) || null;
-      const isPager = btn.classList.contains("pager-timer");
-      const base = isPager ? (t("cooking.countdown") + (m ? ` (${m} Min)` : "")) : ("⏱" + (m ? ` ${m}′` : ""));
-      attachTimer(btn, m, base);
+      btn.onclick = (e) => { e.stopPropagation(); onTimerClick(btn); }; // nicht den Schritt abhaken
     });
+    refreshTimers();
   }
 
   paint();

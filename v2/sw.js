@@ -18,7 +18,7 @@
 //     Überbleibsel.
 // Jetzt: lesen nur aus CACHE, schreiben nur solange CACHE existiert und innerhalb des Events.
 
-const CACHE = "koch-v2.17-1";
+const CACHE = "koch-v2.18-1";
 
 // Bewusst NICHT im SHELL: add.html (Freundes-Seite des I3-Freunde-Links). Sie wird von Freunden
 // ohne App geöffnet und braucht ohnehin Netz (Supabase); wird sie hier im Scope geladen, landet sie
@@ -46,6 +46,8 @@ const SHELL = [
   "./src/data/syncCore.js",
   "./src/data/syncRules.js",
   "./src/data/recipeMerge.js",
+  "./src/data/recipeImport.js",
+  "./src/data/recipeExport.js",
   "./src/data/listFile.js",
   "./src/data/baseLang.js",
   "./src/ui/sheet.js",
@@ -58,9 +60,15 @@ const SHELL = [
   "./src/features/cookbook/detail.js",
   "./src/features/cookbook/form.js",
   "./src/features/cookbook/export.js",
+  "./src/features/cookbook/importFile.js",
   "./src/features/cooking/cooking.js",
+  "./src/features/cooking/portions.js",
+  "./src/features/cooking/timers.js",
   "./src/features/match/match.js",
   "./src/data/catalog.js",
+  "./src/data/units.js",
+  "./src/data/ingredients.js",
+  "./src/data/ingredientMatch.js",
   "./src/features/shopping/logic.js",
   "./src/features/shopping/shopping.js",
   "./src/features/shopping/listMerge.js",

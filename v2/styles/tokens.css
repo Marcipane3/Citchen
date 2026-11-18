@@ -7,6 +7,9 @@
   /* Farben (hell — v1-Identität) */
   --accent: #c8632e;
   --accent-2: #e8a13a;
+  /* Gefüllte Akzent-Flächen mit kleiner Schrift (Rückgängig, Tab-Badge): Paar muss ≥ 4,5:1 schaffen (test-contrast.js) */
+  --accent-fill: #b5551f;
+  --on-accent: #fff;
   --ink: #2a1f17;
   --paper: #f6efe3;
   --card: #fffaf2;
@@ -51,6 +54,8 @@
     color-scheme: dark;
     --accent: #e07a3e;
     --accent-2: #e8a13a;
+    --accent-fill: #e07a3e;
+    --on-accent: #1c1410;
     --ink: #f0e7da;
     --paper: #211a14;
     --card: #2c241c;
@@ -73,6 +78,8 @@
   color-scheme: dark;
   --accent: #e07a3e;
   --accent-2: #e8a13a;
+  --accent-fill: #e07a3e;
+  --on-accent: #1c1410;
   --ink: #f0e7da;
   --paper: #211a14;
   --card: #2c241c;

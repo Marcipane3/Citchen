@@ -410,6 +410,31 @@ test("T2 / DG-06: doppelte id von außen → beide Rezepte bleiben (eins bekommt
   assert(A.names().includes("Claudes Kopie mit r01-Beispiel-id") && A.names().includes("Curry"));
 });
 
+test("#49 / DG-15: importiertes Rezept mit einer id, die nur auf Drive existiert → nach dem Speichern gibt es BEIDE, auf beiden Geräten", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  const B = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync(); await B.engine.sync();
+  // Gerät B legt „n1“ an und gleicht ab; A hat noch nicht abgeglichen und kennt die id nicht.
+  await B.save((list) => [recipe("n1", "Bs Rezept"), ...list]);
+  // A importiert eine Datei, die zufällig dieselbe id trägt (anderes Rezept) — planImport sieht nur lokale ids.
+  const origInfo = console.info; console.info = () => {};
+  try { await A.save((list) => [recipe("n1", "Importiert vom Freund", { tips: "anders" }), ...list]); }
+  finally { console.info = origInfo; }
+  assertDeepEqual(A.names(), ["Bs Rezept", "Curry", "Dal", "Importiert vom Freund", "Pasta"]);
+  assertDeepEqual(driveNames(drive), ["Bs Rezept", "Curry", "Dal", "Importiert vom Freund", "Pasta"]);
+  assertEqual(A.get("n1").name, "Bs Rezept", "das Drive-Rezept behält seine id");
+  assertEqual(new Set(driveRecipes(drive).map((r) => r.id)).size, 5, "ids eindeutig");
+  await B.engine.sync();
+  assertDeepEqual(B.names(), ["Bs Rezept", "Curry", "Dal", "Importiert vom Freund", "Pasta"]);
+  assertEqual(B.get("n1").name, "Bs Rezept");
+  // stabil: weitere Abgleiche erzeugen keine dritte Kopie und schreiben nicht mehr
+  const writes = drive.writes.length;
+  await A.engine.sync(); await B.engine.sync(); await A.engine.sync();
+  assertEqual(drive.writes.length, writes);
+  assertEqual(A.local.recipes.length, 5);
+});
+
 test("T2: Drive-Datei würde viele Rezepte löschen → Rückfrage; Nein = lokal bleibt alles", async () => {
   const drive = fakeDrive();
   const many = Array.from({ length: 20 }, (_, i) => recipe("r" + i, "Rezept " + i));

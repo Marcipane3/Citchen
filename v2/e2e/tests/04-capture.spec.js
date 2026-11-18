@@ -5,7 +5,7 @@ import { openApp, menu, tab, sheet, fillForm, idb } from "../support/app.js";
 // Wire-Werte aus v2/src/ai/models.js (Playwright lädt src/ nicht als ES-Modul; test-ai-usage.js
 // bindet dieselben Werte an die Konfiguration).
 const CAPTURE_MODEL = "claude-sonnet-5-5";
-const CHAT_DEFAULT = "claude-haiku-4-5";
+const CHAT_DEFAULT = "claude-haiku-5-5";
 const FALLBACK_BETA = "server-side-fallback-2026-07-01";
 
 const KEY = "sk-ant-e2e-not-a-real-key";
@@ -123,6 +123,83 @@ test("Mehrere auf einmal: Auswahl prüfen, nur Angehakte werden gespeichert", as
   expect(names).not.toContain(DRAFT.name);
 });
 
+test("#65: Entwurf mit Namen wie ein vorhandenes Rezept zeigt einen Hinweis — speichern bleibt möglich, nichts wird überschrieben", async ({ page, ai }) => {
+  await openApp(page);
+  await saveKey(page);
+  const before = await idb(page, "recipes");
+  const existing = before.find((r) => r.name === "Pasta e Ceci");
+  expect(existing).toBeTruthy();
+  await menu(page, "capture");
+
+  ai.reply(JSON.stringify({ ...DRAFT, name: "PASTA E CECI" }));
+  await page.locator("#cap-url").fill("https://example.com/rezept/pasta-e-ceci");
+  await page.locator("#cap-url").press("Enter");
+
+  const form = await sheet(page);
+  const note = form.locator("#f-similar");
+  await expect(note).toBeVisible();
+  await expect(note).toHaveText("Schon in deinem Kochbuch: „Pasta e Ceci“");
+  // Der Hinweis steht über dem Speichern-Knopf.
+  const [noteBox, saveBox] = [await note.boundingBox(), await form.locator(".save-btn").boundingBox()];
+  expect(noteBox.y).toBeLessThan(saveBox.y);
+
+  await form.locator("#f-name").fill("Pasta e Ceci al Forno");
+  await expect(note).toBeHidden();
+  await form.locator("#f-name").fill("Ceci e Pasta");
+  await expect(note).toBeVisible();
+
+  // Kein Dialog: der normale Knopf speichert ein ZWEITES Rezept, das vorhandene bleibt unverändert.
+  page.on("dialog", (d) => { throw new Error("unerwarteter Dialog: " + d.message()); });
+  await form.locator(".save-btn").click();
+  await expect((await sheet(page)).locator(".detail-name")).toHaveText("Ceci e Pasta");
+  const after = await idb(page, "recipes");
+  expect(after).toHaveLength(before.length + 1);
+  expect(after.find((r) => r.id === existing.id)).toEqual(existing);
+});
+
+test("#65: Sammel-Erfassung markiert nur die Zeile mit vorhandenem Namen; Haken bleibt, Hinweis folgt dem Bearbeiten", async ({ page, ai }) => {
+  await openApp(page);
+  await saveKey(page);
+  const before = await idb(page, "recipes");
+  const existing = before.find((r) => r.name === "Pasta e Ceci");
+  await menu(page, "capture");
+
+  const fresh = { ...DRAFT, name: "Linsen-Dal" };
+  ai.reply(JSON.stringify({ recipes: [{ ...DRAFT, name: "Pasta e Ceci (schnell)" }, fresh] }));
+  await page.locator("#cap-bulk").fill("Pasta e Ceci … Linsen-Dal …");
+  await page.locator("#cap-bulk-text").click();
+
+  const rows = page.locator("#bulk-list .bulk-row");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0).locator(".bulk-similar")).toHaveText("Schon in deinem Kochbuch: „Pasta e Ceci“");
+  await expect(rows.nth(1).locator(".bulk-similar")).toHaveCount(0);
+  await expect(rows.nth(0).locator(".bulk-cb")).toBeChecked();
+
+  // Bearbeiten: neuer Name → Hinweis weg; der Entwurf zeigt ihn vorher auch im Formular.
+  await rows.nth(0).locator(".bulk-edit").click();
+  let form = await sheet(page);
+  await expect(form.locator("#f-similar")).toBeVisible();
+  await form.locator("#f-name").fill("Pasta mit Kichererbsen");
+  await expect(form.locator("#f-similar")).toBeHidden();
+  await form.locator(".save-btn").click();
+  await expect(rows.nth(0).locator(".bulk-name")).toHaveText("Pasta mit Kichererbsen");
+  await expect(rows.nth(0).locator(".bulk-similar")).toHaveCount(0);
+
+  // … und zurück auf einen vorhandenen Namen → Hinweis wieder da, Haken bleibt.
+  await rows.nth(0).locator(".bulk-edit").click();
+  form = await sheet(page);
+  await form.locator("#f-name").fill("ceci, pasta e");
+  await form.locator(".save-btn").click();
+  await expect(rows.nth(0).locator(".bulk-similar")).toHaveText("Schon in deinem Kochbuch: „Pasta e Ceci“");
+  await expect(rows.nth(0).locator(".bulk-cb")).toBeChecked();
+
+  await page.locator("#bulk-save").click();
+  await expect(page.locator("#card-bulk .cap-slot")).toContainText("2 Rezept(e) gespeichert");
+  const after = await idb(page, "recipes");
+  expect(after).toHaveLength(before.length + 2);
+  expect(after.find((r) => r.id === existing.id)).toEqual(existing);
+});
+
 test("v2.16: Assistent cached den System-Prompt; Einstellungen zeigen den echten Verbrauch pro Aktion", async ({ page, ai }) => {
   await openApp(page);
   await saveKey(page);
@@ -144,7 +221,8 @@ test("v2.16: Assistent cached den System-Prompt; Einstellungen zeigen den echten
   expect(a.system[0].cache_control).toEqual({ type: "ephemeral" });
   expect(a.system[0].text).toContain("KOCHBUCH");
   expect(b.system).toEqual(a.system); // Byte-gleich → Cache-Treffer möglich
-  expect(a.output_config).toBeUndefined(); // Haiku 4.5 kennt kein effort
+  expect(a.output_config).toEqual({ effort: "medium" }); // #79: Haiku 5.5 mit explizitem effort
+  expect(a.fallbacks).toBeUndefined(); // Haiku 5.5 kennt keinen serverseitigen Fallback
   expect(ai.requests[0].headers["anthropic-beta"]).toBeUndefined();
 
   // Q3: Fake-API meldet je 10/10 Tokens → 1 Zeile „Assistent“, 2 Aufrufe.
@@ -158,4 +236,24 @@ test("v2.16: Assistent cached den System-Prompt; Einstellungen zeigen den echten
 
   await page.locator("#usage-clear").click();
   await expect(page.locator("#usage-box")).toContainText("Noch keine KI-Aufrufe");
+});
+
+test("#79: Assistent auf dem Standardmodell — Haiku 5.5 mit effort, ohne Fallback; leerer thinking-Block stört die Antwort nicht", async ({ page, ai }) => {
+  await openApp(page);
+  await saveKey(page);
+  await tab(page, "assistant");
+
+  ai.replyBlocks([{ type: "thinking", thinking: "" }, { type: "text", text: JSON.stringify({ type: "text", text: "Heute: Linsen-Dal!" }) }]);
+  await page.locator("#ai-input").fill("Was koche ich heute?");
+  await page.locator("#ai-send").click();
+  await expect(page.locator(".ai-msg.ai")).toHaveCount(1);
+  await expect(page.locator(".ai-msg.ai").last()).toContainText("Heute: Linsen-Dal!");
+
+  expect(ai.requests).toHaveLength(1);
+  const { body, headers } = ai.requests[0];
+  expect(body.model).toBe(CHAT_DEFAULT);
+  expect(body.output_config).toEqual({ effort: "medium" });
+  expect(body.max_tokens).toBeGreaterThanOrEqual(8000);
+  expect(body.fallbacks).toBeUndefined();
+  expect(headers["anthropic-beta"]).toBeUndefined();
 });

@@ -193,7 +193,7 @@ export function renderCookbook(container) {
     </main>
     <div class="sync-line">${esc(sync.getStatus())}</div>
     <div class="build-line">Build ${esc(BUILD)}</div>
-    <button class="fab" id="addBtn" title="Neues Rezept">+</button>
+    <button class="fab" id="addBtn" title="${t("cookbook.newRecipe")}">+</button>
   `;
 
   const search = container.querySelector("#search");

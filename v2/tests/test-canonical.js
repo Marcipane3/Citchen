@@ -5,6 +5,9 @@
 // lässt. Reiner Node-Test (Logik + Quelltext-Wächter), kein DOM, keine IndexedDB.
 import { test, assert, assertEqual } from "./runner.js";
 import { buildLangMap, localizeRecipes } from "../src/data/baseLang.js";
+import { buildExportFile } from "../src/data/recipeExport.js";
+import { exportMarkdown } from "../src/features/cookbook/export.js";
+const assertThrows = (fn) => { let threw = false; try { fn(); } catch { threw = true; } assert(threw, "sollte werfen"); };
 import { toFileString } from "../src/data/migrate.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -80,3 +83,93 @@ test("Kanonik / T3: so wie das Formular speichert, bleibt der Drive-Inhalt deuts
   assert(toFileString({ recipes: [leaked] }).includes("Sweet potato"), "Kontroll-Annahme falsch");
 });
 
+
+test("AR-13: Export aus der kanonischen Sammlung bleibt deutsch (Datei + Markdown)", () => {
+  const file = buildExportFile(DE);
+  assertEqual(file.recipes[0].name, "Süßkartoffel-Curry");
+  assertEqual(file.recipes[0].steps[0], "Reis aufsetzen.");
+  assertEqual(file.recipes[0].tips, "Topping: Joghurt.");
+  assert(exportMarkdown(DE).includes("Süßkartoffel-Curry"), "Markdown nicht kanonisch");
+});
+
+test("AR-13: buildExportFile / exportMarkdown lehnen die lokalisierte Anzeige-Sicht ab", () => {
+  const view = localizeRecipes(DE, buildLangMap(EN));
+  assertEqual(view[0].name, "Sweet potato curry");
+  assert(!JSON.stringify(view).includes("citchen.localized"), "Marker darf nicht serialisiert werden");
+  assertThrows(() => buildExportFile(view));
+  assertThrows(() => exportMarkdown(view));
+});
+
+test("AR-13: menu.js exportiert getRecipesDe(), nie state.recipes (Verdrahtungs-Wächter)", () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const src = readFileSync(join(here, "..", "src", "features", "menu.js"), "utf8");
+  assert(/copyExport\(getRecipesDe\(\)\)/.test(src), "Markdown-Export nicht kanonisch");
+  assert(/exportFile\(getRecipesDe\(\)\)/.test(src), "Datei-Export nicht kanonisch");
+  assert(!/(copyExport|exportFile)\(state\.recipes\)/.test(src), "menu.js exportiert die Anzeige-Sicht");
+});
+
+// ---- origin (#72): der Store ist die einzige Stelle, die das Feld setzt ----
+import { addRecipe, updateRecipe, setRecipes, setSaveChangeForTest } from "../src/store.js";
+
+/** Fake-Warteschlange: wendet die Änderung auf `disk` an und merkt sich, was geschrieben würde. */
+async function withFakeDisk(disk, fn) {
+  const box = { stored: null };
+  setRecipes(disk.map((x) => ({ ...x })), null);
+  setSaveChangeForTest(async (change) => { box.stored = change(disk.map((x) => ({ ...x }))); return { meta: {}, recipes: box.stored }; });
+  try { await fn(box); } finally { setSaveChangeForTest(null); }
+}
+const BASE72 = { id: "r01", name: "Grundrezept", category: "Vegetarische Hauptgerichte" };
+const MINE72 = { id: "r02", name: "Eigenes", category: "Pasta & Nudeln", origin: "user" };
+
+test("origin: addRecipe speichert immer origin \"user\", egal was die Felder sagen", async () => {
+  for (const incoming of [undefined, "shared", "base", ""]) {
+    await withFakeDisk([BASE72], async (box) => {
+      const fields = { name: "Neu", category: "Pasta & Nudeln" };
+      if (incoming !== undefined) fields.origin = incoming;
+      const saved = await addRecipe(fields);
+      assertEqual(saved.origin, "user", "Rückgabe bei " + JSON.stringify(incoming));
+      assertEqual(box.stored.find((x) => x.id === saved.id).origin, "user", "gespeichert bei " + JSON.stringify(incoming));
+      assert(!("origin" in box.stored.find((x) => x.id === "r01")), "Bestand unberührt");
+    });
+  }
+});
+
+test("origin: updateRecipe fügt bei einem Grundrezept nie origin hinzu", async () => {
+  await withFakeDisk([BASE72, MINE72], async (box) => {
+    await updateRecipe("r01", (x) => { x.name = "Geändert"; x.origin = "user"; });
+    const got = box.stored.find((x) => x.id === "r01");
+    assertEqual(got.name, "Geändert");
+    assert(!("origin" in got), "Grundrezept bleibt ohne origin");
+  });
+});
+
+test("origin: updateRecipe ändert oder entfernt origin bei einem Nutzerrezept nie", async () => {
+  await withFakeDisk([BASE72, MINE72], async (box) => {
+    await updateRecipe("r02", (x) => { x.name = "Geändert"; x.origin = "shared"; });
+    assertEqual(box.stored.find((x) => x.id === "r02").origin, "user", "nicht geändert");
+    await updateRecipe("r02", (x) => { delete x.origin; x.favorite = true; });
+    assertEqual(box.stored.find((x) => x.id === "r02").origin, "user", "nicht entfernt");
+    // Formular-Pfad: Object.assign mit Feldern ohne origin
+    await updateRecipe("r02", (x) => Object.assign(x, { name: "Formular", tips: "t" }));
+    assertEqual(box.stored.find((x) => x.id === "r02").origin, "user", "Formular-Edit behält user");
+  });
+});
+
+test("origin: updateRecipe stellt nur einen String-Wert wieder her; ein kaputtes origin blockiert das Bearbeiten nicht", async () => {
+  for (const bad of [null, 42, true, { x: 1 }]) {
+    await withFakeDisk([{ ...BASE72, origin: bad }], async (box) => {
+      await updateRecipe("r01", (x) => { x.favorite = true; });
+      const got = box.stored.find((x) => x.id === "r01");
+      assertEqual(got.favorite, true, "Edit gespeichert bei " + JSON.stringify(bad));
+      assert(!("origin" in got), "kaputtes origin entfernt bei " + JSON.stringify(bad));
+    });
+  }
+});
+
+test("origin: Sammlung ohne origin wird nach Laden + Speichern ohne origin zurückgeschrieben", async () => {
+  await withFakeDisk(DE, async (box) => {
+    await updateRecipe("r01", (x) => { x.favorite = false; });
+    assert(box.stored.every((x) => !("origin" in x)), "kein Rezept bekommt origin");
+    assert(!toFileString({ version: 3, updated: "x", recipes: box.stored }).includes("origin"), "Datei enthält kein origin");
+  });
+});

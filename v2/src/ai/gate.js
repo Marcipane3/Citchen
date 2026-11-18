@@ -3,7 +3,7 @@
 // ausschließlich Richtung api.anthropic.com (client.js).
 // gate.isPremium() = Schlüssel vorhanden → KI-Features sichtbar.
 
-import { CHAT_MODELS, DEFAULT_CHAT_MODEL } from "./models.js";
+import { CHAT_MODELS, DEFAULT_CHAT_MODEL, CHAT_MODEL_SUCCESSORS } from "./models.js";
 
 // Modell-IDs stehen seit v2.16 (Q1) nur noch in models.js.
 export const MODELS = CHAT_MODELS;
@@ -54,11 +54,14 @@ export function aiUnavailableReason() {
 /** Plausibilitätscheck fürs UI (kein echter Test — der geht über client.testKey). */
 export function looksLikeKey(k) { return /^sk-ant-/.test((k || "").trim()); }
 
+/** Pur: gespeicherte Wahl → gültiges Textmodell. Alte 4.x-Wahl → Nachfolger (#79), Unbekanntes → Standard. */
+export function resolveModel(stored) {
+  const m = Object.prototype.hasOwnProperty.call(CHAT_MODEL_SUCCESSORS, stored) ? CHAT_MODEL_SUCCESSORS[stored] : stored;
+  return MODELS.some((x) => x.id === m) ? m : DEFAULT_MODEL;
+}
+
 export function getModel() {
-  try {
-    const m = store.getItem(MODEL_KEY);
-    return MODELS.some((x) => x.id === m) ? m : DEFAULT_MODEL;
-  } catch (e) { return DEFAULT_MODEL; }
+  try { return resolveModel(store.getItem(MODEL_KEY)); } catch (e) { return DEFAULT_MODEL; }
 }
 
 export function setModel(id) {

@@ -31,7 +31,11 @@ jobs:
         run: node v2/tools/check-snapshots.mjs
 
   e2e:
-    runs-on: ubuntu-latest
+    # Pinned: `ubuntu-latest` moved to Ubuntu 26.04 (Nov 2026) and Playwright 1.56 cannot install
+    # Chromium there ("does not support chromium on ubuntu26.04-x64"). Go back to ubuntu-latest
+    # together with a Playwright bump to >= 1.61 in v2/e2e/package.json (check the cloud sessions'
+    # preinstalled Chromium still matches before bumping).
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

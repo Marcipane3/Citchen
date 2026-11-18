@@ -4,6 +4,7 @@
 
 import * as router from "./router.js";
 import * as sync from "./data/sync.js";
+import * as db from "./data/db.js";
 import * as drive from "./data/drive.js";
 import * as friendInbox from "./data/friendInbox.js";
 import { state, onState, setRecipes, setSignedIn, applySynced, applyLanguageOverlay } from "./store.js";
@@ -18,7 +19,7 @@ import { renderCapture } from "./features/capture/capture.js";
 import { renderLager } from "./features/lager/lager.js";
 import { renderGuide } from "./features/guide/guide.js";
 import { initTheme } from "./data/settings.js";
-import { getLang, hasLang, onLangChange } from "./i18n.js";
+import { getLang, hasLang, onLangChange, migrateDefaultLang, hasLegacyLocalData } from "./i18n.js";
 import { showLanguageModal } from "./features/onboarding/language.js";
 import { closeAllSheets } from "./ui/sheet.js";
 import { mountTabBar, setActiveTab } from "./ui/tabbar.js";
@@ -44,6 +45,13 @@ async function boot() {
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register(new URL("../sw.js", import.meta.url)).catch(() => {});
+  }
+
+  // P8.2: Bestehende Nutzer ohne gespeicherte Sprache bleiben Deutsch (vor dem Seed durch loadLocal prüfen).
+  if (!hasLang()) {
+    let n = 0;
+    try { n = (await db.getAll("recipes")).length; } catch (e) { /* egal */ }
+    migrateDefaultLang(hasLegacyLocalData(n));
   }
 
   initTheme(); // Theme früh anwenden (kein Flackern)

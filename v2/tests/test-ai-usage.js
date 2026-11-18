@@ -55,16 +55,37 @@ test("buildRequest: Aufgabe „capture“ → Sonnet 5.5, effort low, Fallback m
   assert(!("thinking" in body), "kein thinking-Feld: disabled wäre auf Sonnet 5.5 ein 400");
 });
 
-test("buildRequest: ohne Aufgabe → gewähltes Textmodell, kein effort/fallback (Haiku 4.5 kennt beides nicht)", () => {
-  gate.setModel("claude-sonnet-4-6");
-  const { body, beta } = buildRequest({ system: "S", messages: [], maxTokens: 4000 });
-  assertEqual(body.model, "claude-sonnet-4-6");
-  assertEqual(body.max_tokens, 4000);
-  assertEqual(body.system, "S", "ohne cacheSystem bleibt der System-Prompt ein String");
-  assert(!("output_config" in body) && !("fallbacks" in body));
-  assertEqual(beta, "");
+test("#79: buildRequest Haiku 5.5 (Standard) → effort medium, Token-Boden 8000, KEIN fallback/Beta", () => {
   gate.setModel(DEFAULT_CHAT_MODEL);
+  const { body, beta } = buildRequest({ system: "S", messages: [], maxTokens: 4000 });
+  assertEqual(body.model, "claude-haiku-5-5");
+  assertEqual(body.max_tokens, 8000, "Denken zählt ins Limit → 4000 vom Aufrufer wird auf den Boden angehoben");
+  assertEqual(body.system, "S", "ohne cacheSystem bleibt der System-Prompt ein String");
+  assertDeepEqual(body.output_config, { effort: "medium" });
+  assert(!("fallbacks" in body), "Haiku 5.5 hat keinen serverseitigen Fallback");
+  assertEqual(beta, "");
+  assert(!("thinking" in body) && !("temperature" in body), "nichts, was auf Haiku 5.5 ein 400 wäre");
   assertEqual(buildRequest({ messages: [] }).body.model, DEFAULT_CHAT_MODEL);
+});
+
+test("#79: buildRequest Sonnet 5.5 → effort medium, Token-Boden 8000, fallback + Beta-Header", () => {
+  gate.setModel("claude-sonnet-5-5");
+  try {
+    const { body, beta } = buildRequest({ system: "S", messages: [], maxTokens: 4096 });
+    assertEqual(body.model, "claude-sonnet-5-5");
+    assertEqual(body.max_tokens, 8000);
+    assertDeepEqual(body.output_config, { effort: "medium" });
+    assertEqual(body.fallbacks, "default");
+    assertEqual(beta, FALLBACK_BETA);
+    assertEqual(buildRequest({ messages: [], maxTokens: 12000 }).body.max_tokens, 12000, "größeres Limit des Aufrufers bleibt");
+  } finally { gate.setModel(DEFAULT_CHAT_MODEL); }
+});
+
+test("#79: jedes Textmodell hat effort und einen Token-Boden ≥ 8000 in models.js", () => {
+  for (const m of CHAT_MODELS) {
+    assertEqual(m.effort, "medium", m.id);
+    assert(m.maxTokens >= 8000, `${m.id}: maxTokens ${m.maxTokens}`);
+  }
 });
 
 test("Q2: cacheSystem → System-Prompt als EIN Block mit cache_control (ephemeral)", () => {
@@ -89,6 +110,32 @@ test("Q3: normalizeUsage — fehlende Felder = 0, Cache + web_fetch werden mitge
     { in: 5, out: 7, cr: 4000, cw: 0, wf: 2 });
   assertDeepEqual(normalizeUsage({ input_tokens: -3, output_tokens: "9" }), { in: 0, out: 0, cr: 0, cw: 0, wf: 0 }, "Unsinn → 0");
   assertDeepEqual(addUsage({ in: 1, out: 2, cr: 3, cw: 4, wf: 5 }, { in: 10, out: 20, cr: 30, cw: 40, wf: 50 }), { in: 11, out: 22, cr: 33, cw: 44, wf: 55 });
+});
+
+test("Verbrauch: Modell mit Datumsstempel („…-20251001“, so meldet es die API) bekommt den Preis des Namens ohne Stempel", () => {
+  const u = { in: 1e6, out: 1e6, cr: 1e6, cw: 1e6, wf: 0 };
+  assertEqual(costOf("claude-haiku-4-5-20251001", u), costOf("claude-haiku-4-5", u));
+  assert(costOf("claude-haiku-4-5-20251001", u) > 0, "nicht mehr 0 $");
+  assertEqual(costOf("gpt-9000-20251001", u), null, "unbekannt bleibt unbekannt");
+  // Marcels echtes Protokoll (27.10.–8.11.2026, 5 Aufrufe): vorher 5 × „ohne Preis“, 0 $
+  const s = summarizeUsage([
+    { t: "2026-10-27T16:03:37.073Z", a: "assistant", m: "claude-haiku-4-5-20251001", in: 32, out: 280, cr: 0, cw: 6356, wf: 0 },
+    { t: "2026-10-27T16:04:08.626Z", a: "assistant", m: "claude-haiku-4-5-20251001", in: 368, out: 848, cr: 6356, cw: 0, wf: 0 },
+  ]);
+  assertEqual(s.total.unpriced, 0);
+  assert(Math.abs(s.total.cost - (400 * 1 + 1128 * 5 + 6356 * 1.25 + 6356 * 0.1) / 1e6) < 1e-12);
+});
+
+test("#79: Haiku 5.5 hat einen Preis; alte Haiku-4.5-Einträge im Protokoll behalten ihren", () => {
+  const u = { in: 1e6, out: 1e6, cr: 1e6, cw: 1e6, wf: 0 };
+  // Haiku 5.5: $0.10 rein + $0.50 raus + $0.125 Cache schreiben + $0.01 Cache lesen
+  assert(Math.abs(costOf("claude-haiku-5-5", u) - 0.735) < 1e-9, String(costOf("claude-haiku-5-5", u)));
+  const s = summarizeUsage([
+    { t: "2026-11-20T10:00:00Z", a: "assistant", m: "claude-haiku-5-5", in: 1000, out: 500, cr: 0, cw: 0, wf: 0 },
+    { t: "2026-10-27T16:03:37.073Z", a: "assistant", m: "claude-haiku-4-5-20251001", in: 1000, out: 500, cr: 0, cw: 0, wf: 0 },
+  ]);
+  assertEqual(s.total.unpriced, 0, "beide Generationen bepreist");
+  assert(Math.abs(s.total.cost - ((1000 * 0.1 + 500 * 0.5) + (1000 * 1 + 500 * 5)) / 1e6) < 1e-12);
 });
 
 test("Q3: costOf — Listenpreis inkl. Cache-Schreiben/-Lesen; unbekanntes Modell → null", () => {
@@ -192,13 +239,26 @@ test("complete: Ablehnung (stop_reason refusal) → AiError „refusal“, Verbr
   });
 });
 
+test("#79: Ablehnung auf Haiku 5.5 (Chat, ohne Fallback) → AiError „refusal“, kein Absturz", async () => {
+  await withFetch([
+    { model: "claude-haiku-5-5", stop_reason: "refusal", content: [], usage: { input_tokens: 50, output_tokens: 0 } },
+  ], async (sent) => {
+    let err = null;
+    try { await complete({ system: "SYS", messages: [{ role: "user", content: "x" }], cacheSystem: true, action: "assistant" }); } catch (e) { err = e; }
+    assert(err instanceof AiError, "AiError erwartet");
+    assertEqual(err.kind, "refusal");
+    assert(!("fallbacks" in sent[0].body));
+    assertEqual(getUsageLog()[0].m, "claude-haiku-5-5");
+  });
+});
+
 test("Q2: complete — Assistent sendet den System-Prompt mit cache_control, Cache-Lesen landet im Protokoll", async () => {
   await withFetch([
-    { model: "claude-haiku-4-5", stop_reason: "end_turn", content: [{ type: "text", text: "{}" }], usage: { input_tokens: 40, output_tokens: 20, cache_read_input_tokens: 4800 } },
+    { model: "claude-haiku-5-5", stop_reason: "end_turn", content: [{ type: "thinking", thinking: "" }, { type: "text", text: "{}" }], usage: { input_tokens: 40, output_tokens: 20, cache_read_input_tokens: 4800 } },
   ], async (sent) => {
     await complete({ system: "SYS", messages: [{ role: "user", content: "Hallo" }], cacheSystem: true, action: "assistant" });
     assertEqual(sent[0].body.system[0].cache_control.type, "ephemeral");
-    assert(!sent[0].headers["anthropic-beta"], "Textmodell: kein Beta-Header");
+    assert(!sent[0].headers["anthropic-beta"], "Haiku 5.5: kein Beta-Header");
     assertEqual(getUsageLog()[0].cr, 4800);
   });
 });

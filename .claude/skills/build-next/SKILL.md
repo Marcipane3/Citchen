@@ -16,7 +16,10 @@ Never use `gh pr list` or `gh issue list`; they use GraphQL, which fails here.
 1. **Open agent PRs into `next`:**
    `gh api "$R/pulls?state=open&base=next&per_page=50" --jq '[.[] | select(any(.labels[]; .name=="claude-build")) | {number, draft, labels:[.labels[].name], head:.head.ref}]'`
    - One has `changes-requested` and not `needs-human` → **Fix mode** (§F). Do only that tonight.
-   - Any other open `claude-build` PR → STOP: `WIP limit — PR #N waiting for review`.
+   - **WIP limit 2.** Two or more open `claude-build` PRs → STOP: `WIP limit — PRs #N #M waiting`.
+     One open PR (waiting for review, for Marcel or for a release freeze) does not stop you: build
+     the next issue, so one stuck PR never idles the whole queue. Pick an issue whose *Scope* does
+     not overlap the files of the open PR (`gh api "$R/pulls/N/files" --jq '[.[].filename]'`).
 2. **Ready issues:**
    `gh api "$R/issues?state=open&labels=status:ready&per_page=50" --jq '[.[] | select(.pull_request|not) | {number,title,labels:[.labels[].name],milestone:.milestone.due_on}]'`
    Drop issues labelled `risk:needs-human` (they are built with Marcel, interactively).
@@ -74,7 +77,8 @@ it. Say so in your reply.
 
 ## Final message (always)
 One of: `Built #N → PR #M (green)` · `Draft PR #M for #N — blocked: <why>` · `Fixed PR #M (round k)` ·
-`Stopped: <reason>`, plus queue health.
+`Stopped: <reason>`, plus queue health. If a PR has been open for more than 3 days, name it and what
+it waits for: that line is how Marcel learns the queue is stuck.
 
 ## Never
 Merge anything · push to `next`/`main` · work on two issues · skip, weaken or delete a test ·

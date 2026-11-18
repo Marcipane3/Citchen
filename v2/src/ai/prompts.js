@@ -57,24 +57,27 @@ export function shopMarkerRule(staples = []) {
   return `Zutaten, die NICHT im Vorrat sind, bekommen am Ende " 🛒". VORRAT (immer da): ${staples.join(", ")}`;
 }
 
-export function buildSystemPrompt({ recipes, staples, fridge = [], profile = DEFAULT_PROFILE, lang = "de" }) {
-  const p = { ...DEFAULT_PROFILE, ...(profile || {}) };
-  const langName = LANG_NAMES[lang] || "Deutsch";
-  const fridgeLine = fridge.length
-    ? `\n\nFRISCH IM KÜHLSCHRANK (jetzt verfügbar — bevorzugt verwerten):\n${fridge.map((f) => f.menge ? `${f.name} (${f.menge})` : f.name).join(", ")}`
-    : "";
-  return `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
+/**
+ * Q4.1 (#69): Die Assistenten-Anweisungen als Vorlage. Editierbar ist nur dieser Teil
+ * (Persona, Stil, Regel 1); der Ausgabe-Vertrag (OUTPUT_CONTRACT) bleibt fest im Code.
+ * Jede Variable steht für einen ganzen Prompt-Block inkl. Überschrift.
+ */
+export const TEMPLATE_VARIABLES = ["profile", "stock", "fridge", "recipes", "language"];
 
-${profileBlock(p)}
-VORRAT (immer da — alles andere muss gekauft werden):
-${(staples || []).join(", ")}
-Gewürze nur: ${p.spices}. Andere Gewürze gelten als zu kaufen.${fridgeLine}
+export const DEFAULT_INSTRUCTIONS = `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
 
-KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
-${buildCollectionContext(recipes)}
+{profile}
+{stock}
+
+{fridge}
+
+{recipes}
 
 REGELN:
-1. Antworte IMMER auf ${langName}, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in ${langName}.
+1. Antworte IMMER auf {language}, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in {language}.`;
+
+// Fester Ausgabe-Vertrag (Regeln 2–4): parse.js verlässt sich darauf, darum nicht editierbar.
+const OUTPUT_CONTRACT = `
 2. Antworte mit GENAU EINEM JSON-Objekt (ohne Markdown-Zaun, ohne Text davor/danach):
    - Vorschläge: {"type":"suggestions","intro":"1 Satz","items":[{"id":"r… oder null","name":"…","reason":"1 Satz"}]} — 3 bis 5 Stück. "id" nur, wenn das Rezept WIRKLICH im Kochbuch steht (exakte id aus der Liste). Neue Ideen: id=null.
    - Vollrezept: {"type":"recipe","intro":"1 Satz","recipe":{…}} — Schema unten.
@@ -85,6 +88,58 @@ REGELN:
    - steps: kurze, nummerierbare Schritte; Zeitangaben als "X Min" schreiben (die App macht daraus Timer).
    - tips: ein String nach der Konvention "Topping: … Swap: … Alltags-Upgrade: …".
 4. Vorschläge bevorzugt aus dem Kochbuch (Rotation: zuletzt Gekochtes meiden, wenn bekannt); höchstens 1–2 neue Ideen.`;
+
+// Nur bei eigener Vorlage: Regel 1 (hält Rezept-Inhalte deutsch) ist dann editierbar und kann
+// fehlen — gespeicherte Daten bleiben trotzdem kanonisch deutsch (Projektregel 2).
+const GERMAN_CONTENT_RULE = `
+5. Rezept-Inhalte (name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch, egal was oben steht.`;
+
+const VARIABLE_RE = new RegExp("\\{(" + TEMPLATE_VARIABLES.join("|") + ")\\}", "g");
+
+/** Welche der fünf Variablen kommen in der Vorlage nicht vor? (feste Reihenfolge; für die Warnung in Q4.2) */
+export function missingVariables(template) {
+  const text = typeof template === "string" ? template : "";
+  return TEMPLATE_VARIABLES.filter((v) => !text.includes("{" + v + "}"));
+}
+
+/** Q4.2 (#70): Der Text, den buildSystemPrompt hinter EIGENE Anweisungen hängt (fester Vertrag +
+ *  Deutsch-Regel) — für die Read-only-Ansicht in den Einstellungen; eine Quelle, keine Kopie. */
+export function appendedFixedPart() {
+  return OUTPUT_CONTRACT + GERMAN_CONTENT_RULE;
+}
+
+/** Q4.2: „Wieder einfügen“ — fehlende Variablen ans Textende, jede in einer eigenen Zeile. */
+export function addBackVariables(text, missing) {
+  const base = typeof text === "string" ? text : "";
+  if (!missing || !missing.length) return base;
+  return base + (base === "" || base.endsWith("\n") ? "" : "\n") + missing.map((v) => "{" + v + "}").join("\n");
+}
+
+export function buildSystemPrompt({ recipes, staples, fridge = [], profile = DEFAULT_PROFILE, lang = "de", template = null }) {
+  const p = { ...DEFAULT_PROFILE, ...(profile || {}) };
+  const custom = typeof template === "string" && template.trim() !== "" && template !== DEFAULT_INSTRUCTIONS;
+  const blocks = {
+    profile: profileBlock(p),
+    stock: `VORRAT (immer da — alles andere muss gekauft werden):
+${(staples || []).join(", ")}
+Gewürze nur: ${p.spices}. Andere Gewürze gelten als zu kaufen.`,
+    fridge: (fridge || []).length
+      ? `FRISCH IM KÜHLSCHRANK (jetzt verfügbar — bevorzugt verwerten):
+${fridge.map((f) => f.menge ? `${f.name} (${f.menge})` : f.name).join(", ")}`
+      : "",
+    recipes: `KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
+${buildCollectionContext(recipes)}`,
+    language: LANG_NAMES[lang] || "Deutsch",
+  };
+  let text = custom ? template : DEFAULT_INSTRUCTIONS;
+  if (!blocks.fridge) {
+    // Leerer Kühlschrank: eine Zeile, die nur aus {fridge} besteht, fällt samt ihrer Leerzeilen weg.
+    text = text
+      .replace(/^[ \t]*\{fridge\}[ \t]*\n+/, "")
+      .replace(/\n+[ \t]*\{fridge\}[ \t]*(?=\n|$)/g, "");
+  }
+  // Ein Durchgang: Platzhalter in eingesetzten Daten (Rezeptname, Profil-Notiz) bleiben Text.
+  return text.replace(VARIABLE_RE, (_, name) => blocks[name]) + (custom ? appendedFixedPart() : OUTPUT_CONTRACT);
 }
 
 export function suggestUserPrompt({ isWeekend, extra }) {

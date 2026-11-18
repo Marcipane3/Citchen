@@ -9,9 +9,10 @@
 // treffen das deutsche Objekt und überleben das Overlay sauber.
 
 import * as sync from "./data/sync.js";
-import { makeIdFactory, withDefaults, validateRecipe } from "./data/schema.js";
+import { makeIdFactory, withDefaults, validateRecipe, ORIGIN_USER } from "./data/schema.js";
 import { buildLangMap, localizeRecipes } from "./data/baseLang.js";
 import { sameCollection } from "./data/recipeMerge.js";
+import { planImport } from "./data/recipeImport.js";
 
 export const state = {
   recipes: [],      // Anzeige-Sicht (lokalisiert) — Views lesen NUR das
@@ -72,6 +73,8 @@ export function getRecipe(id) { return state.recipes.find((r) => r.id === id); }
  * matcht (Einkaufs-Katalog/Gänge/Icons, Vorrats-Abgleich) — die Zutaten-Texte
  * müssen deutsch sein, sonst greift das Matching nicht. Anzeige bleibt lokalisiert.
  */
+/** Alle Rezepte KANONISCH deutsch (Kopie der Liste) — für ausgehende Exporte, nie state.recipes. */
+export function getRecipesDe() { return recipesDe.slice(); }
 export function getRecipeDe(id) { return recipesDe.find((r) => r.id === id); }
 
 /**
@@ -81,10 +84,13 @@ export function getRecipeDe(id) { return recipesDe.find((r) => r.id === id); }
  * übernimmt er den maßgeblichen Stand (inkl. dessen, was Drive mitbrachte, z. B. Claudes Rezept).
  */
 let pendingSaves = 0;
+let saveChange = (change) => sync.saveChange(change);
+/** Nur für Tests: Speicher-Warteschlange durch einen Fake ersetzen (null = echte). */
+export function setSaveChangeForTest(fn) { saveChange = fn || ((change) => sync.saveChange(change)); }
 async function persist(change) {
   pendingSaves++;
   let res;
-  try { res = await sync.saveChange(change); }
+  try { res = await saveChange(change); }
   finally { pendingSaves--; }
   state.meta = { ...(state.meta || {}), ...res.meta };
   if (pendingSaves === 0 && res.recipes && !sameCollection(res.recipes, recipesDe)) {
@@ -102,21 +108,31 @@ async function persist(change) {
 export async function updateRecipe(id, fn) {
   const idx = recipesDe.findIndex((r) => r.id === id);
   if (idx < 0) throw new Error("Rezept nicht gefunden: " + id);
-  const copy = { ...recipesDe[idx] };
-  fn(copy);
+  // origin gehört dem Anlegen, nie dem Bearbeiten (#72): nach fn() gilt wieder der Wert von vorher.
+  // Nur ein String wird wiederhergestellt; ein kaputter Wert (null, Zahl …) fällt weg, sonst scheiterte jede Bearbeitung.
+  const edit = (r) => {
+    const c = { ...r };
+    fn(c);
+    if (typeof r.origin === "string") c.origin = r.origin; else delete c.origin;
+    return c;
+  };
+  const copy = edit(recipesDe[idx]);
   const v = validateRecipe(copy);
   if (!v.valid) throw new Error("Ungültiges Rezept:\n" + v.errors.join("\n"));
   recipesDe = recipesDe.map((r, i) => (i === idx ? copy : r));
   recomputeView();
   emit();
-  await persist((list) => list.map((r) => { if (r.id !== id) return r; const c = { ...r }; fn(c); return c; }));
+  await persist((list) => list.map((r) => (r.id === id ? edit(r) : r)));
   return getRecipe(id) || copy;
 }
 
-/** Neues Rezept (vorn einfügen, v1-Verhalten). Gibt das Rezept mit ID zurück. */
+/**
+ * Neues Rezept (vorn einfügen, v1-Verhalten). Gibt das Rezept mit ID zurück.
+ * Stempelt immer `origin: "user"` — Formular, Erfassung und Assistent laufen alle hier durch (#72).
+ */
 export async function addRecipe(fields) {
   const nextId = makeIdFactory(recipesDe.map((r) => r.id));
-  const recipe = withDefaults({ id: nextId(), lastCooked: "", ...fields });
+  const recipe = withDefaults({ id: nextId(), lastCooked: "", ...fields, origin: ORIGIN_USER });
   const v = validateRecipe(recipe);
   if (!v.valid) throw new Error("Ungültiges Rezept:\n" + v.errors.join("\n"));
   recipesDe = [recipe, ...recipesDe];
@@ -131,4 +147,41 @@ export async function deleteRecipe(id) {
   recomputeView();
   emit();
   await persist((list) => list.filter((r) => r.id !== id));
+}
+
+/**
+ * Import-Datei (G2.3): alle Rezepte in EINER Speicherung. Geplant wird zweimal — optimistisch gegen den
+ * Speicher und dann in der Warteschlange gegen den aktuellen lokalen Stand, damit eine ID-Kollision, die
+ * erst dazwischen entsteht, nie ein Rezept überschreibt. Gibt den maßgeblichen Plan zurück.
+ */
+export async function importRecipes(incoming) {
+  let plan = planImport(incoming, recipesDe);
+  if (!plan.toAdd.length) return plan;
+  let shown = plan.toAdd; // was der Bildschirm gerade zeigt (Identität, nicht ID)
+  const swapShown = (next) => {
+    const old = new Set(shown);
+    recipesDe = [...next, ...recipesDe.filter((r) => !old.has(r))];
+    shown = next;
+    recomputeView();
+    emit();
+  };
+  swapShown(plan.toAdd);
+  try {
+    await persist((list) => {
+      const queued = planImport(incoming, list);
+      // Hat die Warteschlange andere IDs vergeben, sofort anzeigen — sonst trifft eine Bearbeitung
+      // in der Wartezeit per ID das andere, bereits vorhandene Rezept.
+      if (queued.toAdd.some((r, i) => r.id !== shown[i]?.id) || queued.toAdd.length !== shown.length) swapShown(queued.toAdd);
+      plan = queued;
+      return [...plan.toAdd, ...list];
+    });
+  } catch (e) {
+    // Speichern fehlgeschlagen: die nur angezeigten Rezepte wieder entfernen.
+    const old = new Set(shown);
+    recipesDe = recipesDe.filter((r) => !old.has(r));
+    recomputeView();
+    emit();
+    throw e;
+  }
+  return plan;
 }

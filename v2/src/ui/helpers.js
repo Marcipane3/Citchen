@@ -131,7 +131,7 @@ export function makeListEditor(mount, initial, placeholder, numbered) {
   const add = document.createElement("button");
   add.className = "addrow";
   add.type = "button";
-  add.textContent = "+ Zeile hinzufügen";
+  add.textContent = t("form.addRow");
   add.onclick = () => { const r = addRow(""); r.querySelector("input").focus(); };
   mount.appendChild(wrap);
   mount.appendChild(add);

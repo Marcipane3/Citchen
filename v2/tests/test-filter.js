@@ -2,9 +2,11 @@
 import { test, assert, assertEqual } from "./runner.js";
 import {
   availableChips, chipLabel, filterRecipes, distinctValues, isSpecialChip, activeFilterCount,
-  sortRecipes, cookedMonthKey, searchNorm, SORTS,
+  sortRecipes, cookedMonthKey, searchNorm, SORTS, similarRecipe, similarShown,
 } from "../src/features/cookbook/filter.js";
-import { exportMarkdown } from "../src/features/cookbook/export.js";
+import { exportMarkdown, recipeToMarkdown, CATEGORY_LABELS_EN, shareRecipeText } from "../src/features/cookbook/export.js";
+import { setLang, DE_MONTHS } from "../src/i18n.js";
+import { CATEGORIES } from "../src/data/schema.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -53,6 +55,7 @@ test("Chips: Spezial-Chips fehlen, wenn Daten sie nicht hergeben", () => {
 });
 
 test("chipLabel: Kürzungen wie v1", () => {
+  setLang("de");
   assertEqual(chipLabel("Alle"), "Alle");
   assertEqual(chipLabel("__fav"), "♥ Favoriten");
   assertEqual(chipLabel("Backen: Süßes & Kuchen"), "Backen");
@@ -159,21 +162,75 @@ test("activeFilterCount zählt belegte Facetten-Werte", () => {
 
 test("exportMarkdown: Struktur wie v1 (Kategorien-Reihenfolge, Felder)", () => {
   const md = exportMarkdown(R);
-  assert(md.startsWith("# 📖 Rezept-Datenbank"));
-  assert(md.includes("## Frühstück & Brunch"));
+  assert(md.startsWith("# 📖 Recipe collection"));
+  assert(md.includes("## Breakfast & Brunch"));
   assert(md.includes("### Süßkartoffel-Curry mit Kichererbsen (★★★)"), "Rating als Sterne im Titel");
-  assert(md.includes("**Zeit:** 35 Min | **Portionen:** ~4 | **Zuletzt:** Mai 2026"));
-  assert(md.includes("#### Zutaten"));
-  assert(md.includes("#### Zubereitung"));
-  assert(md.includes("#### Tipps"));
+  assert(md.includes("**Time:** 35 Min | **Servings:** ~4 | **Last cooked:** Mai 2026"));
+  assert(md.includes("#### Ingredients"));
+  assert(md.includes("#### Instructions"));
+  assert(md.includes("#### Tips"));
+  assert(!/Zutaten\n|Zubereitung\n|\*\*Zeit|\*\*Portionen/.test(md), "keine deutschen Labels");
   // Kategorie-Reihenfolge: Frühstück vor Grundrezepte
-  assert(md.indexOf("## Frühstück & Brunch") < md.indexOf("## Grundrezepte & Basissoßen"));
+  assert(md.indexOf("## Breakfast & Brunch") < md.indexOf("## Basic recipes & sauces"));
 });
 
 test("exportMarkdown: leere Kategorien tauchen nicht auf", () => {
   const md = exportMarkdown([{ id: "a", name: "Nur Pasta", category: "Pasta & Nudeln" }]);
-  assert(md.includes("## Pasta & Nudeln"));
-  assert(!md.includes("## Frühstück & Brunch"));
+  assert(md.includes("## Pasta & noodles"));
+  assert(!md.includes("## Breakfast & Brunch"));
+});
+
+test("G2.4: jede kanonische Kategorie hat ein englisches Label", () => {
+  for (const c of CATEGORIES) assert(CATEGORY_LABELS_EN[c] && typeof CATEGORY_LABELS_EN[c] === "string", "Label fehlt: " + c);
+  assertEqual(Object.keys(CATEGORY_LABELS_EN).length, CATEGORIES.length);
+});
+
+const one = { id: "x", name: "Linsen-Dal", category: "Reis & Getreide", rating: 2, time: "30 Min", servings: "4",
+  ingredients: ["200 g Linsen", "1 Zwiebel"], steps: ["Kochen", "Würzen"], tips: "Mit Joghurt servieren" };
+
+test("G2.4: recipeToMarkdown — Titel mit Sternen, Zeit/Portionen, Zutaten, nummerierte Schritte, Tipps", () => {
+  const md = recipeToMarkdown(one);
+  assert(md.startsWith("# Linsen-Dal (★★)\n"));
+  assert(md.includes("Rice & grains"), "englische Kategorie");
+  assert(md.includes("**Time:** 30 Min | **Servings:** 4"));
+  assert(md.includes("## Ingredients\n- 200 g Linsen\n- 1 Zwiebel"));
+  assert(md.includes("## Instructions\n1. Kochen\n2. Würzen"));
+  assert(md.includes("## Tips\nMit Joghurt servieren"));
+});
+
+test("G2.4: recipeToMarkdown — ohne Tipps/Bewertung keine leeren Abschnitte", () => {
+  const md = recipeToMarkdown({ ...one, tips: "", rating: 0 });
+  assert(!md.includes("Tips"));
+  assert(md.startsWith("# Linsen-Dal\n"));
+});
+
+test("G2.4: recipeToMarkdown — Labels bleiben Englisch, egal welche UI-Sprache", () => {
+  for (const l of ["en", "de", "es", "da"]) {
+    setLang(l);
+    const md = recipeToMarkdown(one);
+    assert(md.includes("## Ingredients") && md.includes("Rice & grains"), "Sprache " + l);
+  }
+  setLang("de");
+});
+
+test("G2.4: shareRecipeText — navigator.share({text}) wenn vorhanden", async () => {
+  let got = null;
+  const nav = { share: async (d) => { got = d; } };
+  assertEqual(await shareRecipeText("# A", "A", nav), "shared");
+  assertEqual(got.text, "# A");
+});
+
+test("G2.4: shareRecipeText — Abbruch im Share-Sheet ist still, kein Kopieren", async () => {
+  let copied = false;
+  const nav = { share: async () => { const e = new Error("x"); e.name = "AbortError"; throw e; }, clipboard: { writeText: async () => { copied = true; } } };
+  assertEqual(await shareRecipeText("# A", "A", nav), "cancelled");
+  assert(!copied);
+});
+
+test("G2.4: shareRecipeText — ohne share in die Zwischenablage", async () => {
+  let clip = "";
+  assertEqual(await shareRecipeText("# A", "A", { clipboard: { writeText: async (x) => { clip = x; } } }), "copied");
+  assertEqual(clip, "# A");
 });
 
 /* ---------- v2.17 (F4): Suche, Zeit-Chips, Sortierung ---------- */
@@ -214,6 +271,28 @@ test("Zeit-Chips (F4): ≤ 15 / ≤ 30 / ≤ 60 filtern nach Gesamtzeit; ein Chi
   assert(fast.includes("__t15") && !fast.includes("__quick") && !fast.includes("__t60"));
 });
 
+test("cookedMonthKey: Nicht-Monatswörter („Martes“, „Mayonesa“) zählen nicht als Monat", () => {
+  assertEqual(cookedMonthKey("Martes 2025"), 202500);
+  assertEqual(cookedMonthKey("Mayonesa 2025"), 202500);
+  assertEqual(cookedMonthKey("Maibowle 2025"), 202500);
+  assertEqual(cookedMonthKey("Augustiner 2025"), 202500);
+});
+
+test("cookedMonthKey: alle 12 Monate in DE/EN/ES/DA, voller Name und 3-Buchstaben-Kürzel", () => {
+  const langs = [
+    ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
+    ["January","February","March","April","May","June","July","August","September","October","November","December"],
+    ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"],
+    ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"],
+  ];
+  for (const names of langs) names.forEach((n, i) => {
+    const want = 202600 + i + 1;
+    assertEqual(cookedMonthKey(`${n} 2026`), want, n);
+    assertEqual(cookedMonthKey(`${n.slice(0, 3)}. 2026`), want, n.slice(0, 3));
+    assertEqual(cookedMonthKey(`${n.slice(0, 3).toUpperCase()} 2026`), want, n.slice(0, 3));
+  });
+});
+
 test("cookedMonthKey: „Mai 2026“ und Varianten → JJJJMM, leer/unbekannt → 0", () => {
   assertEqual(cookedMonthKey("Mai 2026"), 202605);
   assertEqual(cookedMonthKey("Oktober 2026"), 202610);
@@ -223,7 +302,31 @@ test("cookedMonthKey: „Mai 2026“ und Varianten → JJJJMM, leer/unbekannt �
   assertEqual(cookedMonthKey("2026"), 202600);
   assertEqual(cookedMonthKey(""), 0);
   assertEqual(cookedMonthKey(undefined), 0);
+  assertEqual(cookedMonthKey("märz 2025"), 202503);
   assertEqual(cookedMonthKey("irgendwann"), 0);
+});
+
+test("cookedMonthKey (QA-02): EN/ES/DA-Monatsnamen → JJJJMM", () => {
+  assertEqual(cookedMonthKey("May 2026"), 202605);
+  assertEqual(cookedMonthKey("March 2026"), 202603);
+  assertEqual(cookedMonthKey("mayo 2026"), 202605);
+  assertEqual(cookedMonthKey("agosto 2025"), 202508);
+  assertEqual(cookedMonthKey("diciembre 2025"), 202512);
+  assertEqual(cookedMonthKey("maj 2026"), 202605);
+  assertEqual(cookedMonthKey("marts 2026"), 202603);
+  assertEqual(cookedMonthKey("december 2024"), 202412);
+});
+
+test("cookedMonthKey (QA-02): deutsche 3-Buchstaben-/Punkt-Kürzel", () => {
+  assertEqual(cookedMonthKey("Mär 2026"), 202603);
+  assertEqual(cookedMonthKey("Okt. 2026"), 202610);
+  assertEqual(cookedMonthKey("Dez. 2025"), 202512);
+  assertEqual(cookedMonthKey("Jan 2026"), 202601);
+});
+
+test("cookedMonthKey (QA-02): deutsche Vollnamen unverändert, Fremdwort → Monat 0", () => {
+  for (let i = 0; i < 12; i++) assertEqual(cookedMonthKey(`${DE_MONTHS[i]} 2026`), 202600 + i + 1);
+  assertEqual(cookedMonthKey("irgendwann 2026"), 202600);
 });
 
 test("sortRecipes (F4): alle Sortierungen, Gleichstand → neueste zuerst, Eingabe unverändert", () => {
@@ -249,4 +352,91 @@ test("sortRecipes (F4): echte Daten — neueste zuerst ist die Umkehr der Basis-
   assertEqual(sorted.length, R.length);
   assertEqual(sorted[0].id, R[R.length - 1].id);
   assertEqual(sorted[sorted.length - 1].id, "r01");
+});
+
+/* ---------- #65 (QW-4): ähnlicher Name schon im Kochbuch ---------- */
+
+const BOOK = [
+  { id: "a", name: "Süßkartoffel-Curry mit Kichererbsen" },
+  { id: "b", name: "Chili sin Carne" },
+  { id: "c", name: "Pasta e Ceci" },
+];
+
+test("#65 similarRecipe: gleicher Name → das vorhandene Rezept", () => {
+  assertEqual(similarRecipe("Pasta e Ceci", BOOK)?.id, "c");
+});
+
+test("#65 similarRecipe: andere Groß-/Kleinschreibung und Akzente zählen nicht", () => {
+  assertEqual(similarRecipe("PASTA E CÉCI", BOOK)?.id, "c");
+});
+
+test("#65 similarRecipe: „ß“ und „ss“ sind gleich", () => {
+  assertEqual(similarRecipe("Susskartoffel-Curry mit Kichererbsen", BOOK)?.id, "a");
+});
+
+test("#65 similarRecipe: Klammer-Zusatz wird ignoriert („Chili (vegan)“ → „chili“)", () => {
+  assertEqual(similarRecipe("Chili sin Carne (vegan)", BOOK)?.id, "b");
+  assertEqual(similarRecipe("Chili (vegan)", [{ id: "x", name: "Chili" }])?.id, "x");
+  assertEqual(similarRecipe("Chili", [{ id: "y", name: "Chili [scharf]" }])?.id, "y");
+});
+
+test("#65 similarRecipe: andere Wortreihenfolge und Satzzeichen zählen nicht", () => {
+  assertEqual(similarRecipe("Kichererbsen mit Süßkartoffel Curry", BOOK)?.id, "a");
+  assertEqual(similarRecipe("Carne, sin Chili!", BOOK)?.id, "b");
+});
+
+test("#65 similarRecipe: klar anderer Name → null", () => {
+  assertEqual(similarRecipe("Linsen-Dal", BOOK), null);
+});
+
+test("#65 similarRecipe: ein zusätzliches echtes Wort passt NICHT", () => {
+  assertEqual(similarRecipe("Pasta e Ceci al Forno", BOOK), null);
+  assertEqual(similarRecipe("Chili sin Carne Bowl", BOOK), null);
+});
+
+test("#65 similarRecipe: leerer Name passt nie (auch nicht auf leere Namen)", () => {
+  const withEmpty = [...BOOK, { id: "e", name: "" }, { id: "f", name: "(ohne)" }];
+  assertEqual(similarRecipe("", withEmpty), null);
+  assertEqual(similarRecipe("   ", withEmpty), null);
+  assertEqual(similarRecipe("( )", withEmpty), null);
+  assertEqual(similarRecipe(undefined, withEmpty), null);
+  assertEqual(similarRecipe("Pasta", [{ id: "n" }]), null);
+});
+
+test("#65 similarRecipe: das ERSTE passende Rezept gewinnt", () => {
+  assertEqual(similarRecipe("chili", [{ id: "1", name: "Chili" }, { id: "2", name: "CHILI" }])?.id, "1");
+});
+
+test("#65 similarShown: passt gegen Anzeige-Namen UND deutsche Originale, zeigt den Anzeige-Namen", () => {
+  const de = [{ id: "a", name: "Linsensuppe" }, { id: "b", name: "Pasta e Ceci" }];
+  const shown = [{ id: "a", name: "Lentil soup" }, { id: "b", name: "Pasta e Ceci" }];
+  assertEqual(similarShown("lentil soup", shown, de)?.name, "Lentil soup");      // übersetzter Name
+  assertEqual(similarShown("Linsensuppe", shown, de)?.name, "Lentil soup");      // deutsches Original → Anzeige
+  assertEqual(similarShown("Pasta e Ceci", shown, de)?.name, "Pasta e Ceci");
+  assertEqual(similarShown("Gazpacho", shown, de), null);
+  assertEqual(similarShown("Linsensuppe", shown, []), null);
+  // Deutsches Original ohne Anzeige-Gegenstück (sollte nie passieren) → das Original selbst
+  assertEqual(similarShown("Linsensuppe", [], de)?.name, "Linsensuppe");
+});
+
+test("#65 similarNoteHtml: vorhandener Name wird escaped, Text in DE/EN/ES/DA mit geschwungenen Anführungen", async () => {
+  const { similarNoteHtml } = await import("../src/features/cookbook/form.js");
+  const { setRecipes } = await import("../src/store.js");
+  setRecipes([{ id: "x1", name: "Toast <b>&</b> Ei" }]);
+  try {
+    const want = {
+      de: "Schon in deinem Kochbuch: „Toast &lt;b&gt;&amp;&lt;/b&gt; Ei“",
+      en: "Already in your cookbook: “Toast &lt;b&gt;&amp;&lt;/b&gt; Ei”",
+      es: "Ya está en tu recetario: “Toast &lt;b&gt;&amp;&lt;/b&gt; Ei”",
+      da: "Allerede i din kogebog: „Toast &lt;b&gt;&amp;&lt;/b&gt; Ei“",
+    };
+    for (const [lang, html] of Object.entries(want)) {
+      setLang(lang);
+      assertEqual(similarNoteHtml("ei toast <b>&</b>"), html, lang);
+    }
+    assertEqual(similarNoteHtml("Rührei"), "");
+  } finally {
+    setLang("de");
+    setRecipes([]);
+  }
 });

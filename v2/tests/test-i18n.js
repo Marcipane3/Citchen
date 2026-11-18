@@ -1,6 +1,6 @@
 // Tests: i18n.js — Key-Parität DE/EN/ES, Interpolation, Plural, Fallback.
 import { test, assert, assertEqual } from "./runner.js";
-import { t, tn, tCat, tCuisine, tSeason, tLastCooked, setLang, getLang, LANGS, DICT } from "../src/i18n.js";
+import { t, tn, tCat, tCuisine, tSeason, tLastCooked, setLang, getLang, LANGS, DICT, migrateDefaultLang, hasLegacyLocalData, hasLang, _resetLangCache } from "../src/i18n.js";
 import { CATEGORIES } from "../src/data/schema.js";
 
 // Sammelt alle Punkt-Pfade eines verschachtelten Objekts (Blätter = Strings).
@@ -23,8 +23,52 @@ const SAMPLE_KEYS = [
   "guide.title", "errors.nokey", "badge.alltag", "chip.fav",
 ];
 
-test("Default ist Deutsch", () => {
+// localStorage-Attrappe für Node
+function fakeStorage(init = {}) {
+  const m = new Map(Object.entries(init));
+  globalThis.localStorage = {
+    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => m.set(k, String(v)),
+    get length() { return m.size; },
+    key: (i) => [...m.keys()][i] ?? null,
+  };
+  _resetLangCache();
+  return m;
+}
+
+test("P8.2: Default ist Englisch, wenn nichts gespeichert ist", () => {
+  fakeStorage();
+  assertEqual(getLang(), "en");
+});
+
+test("P8.2: Bestehender Nutzer ohne Sprache bekommt einmalig de gespeichert", () => {
+  const m = fakeStorage({ kochv2_theme: "dark" });
+  assert(hasLegacyLocalData(0), "kochv2_-Einstellung zählt als Bestandsdaten");
+  assert(migrateDefaultLang(hasLegacyLocalData(0)), "Migration läuft");
+  assertEqual(m.get("kochv2_lang"), "de");
   assertEqual(getLang(), "de");
+  assert(!migrateDefaultLang(true), "zweiter Aufruf ändert nichts");
+});
+
+test("P8.2: Rezepte in IndexedDB zählen als Bestandsdaten", () => {
+  fakeStorage();
+  assert(hasLegacyLocalData(3));
+  assert(!hasLegacyLocalData(0), "frische Installation hat keine Bestandsdaten");
+});
+
+test("P8.2: Neue Installation: keine Migration, Sprachauswahl bleibt nötig", () => {
+  const m = fakeStorage();
+  assert(!migrateDefaultLang(false));
+  assert(!hasLang());
+  assertEqual(m.has("kochv2_lang"), false);
+  assertEqual(getLang(), "en");
+});
+
+test("P8.2: Gewählte Sprache bleibt erhalten", () => {
+  const m = fakeStorage({ kochv2_lang: "es", kochv2_theme: "dark" });
+  assert(!migrateDefaultLang(true));
+  assertEqual(m.get("kochv2_lang"), "es");
+  assertEqual(getLang(), "es");
 });
 
 test("Alle Beispiel-Keys in DE/EN/ES vorhanden (kein Key-Echo)", () => {
@@ -96,6 +140,7 @@ test("Fallback auf DE bei fehlendem Key, Key-Echo bei komplett unbekanntem", () 
 });
 
 test("setLang ignoriert unbekannte Sprachen", () => {
+  fakeStorage();
   setLang("de");
   setLang("xx");
   assertEqual(getLang(), "de");
@@ -144,4 +189,44 @@ test("tLastCooked: DE gibt unverändert zurück, andere Sprachen übersetzen Mon
   assertEqual(tLastCooked("2026-05"), "2026-05");
   assertEqual(tLastCooked(null), null);
   setLang("de");
+});
+
+// P8.1 (#26): ehemals hartcodierte deutsche UI-Texte laufen über i18n.
+const P81_KEYS = ["form.addRow", "form.saveFailed", "cookbook.newRecipe", "detail.favoriteTitle", "settings.showKey", "export.copied", "export.copyFail"];
+
+test("P8.1: neue Keys in allen 4 Sprachen vorhanden, EN ist englisch", () => {
+  for (const lang of LANGS.map((l) => l.code)) {
+    setLang(lang);
+    for (const k of P81_KEYS) {
+      const v = t(k, { e: "x", msg: "x" });
+      assert(v && v !== k, `Key fehlt in ${lang}: ${k}`);
+    }
+  }
+  setLang("en");
+  assertEqual(t("detail.favoriteTitle"), "Favorite");
+  assertEqual(t("settings.showKey"), "show");
+  assertEqual(t("cookbook.newRecipe"), "New recipe");
+  assertEqual(t("form.addRow"), "+ Add row");
+  assertEqual(t("form.saveFailed", { e: "boom" }), "Save failed: boom");
+  setLang("de");
+  assertEqual(t("detail.favoriteTitle"), "Favorit");
+  assertEqual(t("settings.showKey"), "anzeigen");
+  assertEqual(t("form.addRow"), "+ Zeile hinzufügen");
+});
+
+test("P8.1: keine hartcodierten deutschen Literale mehr in den UI-Dateien", async () => {
+  const fs = await import("node:fs");
+  const base = new URL("../src/", import.meta.url);
+  const checks = [
+    ["features/assistant/assistant.js", "Speichern fehlgeschlagen"],
+    ["ui/helpers.js", "Zeile hinzufügen"],
+    ["features/cookbook/cookbook.js", 'title="Neues Rezept"'],
+    ["features/cookbook/detail.js", 'title="Favorit"'],
+    ["features/settings/settings.js", 'title="anzeigen"'],
+    ["features/cookbook/export.js", "alert(\""],
+  ];
+  for (const [f, lit] of checks) {
+    const src = fs.readFileSync(new URL(f, base), "utf8");
+    assert(!src.includes(lit), `${f} enthält noch: ${lit}`);
+  }
 });

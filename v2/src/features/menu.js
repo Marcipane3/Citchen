@@ -1,11 +1,12 @@
 // menu.js — ☰ Navigations-Sheet für die Nebenbereiche. Die 5 Hauptbereiche stehen seit J2
 // in der Tab-Leiste unten (ui/tabs.js) und werden hier bewusst NICHT doppelt geführt.
 
-import { state } from "../store.js";
+import { state, getRecipesDe } from "../store.js";
 import * as drive from "../data/drive.js";
 import { openSheet } from "../ui/sheet.js";
 import { navigate } from "../router.js";
-import { copyExport } from "./cookbook/export.js";
+import { copyExport, exportFile } from "./cookbook/export.js";
+import { pickAndImport } from "./cookbook/importFile.js";
 import { t } from "../i18n.js";
 
 export const ITEMS = [
@@ -14,6 +15,8 @@ export const ITEMS = [
   { go: "settings", icon: "⚙️", k: "nav.settings" },
   { go: "guide", icon: "ℹ️", k: "nav.guide" },
   { go: "__export", icon: "⬇️", k: "nav.export" },
+  { go: "__exportFile", icon: "📦", k: "nav.exportFile" },
+  { go: "__importFile", icon: "📥", k: "nav.importFile" },
 ];
 
 export function openMenu(current) {
@@ -34,7 +37,9 @@ export function openMenu(current) {
     b.onclick = () => {
       const go = b.dataset.go;
       close();
-      if (go === "__export") copyExport(state.recipes);
+      if (go === "__export") copyExport(getRecipesDe());
+      else if (go === "__exportFile") exportFile(getRecipesDe()).catch((e) => alert(e.message));
+      else if (go === "__importFile") pickAndImport();
       else if (go === "__login") drive.login().catch((e) => alert(e.message));
       else navigate(go);
     };

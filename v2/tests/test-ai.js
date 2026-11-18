@@ -2,8 +2,14 @@
 // Gating: kein Key → kein Premium; Parsing: Modell-JSON → schema-valide Rezepte.
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import * as gate from "../src/ai/gate.js";
+import { CHAT_MODELS, DEFAULT_CHAT_MODEL } from "../src/ai/models.js";
 import { extractJson, coerceRecipe, coerceSuggestions, coercePlanDays, tippsToString } from "../src/ai/parse.js";
-import { buildSystemPrompt, buildCollectionContext, suggestUserPrompt, fromStockUserPrompt, planUserPrompt } from "../src/ai/prompts.js";
+import {
+  buildSystemPrompt, buildCollectionContext, suggestUserPrompt, fromStockUserPrompt, planUserPrompt,
+  profileBlock, DEFAULT_PROFILE, DEFAULT_INSTRUCTIONS, TEMPLATE_VARIABLES, missingVariables,
+  appendedFixedPart, addBackVariables,
+} from "../src/ai/prompts.js";
+import { getInstructions, setInstructions, resetInstructions } from "../src/data/settings.js";
 import { validateRecipe } from "../src/data/schema.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -25,13 +31,38 @@ test("gate: ohne Key kein Premium; mit Key Premium; Entfernen sperrt wieder", ()
   assertEqual(gate.getKey(), "");
 });
 
-test("gate: Modell-Default haiku, Wechsel nur auf bekannte IDs (IDs aus models.js)", () => {
-  assertEqual(gate.getModel(), "claude-haiku-4-5");
-  gate.setModel("claude-sonnet-4-6");
-  assertEqual(gate.getModel(), "claude-sonnet-4-6");
+test("gate: Modell-Default Haiku 5.5, Wechsel nur auf bekannte IDs (IDs aus models.js)", () => {
+  assertEqual(gate.getModel(), "claude-haiku-5-5");
+  gate.setModel("claude-sonnet-5-5");
+  assertEqual(gate.getModel(), "claude-sonnet-5-5");
   gate.setModel("gpt-9000"); // unbekannt → ignoriert
-  assertEqual(gate.getModel(), "claude-sonnet-4-6");
-  gate.setModel("claude-haiku-4-5");
+  assertEqual(gate.getModel(), "claude-sonnet-5-5");
+  gate.setModel("claude-haiku-5-5");
+});
+
+test("#79: Textmodelle sind Haiku 5.5 (Standard) und Sonnet 5.5; die 4.x-IDs sind nicht mehr wählbar", () => {
+  assertDeepEqual(CHAT_MODELS.map((m) => [m.id, m.label]), [
+    ["claude-haiku-5-5", "Haiku 5.5 — schnell & günstig (Standard)"],
+    ["claude-sonnet-5-5", "Sonnet 5.5 — stärker"],
+  ]);
+  assertEqual(DEFAULT_CHAT_MODEL, "claude-haiku-5-5");
+  gate.setModel("claude-sonnet-4-6");
+  assertEqual(gate.getModel(), "claude-haiku-5-5", "4.x lässt sich nicht mehr neu wählen");
+});
+
+// gate.resolveModel(gespeichert) ist genau das, was getModel() mit dem Wert aus localStorage macht.
+test("#79: gespeicherte Wahl Haiku 4.5 → Haiku 5.5", () => {
+  assertEqual(gate.resolveModel("claude-haiku-4-5"), "claude-haiku-5-5");
+});
+
+test("#79: gespeicherte Wahl Sonnet 4.6 → Sonnet 5.5", () => {
+  assertEqual(gate.resolveModel("claude-sonnet-4-6"), "claude-sonnet-5-5");
+});
+
+test("#79: andere unbekannte gespeicherte Wahl → Standard (wie bisher); gültige Wahl bleibt", () => {
+  assertEqual(gate.resolveModel("claude-opus-3"), DEFAULT_CHAT_MODEL);
+  assertEqual(gate.resolveModel(null), DEFAULT_CHAT_MODEL, "nichts gespeichert");
+  assertEqual(gate.resolveModel("claude-sonnet-5-5"), "claude-sonnet-5-5");
 });
 
 test("gate: looksLikeKey", () => {
@@ -211,4 +242,333 @@ test("planUserPrompt: enthält Plan, Locks und JSON-Format", () => {
   assert(p.includes("(Reste von Mo)"));
   assert(p.includes("Gesperrt (NICHT ändern): Mo"));
   assert(p.includes('"type":"plan"'));
+});
+
+/* ---------- Q4.1 (#69): Assistenten-Anweisungen als Vorlage ---------- */
+
+const TPL_RX = [
+  { id: "r01", name: "Linsen-Dal", category: "Vegetarische Hauptgerichte", effort: "alltag", cuisine: "Indisch", rating: 5 },
+  { id: "r02", name: "Zimtschnecken", category: "Kuchen & Süßes", toTry: true },
+];
+const TPL_FRIDGE = [{ name: "Zucchini", menge: "2 Stück" }, { name: "Feta" }];
+
+// Eingefrorene Kopie der Ausgabe von buildSystemPrompt VOR #69 (Stand next, 15.11.2026).
+// Nicht aus dem Code ableiten und nicht „mitziehen“: genau diese Bytes müssen ohne Vorlage herauskommen.
+// FROZEN_CONTRACT = der feste Ausgabe-Vertrag (Regeln 2–4), der an jede Vorlage angehängt wird.
+const FROZEN_CONTRACT = `
+2. Antworte mit GENAU EINEM JSON-Objekt (ohne Markdown-Zaun, ohne Text davor/danach):
+   - Vorschläge: {"type":"suggestions","intro":"1 Satz","items":[{"id":"r… oder null","name":"…","reason":"1 Satz"}]} — 3 bis 5 Stück. "id" nur, wenn das Rezept WIRKLICH im Kochbuch steht (exakte id aus der Liste). Neue Ideen: id=null.
+   - Vollrezept: {"type":"recipe","intro":"1 Satz","recipe":{…}} — Schema unten.
+   - Sonst: {"type":"text","text":"…"}
+3. Rezept-Schema (flach, Schema v3):
+   {"name":str,"category":str (EXAKT eine von: Frühstück & Brunch / Schnelle Wochentags-Gerichte / Pasta & Nudeln / Reis & Getreide / Suppen & Eintöpfe / Salate & leichte Gerichte / Wochenend-Gerichte / Vegetarische Hauptgerichte / Deutsche Hausmannskost / Middle Eastern & Mediterran / Asiatisch inspiriert / Backen: Brot & Herzhaftes / Backen: Süßes & Kuchen / Muffins & Kleingebäck / Sourdough & Sauerteig / Grundrezepte & Basissoßen),"time":"25 Min","servings":"~4","effort":"alltag"|"besonders","difficulty":"einfach"|"mittel"|"aufwändig","cuisine":str,"prepTime":int,"cookTime":int,"totalTime":int,"mealPrep":bool,"toTry":true,"season":str|"","tags":[str],"ingredients":[str],"steps":[str],"tips":str}
+   - ingredients: eine Zutat pro Eintrag, mit Menge ("400g Kichererbsen (Dose)"). Zutaten, die NICHT im Vorrat sind, bekommen am Ende " 🛒".
+   - steps: kurze, nummerierbare Schritte; Zeitangaben als "X Min" schreiben (die App macht daraus Timer).
+   - tips: ein String nach der Konvention "Topping: … Swap: … Alltags-Upgrade: …".
+4. Vorschläge bevorzugt aus dem Kochbuch (Rotation: zuletzt Gekochtes meiden, wenn bekannt); höchstens 1–2 neue Ideen.`;
+const FROZEN = [
+  { label: "Kühlschrank leer", args: { recipes: TPL_RX, staples: ["Mehl", "Reis"] }, head: `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
+
+KOCH-PROFIL:
+- Anfänger bis Mittelstufe, pragmatisch. Hauptsächlich vegetarisch (Eier/Fisch ok, kein Fleisch im Regelkauf).
+- Immer ~4 Portionen (Reste werden über mehrere Tage gegessen).
+- Wochentags: Schnell, 20–30 Min. Wochenende: Aufwendiger, Experimente, Backen.
+- Einkauf: Dänische Supermärkte + Middle-Eastern-Bazaars.
+- Ausstattung: Herd, Backofen, Mikrowelle, Mixer, Reiskocher. Kein Spezialgerät voraussetzen.
+
+VORRAT (immer da — alles andere muss gekauft werden):
+Mehl, Reis
+Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.
+
+KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
+r01|Linsen-Dal|Vegetarische Hauptgerichte|alltag|Indisch|★5
+r02|Zimtschnecken|Kuchen & Süßes|neu
+
+REGELN:
+1. Antworte IMMER auf Deutsch, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in Deutsch.` },
+  { label: "Kühlschrank gefüllt", args: { recipes: TPL_RX, staples: ["Mehl", "Reis"], fridge: TPL_FRIDGE }, head: `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
+
+KOCH-PROFIL:
+- Anfänger bis Mittelstufe, pragmatisch. Hauptsächlich vegetarisch (Eier/Fisch ok, kein Fleisch im Regelkauf).
+- Immer ~4 Portionen (Reste werden über mehrere Tage gegessen).
+- Wochentags: Schnell, 20–30 Min. Wochenende: Aufwendiger, Experimente, Backen.
+- Einkauf: Dänische Supermärkte + Middle-Eastern-Bazaars.
+- Ausstattung: Herd, Backofen, Mikrowelle, Mixer, Reiskocher. Kein Spezialgerät voraussetzen.
+
+VORRAT (immer da — alles andere muss gekauft werden):
+Mehl, Reis
+Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.
+
+FRISCH IM KÜHLSCHRANK (jetzt verfügbar — bevorzugt verwerten):
+Zucchini (2 Stück), Feta
+
+KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
+r01|Linsen-Dal|Vegetarische Hauptgerichte|alltag|Indisch|★5
+r02|Zimtschnecken|Kuchen & Süßes|neu
+
+REGELN:
+1. Antworte IMMER auf Deutsch, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in Deutsch.` },
+  { label: "lang en", args: { recipes: TPL_RX, staples: ["Mehl", "Reis"], lang: "en" }, head: `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
+
+KOCH-PROFIL:
+- Anfänger bis Mittelstufe, pragmatisch. Hauptsächlich vegetarisch (Eier/Fisch ok, kein Fleisch im Regelkauf).
+- Immer ~4 Portionen (Reste werden über mehrere Tage gegessen).
+- Wochentags: Schnell, 20–30 Min. Wochenende: Aufwendiger, Experimente, Backen.
+- Einkauf: Dänische Supermärkte + Middle-Eastern-Bazaars.
+- Ausstattung: Herd, Backofen, Mikrowelle, Mixer, Reiskocher. Kein Spezialgerät voraussetzen.
+
+VORRAT (immer da — alles andere muss gekauft werden):
+Mehl, Reis
+Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.
+
+KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
+r01|Linsen-Dal|Vegetarische Hauptgerichte|alltag|Indisch|★5
+r02|Zimtschnecken|Kuchen & Süßes|neu
+
+REGELN:
+1. Antworte IMMER auf Englisch, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in Englisch.` },
+  { label: "Profil ohne shopping/notes", args: { recipes: TPL_RX, staples: ["Reis"], profile: { shopping: "", notes: "" } }, head: `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
+
+KOCH-PROFIL:
+- Anfänger bis Mittelstufe, pragmatisch. Hauptsächlich vegetarisch (Eier/Fisch ok, kein Fleisch im Regelkauf).
+- Immer ~4 Portionen (Reste werden über mehrere Tage gegessen).
+- Wochentags: Schnell, 20–30 Min. Wochenende: Aufwendiger, Experimente, Backen.
+- Ausstattung: Herd, Backofen, Mikrowelle, Mixer, Reiskocher. Kein Spezialgerät voraussetzen.
+
+VORRAT (immer da — alles andere muss gekauft werden):
+Reis
+Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.
+
+KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
+r01|Linsen-Dal|Vegetarische Hauptgerichte|alltag|Indisch|★5
+r02|Zimtschnecken|Kuchen & Süßes|neu
+
+REGELN:
+1. Antworte IMMER auf Deutsch, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in Deutsch.` },
+  { label: "Profil mit notes, lang da", args: { recipes: TPL_RX, staples: ["Reis"], profile: { notes: "Keine Pilze" }, lang: "da" }, head: `Du bist der Koch-Assistent in einer persönlichen Kochbuch-App.
+
+KOCH-PROFIL:
+- Anfänger bis Mittelstufe, pragmatisch. Hauptsächlich vegetarisch (Eier/Fisch ok, kein Fleisch im Regelkauf).
+- Immer ~4 Portionen (Reste werden über mehrere Tage gegessen).
+- Wochentags: Schnell, 20–30 Min. Wochenende: Aufwendiger, Experimente, Backen.
+- Einkauf: Dänische Supermärkte + Middle-Eastern-Bazaars.
+- Ausstattung: Herd, Backofen, Mikrowelle, Mixer, Reiskocher. Kein Spezialgerät voraussetzen.
+- Keine Pilze
+
+VORRAT (immer da — alles andere muss gekauft werden):
+Reis
+Gewürze nur: Salz, Pfeffer, Paprika, Kreuzkümmel, Curry, Chiliflocken, Rosmarin, Muskat, Zimt. Andere Gewürze gelten als zu kaufen.
+
+KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):
+r01|Linsen-Dal|Vegetarische Hauptgerichte|alltag|Indisch|★5
+r02|Zimtschnecken|Kuchen & Süßes|neu
+
+REGELN:
+1. Antworte IMMER auf Dänisch, kurz und klar. AUSNAHME: Rezept-Inhalte ("recipe": name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch — die Rezeptdatei ist deutsch; nur "intro", "reason" und "text" in Dänisch.` },
+];
+
+const TPL_ARGS = { recipes: TPL_RX, staples: ["Mehl", "Reis"], fridge: TPL_FRIDGE, lang: "en" };
+const F_PROFILE = profileBlock();
+const F_STOCK = "VORRAT (immer da — alles andere muss gekauft werden):\nMehl, Reis\nGewürze nur: " + DEFAULT_PROFILE.spices + ". Andere Gewürze gelten als zu kaufen.";
+const F_FRIDGE = "FRISCH IM KÜHLSCHRANK (jetzt verfügbar — bevorzugt verwerten):\nZucchini (2 Stück), Feta";
+const F_RECIPES = "KOCHBUCH (id|Name|Kategorie|Minuten|Aufwand|Küche|…):\n" + buildCollectionContext(TPL_RX);
+const GERMAN_RULE = "(name, ingredients, steps, tips, cuisine, season) IMMER auf Deutsch";
+
+test("Q4.1: DEFAULT_INSTRUCTIONS + TEMPLATE_VARIABLES exportiert, Vorlage = heutiger Text bis Regel 1", () => {
+  assertDeepEqual(TEMPLATE_VARIABLES, ["profile", "stock", "fridge", "recipes", "language"]);
+  assert(DEFAULT_INSTRUCTIONS.startsWith("Du bist der Koch-Assistent in einer persönlichen Kochbuch-App."), "Persona-Zeile fehlt");
+  assert(DEFAULT_INSTRUCTIONS.endsWith('nur "intro", "reason" und "text" in {language}.'), "endet nicht mit Regel 1");
+  assert(DEFAULT_INSTRUCTIONS.includes("REGELN:\n1. Antworte IMMER auf {language}, kurz und klar."), "Regel 1 fehlt");
+  for (const v of TEMPLATE_VARIABLES) assert(DEFAULT_INSTRUCTIONS.includes("{" + v + "}"), "Platzhalter fehlt: " + v);
+  for (const raw of ["KOCH-PROFIL", "VORRAT", "FRISCH IM", "KOCHBUCH", "Deutsch,", "2. Antworte"]) {
+    assert(!DEFAULT_INSTRUCTIONS.includes(raw), "Block/Vertrag steht noch fest in der Vorlage: " + raw);
+  }
+});
+
+test("Q4.1: ohne Vorlage byte-identisch zur eingefrorenen Ausgabe (leer, null, Leerraum, Default-Text)", () => {
+  for (const f of FROZEN) {
+    const want = f.head + FROZEN_CONTRACT;
+    assertEqual(buildSystemPrompt(f.args), want, f.label + ": ohne template");
+    for (const template of [undefined, null, "", "  \n\t "]) {
+      assertEqual(buildSystemPrompt({ ...f.args, template }), want, f.label + ": template=" + JSON.stringify(template));
+    }
+    assertEqual(buildSystemPrompt({ ...f.args, template: DEFAULT_INSTRUCTIONS }), want, f.label + ": Default-Text als template");
+  }
+});
+
+test("Q4.1: jede Variable wird zu ihrem ganzen Block inkl. Überschrift", () => {
+  const body = (template, args = TPL_ARGS) => {
+    const sys = buildSystemPrompt({ ...args, template });
+    return sys.slice(0, sys.indexOf(FROZEN_CONTRACT));
+  };
+  assertEqual(body("A {profile} B"), "A " + F_PROFILE + " B");
+  assertEqual(body("A {stock} B"), "A " + F_STOCK + " B");
+  assertEqual(body("A {fridge} B"), "A " + F_FRIDGE + " B");
+  assertEqual(body("A {recipes} B"), "A " + F_RECIPES + " B");
+  assertEqual(body("A {language} B"), "A Englisch B");
+  assertEqual(body("{language}", { ...TPL_ARGS, lang: "xx" }), "Deutsch", "unbekannte Sprache → Deutsch");
+  const custom = body("{profile}|{stock}", { ...TPL_ARGS, profile: { diet: "Vegan", spices: "nur Salz" } });
+  assert(custom.includes("Vegan.") && custom.includes("Gewürze nur: nur Salz."), "Profil-Felder fließen in {profile} und {stock}");
+});
+
+test("Q4.1: mehrfach vorkommende Variable wird überall ersetzt", () => {
+  const sys = buildSystemPrompt({ ...TPL_ARGS, template: "{language} / {recipes} / {language} / {recipes}" });
+  assert(sys.startsWith("Englisch / " + F_RECIPES + " / Englisch / " + F_RECIPES + "\n2. "));
+});
+
+test("Q4.1: leerer Kühlschrank → {fridge} verschwindet ganz, keine verwaisten Leerzeilen", () => {
+  const body = (template) => {
+    const sys = buildSystemPrompt({ recipes: TPL_RX, staples: ["Mehl", "Reis"], fridge: [], template });
+    return sys.slice(0, sys.indexOf(FROZEN_CONTRACT));
+  };
+  assertEqual(body("A\n\n{fridge}\n\nB"), "A\n\nB");
+  assertEqual(body("A\n{fridge}\nB"), "A\nB");
+  assertEqual(body("{fridge}\n\nB"), "B");
+  assertEqual(body("A\n\n{fridge}"), "A");
+  assertEqual(body("A\n\n  {fridge}  \n\nB\n\n{fridge}\n\nC"), "A\n\nB\n\nC");
+  assertEqual(body("Frisch: {fridge}."), "Frisch: .", "im Fließtext nur der Platzhalter");
+  const filled = buildSystemPrompt({ ...TPL_ARGS, template: "A\n\n{fridge}\n\nB" });
+  assert(filled.startsWith("A\n\n" + F_FRIDGE + "\n\nB\n2. "), "gefüllter Kühlschrank bleibt ein eigener Absatz");
+});
+
+test("Q4.1: fester Ausgabe-Vertrag (Regeln 2–4) hängt immer hinter dem Vorlagentext", () => {
+  for (const template of ["Koch", "REGELN:\n1. Sei nett.\n2. Antworte als Gedicht.", "{recipes}"]) {
+    const sys = buildSystemPrompt({ ...TPL_ARGS, template });
+    const at = sys.lastIndexOf(FROZEN_CONTRACT);
+    assert(at > 0, "Vertrag fehlt/verändert bei: " + template);
+    assertEqual(sys.indexOf(FROZEN_CONTRACT), at, "Vertrag genau einmal");
+    assert(sys.indexOf("Antworte mit GENAU EINEM JSON-Objekt") > sys.indexOf(template.split("\n")[0].replace("{recipes}", "KOCHBUCH")), "Vertrag steht nach dem Vorlagentext");
+  }
+  assert(buildSystemPrompt({ ...TPL_ARGS, template: "Koch" }).startsWith("Koch" + FROZEN_CONTRACT));
+});
+
+test("Q4.1: eigene Vorlage → feste Schlusszeile „Rezept-Inhalte immer Deutsch“; Default ohne Zusatz", () => {
+  const sys = buildSystemPrompt({ ...TPL_ARGS, template: "Du bist ein Pirat. Antworte auf {language}." });
+  const extra = sys.slice(sys.indexOf(FROZEN_CONTRACT) + FROZEN_CONTRACT.length);
+  assert(/^\n[^\n]+$/.test(extra), "genau eine zusätzliche Zeile am Ende");
+  assert(extra.includes(GERMAN_RULE), "Deutsch-Regel fehlt");
+  assert(buildSystemPrompt(TPL_ARGS).endsWith(FROZEN_CONTRACT), "Default: nichts nach dem Vertrag");
+  assert(buildSystemPrompt({ ...TPL_ARGS, template: DEFAULT_INSTRUCTIONS }).endsWith(FROZEN_CONTRACT), "Default-Text: nichts nach dem Vertrag");
+});
+
+test("Q4.1: unbekannte Platzhalter und unbalancierte Klammern bleiben wie getippt, nichts wirft", () => {
+  for (const template of ["{foo}", "a {foo} b {Recipes} c { recipes } d", "{recipes", "recipes}", "{", "}", "{}", "}{", "{{", "{profile {stock", "$& $1 {foo} $$"]) {
+    const sys = buildSystemPrompt({ ...TPL_ARGS, template });
+    assert(sys.startsWith(template + FROZEN_CONTRACT), "verändert: " + template);
+  }
+  assert(buildSystemPrompt({ ...TPL_ARGS, template: "{{language}}" }).startsWith("{Englisch}" + FROZEN_CONTRACT));
+});
+
+test("Q4.1: Ersetzung in einem Durchgang — Platzhalter in eingesetzten Daten werden nicht expandiert", () => {
+  const args = {
+    recipes: [{ id: "r01", name: "Suppe {stock} $& {language}", category: "Suppen & Eintöpfe" }],
+    staples: ["Reis {recipes}"], fridge: [{ name: "Feta {profile}" }], profile: { notes: "Notiz {recipes} {fridge}" }, lang: "en",
+  };
+  const sys = buildSystemPrompt({ ...args, template: "{profile}\n{stock}\n{fridge}\n{recipes}\n{language}" });
+  for (const raw of ["r01|Suppe {stock} $& {language}|", "Reis {recipes}\n", "Feta {profile}\n", "- Notiz {recipes} {fridge}\n"]) {
+    assert(sys.includes(raw), "eingesetzte Daten verändert: " + raw);
+  }
+  assertEqual(sys.split("KOCHBUCH (").length - 1, 1, "{recipes} aus den Daten wurde expandiert");
+  assertEqual(sys.split("VORRAT (").length - 1, 1, "{stock} aus den Daten wurde expandiert");
+  assertEqual(sys.split("KOCH-PROFIL:").length - 1, 1, "{profile} aus den Daten wurde expandiert");
+  const def = buildSystemPrompt(args);
+  assert(def.includes("r01|Suppe {stock} $& {language}|") && def.split("VORRAT (").length - 1 === 1, "auch mit der Default-Vorlage");
+});
+
+test("Q4.1: missingVariables — fehlende Variablen in fester Reihenfolge", () => {
+  assertDeepEqual(missingVariables(DEFAULT_INSTRUCTIONS), []);
+  assertDeepEqual(missingVariables("Hallo"), ["profile", "stock", "fridge", "recipes", "language"]);
+  assertDeepEqual(missingVariables("{language} dann {stock}"), ["profile", "fridge", "recipes"]);
+  assertDeepEqual(missingVariables("{recipes}{recipes} {Profile} {fridge"), ["profile", "stock", "fridge", "language"]);
+  for (const t of [undefined, null, "", 42]) assertDeepEqual(missingVariables(t), ["profile", "stock", "fridge", "recipes", "language"]);
+});
+
+test("Q4.1: Planner-Aufruf (nur recipes + staples) unverändert", () => {
+  assertEqual(buildSystemPrompt({ recipes: TPL_RX, staples: ["Mehl", "Reis"] }), FROZEN[0].head + FROZEN_CONTRACT);
+});
+
+/* ---------- Q4.2 (#70): Anweisungen speichern, fester Teil, „wieder einfügen“ ---------- */
+
+// Minimales IndexedDB-Double (nur was db.js für kv get/put/delete braucht) — Node hat kein IndexedDB.
+function installFakeIndexedDB() {
+  const stores = new Map();
+  const later = (fn) => setTimeout(fn, 0);
+  const database = {
+    objectStoreNames: { contains: (n) => stores.has(n) },
+    createObjectStore: (n, { keyPath }) => { stores.set(n, { keyPath, rows: new Map() }); },
+    transaction(name) {
+      const st = stores.get(name);
+      const t = {};
+      const reqs = [];
+      const op = (fn) => { const r = {}; reqs.push(() => { r.result = fn(); r.onsuccess && r.onsuccess(); }); return r; };
+      t.objectStore = () => ({
+        get: (k) => op(() => { const v = st.rows.get(k); return v === undefined ? undefined : structuredClone(v); }),
+        put: (v) => op(() => { st.rows.set(v[st.keyPath], structuredClone(v)); }),
+        delete: (k) => op(() => { st.rows.delete(k); }),
+      });
+      later(() => { while (reqs.length) reqs.shift()(); t.oncomplete && t.oncomplete(); });
+      return t;
+    },
+  };
+  globalThis.indexedDB = {
+    open() {
+      const req = { result: database };
+      later(() => { req.onupgradeneeded && req.onupgradeneeded(); req.onsuccess && req.onsuccess(); });
+      return req;
+    },
+  };
+  return stores;
+}
+const IDB = globalThis.indexedDB ? null : installFakeIndexedDB();
+const kvRows = () => IDB.get("kv").rows;
+
+test("Q4.2: getInstructions — nichts gespeichert → mitgelieferte Default-Anweisungen", async () => {
+  await resetInstructions();
+  assertEqual(await getInstructions(), DEFAULT_INSTRUCTIONS);
+});
+
+test("Q4.2: setInstructions → getInstructions (Round-Trip, Text unverändert, nur Geräte-kv)", async () => {
+  const mine = "Antworte wie ein Pirat.\n{profile}\n{stock}\n{fridge}\n{recipes}\nSprache: {language}  ";
+  assertEqual(await setInstructions(mine), mine);
+  assertEqual(await getInstructions(), mine);
+  assertDeepEqual([...kvRows().keys()], ["assistantInstructions"], "genau ein kv-Schlüssel, sonst nichts");
+  await resetInstructions();
+});
+
+test("Q4.2: resetInstructions löscht den Eintrag; danach wieder Default", async () => {
+  await setInstructions("Kurz und knapp {recipes}");
+  assertEqual(await resetInstructions(), DEFAULT_INSTRUCTIONS);
+  assert(!kvRows().has("assistantInstructions"), "Eintrag gelöscht");
+  assertEqual(await getInstructions(), DEFAULT_INSTRUCTIONS);
+});
+
+test("Q4.2: leerer Text speichern = Reset (nie ohne Anweisungen)", async () => {
+  await setInstructions("Eigene {recipes}");
+  for (const empty of ["", "   \n\t ", null, undefined]) {
+    await setInstructions("Eigene {recipes}");
+    assertEqual(await setInstructions(empty), DEFAULT_INSTRUCTIONS);
+    assert(!kvRows().has("assistantInstructions"), "leer → Eintrag gelöscht: " + JSON.stringify(empty));
+    assertEqual(await getInstructions(), DEFAULT_INSTRUCTIONS);
+  }
+});
+
+test("Q4.2: appendedFixedPart = genau das, was buildSystemPrompt an eine eigene Vorlage anhängt", () => {
+  const fixed = appendedFixedPart();
+  assert(fixed.startsWith(FROZEN_CONTRACT), "beginnt mit dem festen Ausgabe-Vertrag");
+  assert(fixed.length > FROZEN_CONTRACT.length && fixed.includes("IMMER auf Deutsch"), "plus Deutsch-Regel");
+  for (const template of ["Pirat {recipes}", "{profile}\n{stock}\n{recipes}\n{language}", "nur Text"]) {
+    const sys = buildSystemPrompt({ ...TPL_ARGS, template });
+    assert(sys.endsWith(fixed), "endet mit dem festen Teil: " + template);
+    assertEqual(sys.length - fixed.length, sys.lastIndexOf(fixed), "fester Teil genau einmal am Ende");
+  }
+  assertEqual(buildSystemPrompt({ ...TPL_ARGS, template: "nur Text" }), "nur Text" + fixed);
+});
+
+test("Q4.2: addBackVariables — fehlende Variablen ans Ende, jede in eigener Zeile", () => {
+  assertEqual(addBackVariables("Pirat {profile}", ["recipes"]), "Pirat {profile}\n{recipes}");
+  assertEqual(addBackVariables("Pirat\n", ["stock", "recipes"]), "Pirat\n{stock}\n{recipes}");
+  assertEqual(addBackVariables("Pirat", []), "Pirat");
+  const back = addBackVariables(DEFAULT_INSTRUCTIONS.replace("{recipes}", ""), ["recipes"]);
+  assert(back.endsWith("\n{recipes}"));
+  assertDeepEqual(missingVariables(back), []);
 });

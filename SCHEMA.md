@@ -71,7 +71,7 @@
 | `category` | string | ja | MUSS einer der 16 Werte unten sein. |
 | `time` | string | nein | Frei, z.B. `"25 Min"`. |
 | `servings` | string | nein | Frei, z.B. `"~4"` oder `"1 Zucchini, 2 Paprika"`. |
-| `lastCooked` | string | nein | Z.B. `"Mai 2026"` oder `""`. |
+| `lastCooked` | string | nein | Z.B. `"Mai 2026"` oder `""`. Die App schreibt deutsche Monatsnamen; beim Sortieren werden zusätzlich gelesen: Monatsnamen/-kürzel in DE/EN/ES/DA (`"May 2026"`, `"mayo 2026"`, `"maj 2026"`, `"Mär 2026"`, `"Okt. 2026"`), `"06/2026"` und `"2026-06"`. Nicht lesbar → zählt als „nie gekocht“. |
 | `rating` | number | nein | Bewertung `0`–`5` (Sterne). `0` = nicht bewertet. |
 | `favorite` | boolean | nein | Favorit (♥). Default `false`. |
 | `cookedCount` | number | nein | Wie oft gekocht. Wird vom „Heute gekocht"-Button hochgezählt. |
@@ -91,6 +91,7 @@
 | `toTry` | boolean | nein | `true` bei neuen, noch nie gekochten Ideen. Treibt einen App-Filter. |
 | `season` | string | nein | Saison, falls relevant, z.B. `"Herbst"`, `"Sommer"`. |
 | `tags` | string[] | nein | Freie Schlagworte (z.B. `["bowl","mealprep","scharf"]`). |
+| `origin` | string | nein | Herkunft, **additives Feld** (`version` bleibt `3`). `"user"` = vom Nutzer in der App angelegt (Formular, Erfassung, Assistent, Datei-Import). **Fehlt das Feld = Grundrezept.** **App-verwaltet — Claude NICHT setzen oder ändern** (siehe unten). |
 
 ### Vorrat vs. „neu kaufen": die `🛒`-Konvention (wichtig für Claude)
 Zutaten, die **nicht** auf der Vorratsliste des Nutzers stehen (`Projektwissen1.md` →
@@ -171,6 +172,24 @@ ungefragt Rezepte umschreiben. Niemals `feedback` ohne Einarbeiten löschen.
 12. **App-eigene Felder eines bestehenden Rezepts durchreichen:** `photos`, `rating`,
     `favorite`, `cookedCount` gehören der App. Beim Editieren **unverändert übernehmen**,
     nicht zurücksetzen.
+13. **`origin` nie setzen und nie ändern.** Das Feld vergibt nur die App, wenn der Nutzer ein Rezept
+    anlegt. Ein neues Rezept von Claude bekommt **kein** `origin` (zählt als Grundrezept); steht bei
+    einem bestehenden Rezept `"origin": "user"`, beim Editieren **unverändert übernehmen**.
+
+### Herkunft: das Feld `origin`
+
+`origin` sagt der App, welche Rezepte der Nutzer selbst angelegt hat (Grundlage dafür, dass der
+Assistent später nur eigene Rezepte löschen darf).
+
+- `"origin": "user"` → in der App angelegt: Formular, Erfassung (einzeln und Stapel), Assistent,
+  Datei-Import. **Feld fehlt** → Grundrezept. Bestehende Rezepte bekommen das Feld nicht nachträglich.
+- Die App prüft nur den **Typ** (String). Ein anderer String (ein späterer Wert wie `"shared"`) macht
+  die Datei nicht ungültig; er zählt nur nicht als „vom Nutzer angelegt“. Kein String → Rezept ungültig.
+- Bearbeiten ändert die Herkunft nicht: ein bearbeitetes Grundrezept bleibt ohne `origin`, ein
+  Nutzerrezept behält `"user"`.
+- `origin` ist **kein** persönliches Feld: es steht in der Export-Datei.
+- `origin` ist aber auch **kein Inhalt**: beim Drive-Abgleich und beim Import gelten zwei Rezepte mit
+  derselben `id`, die sich nur in `origin` unterscheiden, als dasselbe Rezept (keine Kopie).
 
 ## Re-Sync & Zusammenführen (seit v2.15.1) — entscheidend für G1
 
@@ -184,7 +203,10 @@ den Stand, auf den sie sich zuletzt mit Drive geeinigt hat. Abgeglichen wird **p
 2. **Pro Rezept-`id`:** nur Drive geändert (Claude, v1, anderes Gerät) → Drive-Stand · nur in der
    App geändert → App-Stand · **beide** geändert → **pro Feld** zusammengeführt (hat dasselbe Feld
    auf beiden Seiten einen anderen Wert, gewinnt die App).
-3. **Neue Rezepte** beider Seiten bleiben. **Gelöscht** wird nur, was die andere Seite unverändert
+3. **Neue Rezepte** beider Seiten bleiben — auch wenn beide Seiten unabhängig **dieselbe `id`** für
+   zwei verschiedene Rezepte vergeben haben (z. B. eine importierte Datei): das Drive-Rezept behält
+   die `id`, das Rezept der App bekommt eine neue. Unterscheiden sich nur persönliche Felder
+   (♥, Bewertung …), ist es dasselbe Rezept. **Gelöscht** wird nur, was die andere Seite unverändert
    gelassen hat (Bearbeiten schlägt Löschen). Fehlen auf Drive auf einmal viele Rezepte (ab 5
    **oder** ab 20 %), **fragt** die App, bevor sie lokal etwas löscht.
 4. `updated` entscheidet **nicht** mehr, wer gewinnt — trotzdem bei jedem Schreiben im obigen
@@ -208,6 +230,36 @@ mitgeschrieben — dort nichts ablegen.
 **Damit Claudes Edit ankommt:** einfach die Datei in place bearbeiten und `updated` stempeln. Die
 App muss dafür nicht geschlossen sein; ein ♥ in einer noch offenen App überschreibt Claudes Edit
 nicht mehr (früher: Last-Write-Wins, siehe Git-Historie dieser Datei).
+
+## Export-/Import-Datei (`*.citchen.json`, seit v2.18)
+
+Rezepte lassen sich als Datei weitergeben („Für den Import in die App“) und in einer anderen
+Installation einlesen — ohne Drive auf beiden Seiten. Die Datei hat **dieselbe Form** wie
+`rezepte.json`: `{ "version": 3, "updated": "…", "recipes": [ … ] }`.
+
+- **Dateiname:** ein Rezept → `<Rezeptname>.citchen.json` · ganzes Kochbuch →
+  `citchen-rezepte-JJJJ-MM-TT.json`.
+- **Der Export lässt die persönlichen Felder weg:** `photos`, `feedback`, `favorite`, `rating`,
+  `cookedCount`, `lastCooked`. Alles andere (Inhalt, `image`-URL, `id`) steht in der Datei.
+  Inhalte sind immer das deutsche Original, nie eine Übersetzung.
+- **Der Import behandelt die Datei als fremden Kanal** und übernimmt nur, was er prüfen kann:
+
+| Prüfung | Verhalten |
+|---------|-----------|
+| Datei größer als 2 MB, kein JSON-Objekt, `version` fehlt / keine Zahl, kein `recipes`-Array | Datei abgelehnt, nichts importiert |
+| `version` größer als 3 (neueres Format) | Datei abgelehnt (wie beim Drive-Abgleich) |
+| Rezept verletzt das Schema oben (z. B. unbekannte `category`) | dieses Rezept übersprungen und mit Position gemeldet, der Rest wird importiert |
+| Rezept zu groß: `name` > 200 Zeichen · Zeile in `ingredients`/`steps`/`tags` oder `time`/`servings`/`cuisine`/`season` > 500 Zeichen · mehr als 200 Zeilen in einer Liste · `tips` > 5000 Zeichen | dieses Rezept übersprungen und gemeldet |
+| persönliche Felder (s. o.) | verworfen — auch `feedback`: eine fremde Datei darf Claude nichts auftragen |
+| unbekannte Felder im Rezept | verworfen (der Drive-Abgleich behält sie weiterhin) |
+| `origin` | jedes importierte Rezept wird als `"user"` gespeichert, egal was in der Datei steht; beim Vergleich „bereits vorhanden“ zählt `origin` nicht mit |
+| `image` ist keine `https:`-Adresse | Bild-Adresse geleert, Rezept wird importiert, Hinweis im Ergebnis |
+| Leerraum um die `id` | entfernt (`" r01 "` = `"r01"`) |
+
+- **Eine Import-`id` überschreibt nie ein vorhandenes Rezept.** Gleiche `id` und gleicher Inhalt →
+  übersprungen („bereits vorhanden“; so verdoppelt der eigene Vollexport nichts). Gleiche `id`,
+  anderer Inhalt → das importierte Rezept bekommt eine neue `id`. Ist die `id` frei, bleibt sie
+  erhalten (wichtig für Sicherung + Wiederherstellen: Übersetzungen und Wochenplan hängen an der `id`).
 
 ## Nebenbei: `einkaufsliste.json` (geteilte Einkaufsliste, seit v2.15.2 geprüft)
 

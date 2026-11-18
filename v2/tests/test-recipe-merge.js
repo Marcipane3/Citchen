@@ -1,7 +1,8 @@
 // Tests: data/recipeMerge.js (v2.15.1, Epic T1/T2) — reine Funktionen, die Spezifikation der
 // sicheren Rezept-Synchronisation: Drei-Wege-Merge pro Rezept + Prüfung eingehender Drive-Dateien.
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
-import { mergeRecipes, inspectRemote, sameRecipe, suspiciousDrop, RemoteRejected } from "../src/data/recipeMerge.js";
+import { mergeRecipes, inspectRemote, sameRecipe, sameContent, suspiciousDrop, RemoteRejected } from "../src/data/recipeMerge.js";
+import { planImport } from "../src/data/recipeImport.js";
 
 const r = (id, name, extra = {}) => ({ id, name, category: "Vegetarische Hauptgerichte", ...extra });
 const names = (list) => list.map((x) => x.name);
@@ -69,6 +70,86 @@ test("merge ohne Basis: Vereinigung (nichts wird gelöscht); Unterschiede nach `
   assertDeepEqual(names(viaRemote).sort(), ["A Drive", "nur Drive", "nur lokal"]);
   const viaLocal = mergeRecipes({ base: null, local, remote, prefer: "local" }).merged;
   assertDeepEqual(names(viaLocal).sort(), ["A lokal", "nur Drive", "nur lokal"]);
+});
+
+/* ---------- #49 (DG-15): gleiche id, zwei verschiedene Rezepte ---------- */
+
+test("#49: id lokal neu UND auf Drive neu, anderer Inhalt → beide Rezepte bleiben, das lokale bekommt eine frische id", () => {
+  const base = [r("a", "A")];
+  const local = [r("n1", "Importiert vom Freund", { tips: "x" }), r("a", "A")];
+  const remote = [r("a", "A"), r("n1", "Vom anderen Gerät")];
+  const out = mergeRecipes({ base, local, remote, now: () => 5000 });
+  assertDeepEqual(names(out.merged).sort(), ["A", "Importiert vom Freund", "Vom anderen Gerät"]);
+  assertEqual(out.merged.find((x) => x.id === "n1").name, "Vom anderen Gerät", "Drive behält die id");
+  const copy = out.merged.find((x) => x.name === "Importiert vom Freund");
+  assertEqual(copy.id, "r5000");
+  assertEqual(copy.tips, "x", "Inhalt des lokalen Rezepts bleibt");
+  assertDeepEqual(out.forked, [{ from: "n1", to: "r5000", name: "Importiert vom Freund" }]);
+  assertEqual(new Set(ids(out.merged)).size, 3, "ids eindeutig");
+  assertEqual(out.merged[0].id, "r5000", "lokal neues Rezept steht vorn");
+  assertEqual(local[0].id, "n1", "Eingabe nicht verändert");
+});
+
+test("#49: frische id weicht allen bekannten ids aus (Basis, lokal, Drive)", () => {
+  const out = mergeRecipes({
+    base: [r("r5000", "Basis")], local: [r("n1", "Lokal"), r("r5000", "Basis"), r("r5001", "Lokal 2")],
+    remote: [r("r5000", "Basis"), r("n1", "Drive"), r("r5002", "Drive 2")], now: () => 5000,
+  });
+  assertEqual(out.forked.length, 1);
+  assertEqual(out.forked[0].to, "r5003");
+  assertEqual(new Set(ids(out.merged)).size, out.merged.length);
+});
+
+test("#49: gleiche id, gleicher Inhalt, nur persönliche Felder anders → dasselbe Rezept, keine Kopie", () => {
+  const base = [r("a", "A")];
+  const local = [r("n1", "Importiert", { favorite: true, rating: 4 }), r("a", "A")];
+  const remote = [r("a", "A"), r("n1", "Importiert", { cookedCount: 2 })];
+  const out = mergeRecipes({ base, local, remote });
+  assertEqual(out.merged.length, 2);
+  assertDeepEqual(out.forked, []);
+  assertEqual(out.merged.find((x) => x.id === "n1").cookedCount, 2, "wie bisher: Drive-Stand");
+});
+
+test("origin (#72): sameContent ignoriert origin, aber nicht den Inhalt", () => {
+  assert(sameContent(r("a", "A"), r("a", "A", { origin: "user" })), "nur origin anders → gleicher Inhalt");
+  assert(sameContent(r("a", "A", { origin: "user" }), r("a", "A", { origin: "shared" })), "andere origin-Werte → gleicher Inhalt");
+  assert(!sameContent(r("a", "A", { origin: "user" }), r("a", "B", { origin: "user" })), "anderer Name bleibt anderer Inhalt");
+});
+
+test("origin (#72): mergeRecipes — ein lokaler Zwilling, der sich von Drive nur in origin unterscheidet, ist dasselbe Rezept", () => {
+  const base = [r("a", "A")];
+  const local = [r("n1", "Importiert", { origin: "user" }), r("a", "A")];
+  const remote = [r("a", "A"), r("n1", "Importiert")];
+  const out = mergeRecipes({ base, local, remote, now: () => 5000 });
+  assertEqual(out.merged.length, 2, "keine Kopie");
+  assertDeepEqual(out.forked, []);
+  assertEqual(new Set(ids(out.merged)).size, 2);
+});
+
+test("origin (#72): Backup importieren, danach anmelden — Drive kennt das Rezept ohne origin → keine Doppelung", () => {
+  const base = [r("r-old", "Alt")];
+  const backup = [r("r-claude-1", "Von Claude")];
+  const { toAdd } = planImport(backup, base);
+  assertEqual(toAdd[0].origin, "user", "Import stempelt");
+  const local = [...toAdd, ...base];
+  const remote = [r("r-claude-1", "Von Claude"), r("r-old", "Alt")];
+  const out = mergeRecipes({ base, local, remote, now: () => 1700000000000 });
+  assertDeepEqual(ids(out.merged).sort(), ["r-claude-1", "r-old"]);
+  assertDeepEqual(out.forked, []);
+});
+
+test("#49: ohne Basis bleibt die alte Regel (Umstieg: sonst verdoppelten sich alle geänderten Rezepte)", () => {
+  const out = mergeRecipes({ base: null, local: [r("a", "A lokal")], remote: [r("a", "A Drive")] });
+  assertEqual(out.merged.length, 1);
+  assertDeepEqual(out.forked, []);
+});
+
+test("#49: bekannte id (in der Basis) wird nie verdoppelt — beidseitig geändert bleibt feldweises Zusammenführen", () => {
+  const base = [r("a", "A", { tips: "t" })];
+  const out = mergeRecipes({ base, local: [r("a", "A lokal", { tips: "t" })], remote: [r("a", "A", { tips: "Drive" })] });
+  assertEqual(out.merged.length, 1);
+  assertDeepEqual(out.forked, []);
+  assertDeepEqual(out.conflicts, ["a"]);
 });
 
 test("merge: identische Seiten → unverändert, keine Konflikte", () => {

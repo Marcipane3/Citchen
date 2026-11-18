@@ -134,6 +134,29 @@ test("parseIngredient: Prise/Dose/Zehen als Einheit", () => {
   assertEqual(parseIngredient("1 Päckchen Trockenhefe (7g)").unit, "Päckchen");
 });
 
+test("parseIngredient: Liter und L sind Einheiten (R3.1)", () => {
+  const p = parseIngredient("1,2 Liter Gemüsebrühe 🛒");
+  assertEqual(p.amount, 1.2);
+  assertEqual(p.unit, "l");
+  assertEqual(p.item, "Gemüsebrühe");
+  assertEqual(p.toBuy, true);
+  const one = parseIngredient("1 Liter Milch");
+  assertEqual(one.unit, "l");
+  assertEqual(one.item, "Milch");
+  const big = parseIngredient("2 L Wasser");
+  assertEqual(big.amount, 2);
+  assertEqual(big.unit, "l");
+  assertEqual(big.item, "Wasser");
+  assertEqual(parseIngredient("1l Milch").unit, "l");
+  // kein Einheiten-Treffer mitten im Wort
+  assertEqual(parseIngredient("2 Limetten").unit, null);
+  assertEqual(parseIngredient("2 Literflaschen Saft").unit, null);
+});
+
+test("scaleIngredient: Liter wird als metrische Einheit skaliert (R3.1)", () => {
+  assertEqual(scaleIngredient("1,2 Liter Gemüsebrühe 🛒", 2), "2,4l Gemüsebrühe 🛒");
+});
+
 /* ---------- scaleIngredient ---------- */
 
 test("scaleIngredient: verdoppeln", () => {

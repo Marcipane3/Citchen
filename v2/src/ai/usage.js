@@ -33,9 +33,18 @@ export function addUsage(a, b) {
   return { in: a.in + b.in, out: a.out + b.out, cr: a.cr + b.cr, cw: a.cw + b.cw, wf: a.wf + b.wf };
 }
 
+/**
+ * Die API meldet das Modell mit Datumsstempel zurück („…-haiku-4-5-20251001“), die Preisliste führt den
+ * Namen ohne Stempel. Ohne diese Zuordnung zeigte die Verbrauchsanzeige für jeden Aufruf 0 $ („ohne Preis“).
+ */
+export function priceOf(model) {
+  const id = String(model || "");
+  return PRICES[id] || PRICES[id.replace(/-\d{8}$/, "")] || null;
+}
+
 /** Geschätzte Kosten in US-$ (Listenpreis). Unbekanntes Modell → null. */
 export function costOf(model, u) {
-  const p = PRICES[model];
+  const p = priceOf(model);
   if (!p) return null;
   return (u.in * p.input + u.out * p.output + u.cw * p.cacheWrite + u.cr * p.cacheRead) / 1e6;
 }

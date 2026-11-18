@@ -1,136 +1,93 @@
-# Bug-Hunter — findings (2026-10-12T16:29:50Z)
-_Build 2026-10-04-v2.14 · CACHE koch-v2.14-1 · tests 215/215 · HEAD 70e8b9d · mode FULL_
+# Bug-Hunter — findings (2026-11-18T12:00:00Z)
+_Build 2026-10-27-v2.17 · CACHE koch-v2.17-1 · tests 583/583 (5 consecutive runs green) · HEAD 40ed058 · mode DELTA (origin/main..HEAD, release candidate v2.18)_
+
+## Δ since 578152b (quick re-verify)
+Since the previous pass (HEAD fe191d6, findings unchanged in 578152b), nothing under `v2/src` or `v2/add.html` has changed.
+`git diff --name-only fe191d6..HEAD -- v2/` lists only `v2/tests/test-recipe-export.js` (dd3b840, #95). That commit pins the clock in the
+DG-17 test, using `buildExportFile(de, now)`. The signature `buildExportFile(recipes, now = new Date())` at
+`data/recipeExport.js:8` supports this, so the test is now deterministic. The suite ran 5 times in a row at 583/583.
+The other changes in this range are docs/QA only (`docs/process/SCHEDULED-TASKS.md`, `qa/findings/data-guardian.md`).
+There are no new findings. All findings and statuses below are carried forward from the fe191d6 pass. Their line numbers are still
+current, because no app code changed.
+
+## Δ since origin/main (carried from the fe191d6 pass)
+The previous report (HEAD 95ae0f3) already covered the first 8 commits of this range. This run hunted the code
+that changed **after** 95ae0f3: 29 files under `v2/src`. Main areas: import hardening and dedup (#36 #48 #49 #50 #52,
+`data/recipeImport.js`, `schema.js` `envelopeProblem`/`PERSONAL_FIELDS`/`origin`), the Drive fork rule
+(`recipeMerge.js` `forked`, `syncRules.js`), `origin` stamping (`store.js` add/update/import), English default plus the
+legacy-user migration (`i18n.js`, `app.js`), cooking portions and timers (`cooking.js`, `portions.js`, `timers.js`),
+the assistant template and its settings editor (`ai/prompts.js`, `data/settings.js`, `settings.js`, `assistant.js`), the
+5.5 chat models (`models.js`, `gate.js`, `client.js`, `usage.js`), similar-name warning (`filter.js`, `form.js`,
+`capture.js`), month parsing (`filter.js`), the `Liter` unit (`derive.js`), export fallback (`export.js`), the LOCALIZED
+marker (`baseLang.js`), and the pure modules `units.js`/`ingredients.js`/`ingredientMatch.js`, which no app code imports
+yet. Working tree is clean.
+
+New: **1 × P3** (BH-16). No P0, no P1, no P2.
 
 ## Field reports
-
-### FR-01 — "Ingwer gets added randomly and multiple times without me selecting it"
-**Verdict: reproduced (E1), cause found. It is not a ghost writer.** The code has exactly four paths that
-put items on the list: `shopAdd` (catalog tile / free text, `shopping.js:70`), `addItemsToList`
-(the recipe button `detail.js:151` and the plan button `planner.js:162-172`), `applyExternal` (friends
-inbox, `friendInbox.js:93`) and the item-by-item Drive merge (`listSync.js:94-111`). Nothing adds items on
-a timer or at startup. Ginger comes in from the **recipe/plan buttons**. It turns into several rows because of
-four defects that add up:
-
-| # | Hypothesis | Result | Evidence |
-|---|---|---|---|
-| 1 | **"Without selecting" = Plan → Einkaufsliste.** Ginger is marked 🛒 in 6 dinner recipes (4 of them "Asiatisch inspiriert"). | **Confirmed.** In 2000 random `generatePlan` weeks, **1500 (75 %) contain at least one ginger row**, and 216 contain more than one. A random weekly plan means ginger shows up "randomly". | E1 `fr01_b.mjs` |
-| 2 | **The Lager doesn't stop it.** Even with ginger marked as in stock, it gets added. | **Confirmed → BH-04.** `needsBuying` returns true for any 🛒 line before it looks at the Lager. | E1 `fr01_d.mjs` |
-| 3 | **"Multiple times" = different merge keys.** | **Confirmed → BH-05.** Plan + tile + plan again → 4 ginger-looking rows: `2 Stück Ingwer, gerieben` · `2 Stück Ingwer` · `1 TL gemahlene Nelken , 1 TL Ingwerpulver` (🫚, Gemüse) · `Ingwer`. | E1 `fr01_b.mjs` |
-| 4 | **Catalog badge shows a different row's count** → the tap looks like it did nothing → user taps again. | **Confirmed → BH-06.** The badge reads `1` (the qty of the `2 Stück Ingwer` row) while the tap builds a separate `Ingwer` row. | E1 `fr01_b.mjs` |
-| 5 | Pressing plan/recipe → list again adds everything again | **Confirmed (by design: `mergeItems` sums amounts)**, but nothing tells the user it already happened, and the recipe button has no in-flight guard → BH-10. | E1 / E2 |
-| 6 | Partner merge keeps duplicates (union by id) | **Confirmed → BH-08**, only matters if a partner list is linked. | E1 `fr01_c.mjs` H-A |
-| 7 | Tombstone revival creates a duplicate | **Confirmed → BH-07** (`mergeItems` revives the *first* key match, even a deleted one, while a live row with the same key exists). | E1 `fr01_c.mjs` H-B |
-| 8 | Friends inbox re-applies items (`seen`/`fl_ack`/`trimSeen`) | **Refuted.** A repeat pull with `seen` adds 0. Only a lost `seen` would double-count, and `seen` is saved before `fl_ack`. Friend items also carry a visible "von X" tag. | E1 `fr01_c.mjs` H-C |
-| 9 | Background `listSync` merge brings back a deleted row | **Refuted for normal use** (a newer tombstone beats an older live copy). Only a device that was offline for more than 30 days brings rows back → BH-11. | E1 H-D/H-E |
-| 10 | Wrong tap target: the catalog grid moves down under the finger when `paintList` inserts a row above it | **Unconfirmed, E3, low.** On a ~412 px phone `.cat-grid` (`minmax(96px)`) has 3 columns. Ingwer is Gemüse row 7, col 1, directly above Basilikum. Tapping a *new* item adds a list row (plus maybe an aisle header) and pushes the grid down about one tile row, so a fast second tap on Basilikum can land on Ingwer. This doesn't explain why it is *always* ginger, and the layout wasn't run. | E3 |
-
-**Open questions for Marcel (only the answers can rule out #6 and #10):**
-(a) Does a ginger row look like `1 Stück Ingwer…` (comes from a recipe or the plan) or like plain `Ingwer` with a −/+ counter (comes from a tile or a friend; a friend's row also shows "von …")?
-(b) Did you use "Plan → Einkaufsliste" or "Zutaten auf die Liste" before it showed up?
-(c) Is a partner list linked, or is the friends link on?
-(d) Is ginger in your Lager? If yes, BH-04 is the whole story.
+FR-01 (Ingwer): no shopping-list code (`features/shopping/*`, `listSync.js`, `friendInbox.js`) changed in this range.
+`derive.parseIngredient` changed in one place: `Liter`/`L` now normalise to unit `l`. The probe shows `1 Lauch` still
+gets unit `null` and item `Lauch`, so there is no new "L…" mis-split. The status stays as the orchestrator set it
+(waiting for Marcel's device check on ≥ v2.15.3).
 
 ## Status of previous findings
-The previous report (2026-06-14) had no IDs. They are assigned here.
-
 | ID | Title | Status | Note |
 |---|---|---|---|
-| BH-01 | Offline edit silently dropped by LWW | ✅ fixed | 9019e8c (v2.7): `decideSync.js:17-32` returns `"conflict"`, and `sync.js:114-121` keeps the local copy |
-| BH-02 | Match "Nochmal" shows recipes you already matched | ⏳ still open | `features/match/match.js:120` shuffles all `state.recipes`. The first deck (`:91`) filters out `swipeMatches`. Fix: use the same filter. P3 · E2 · S |
-| BH-03 | Pager / scaler stops running step timers | ⏳ still open | `features/cooking/cooking.js:268-273` (prev/next/check → `paint()` → `clearTimers()` at `:201`). P3 · E2 · M |
+| BH-01 | Offline edit silently dropped by LWW | ✅ fixed | 9019e8c (v2.7), unchanged |
+| BH-02 | Match "Nochmal" shows recipes you already matched | ⏳ still open | `features/match/match.js:120` still shuffles all `state.recipes`, while `:91` filters `swipeMatches`. P3 · E2 · S |
+| BH-03 | Pager / scaler stops running step timers | ✅ fixed | e9b2b9b (#64). Timer state now lives in `cooking/timers.js`, and `paint()` no longer calls `clearTimers()` (`cooking.js:214`). Only the route cleanup at `:296` clears them |
+| BH-04 … BH-11 | Shopping identity / merge / horizon | ✅ fixed | 41e5ea0 / 2eab1bb, code unchanged in this range |
+| BH-12 | Whole-cookbook import doubles the 105 base recipes | ✅ fixed | 2b27980 (#48). `recipeImport.js:84` skips same id + `sameContent`. Tests in `test-recipe-import.js` |
+| BH-13 | Import accepts any `version` | ✅ fixed | 6dd0c52. `schema.js` `envelopeProblem` → `recipeImport.js:52` rejects `newerFormat` |
+| BH-14 | Import sheet shows German reasons, and "–" for an empty file | ⏳ still open | Still German literals at `recipeImport.js:43-52,64` plus the limit messages in `limitProblems` and the `validateRecipe` texts. Placeholder `["–"]` is still at `importFile.js:29`. This release adds more German-only strings (size limits, https note). P3 · E2 · S |
+| BH-15 | Export: no download fallback, sync throw escapes `.catch` | ✅ fixed | 653dcb9 (#83). `export.js:96-101` falls through to download, and `exportFile` is `async` (`:114`) |
 
 ## New findings
 
-### BH-04 [P1] Lager stock is ignored for every recipe that uses 🛒 markers (82/105) · confidence: high · evidence: E1
-- **Where:** `v2/src/features/shopping/logic.js:43-44` (`needsBuying`). Callers: `planner.js:171` and `detail.js:159` both pass `staples` from `settings.getStaples()` (`data/settings.js:44-46`, which is Lager + fridge + basics).
-- **What breaks:** The user marks ginger as in stock in the Lager (pantry or fridge) and then runs Plan → Einkaufsliste. Ginger still lands on the list. The reverse also happens: a staple switched *off* in the Lager (e.g. Kichererbsen used up) is never added for marker recipes. The UI promises otherwise: `i18n.js:281` "Diese Artikel überspringt die Einkaufsliste", and `:332` "Vorrat wird automatisch abgezogen".
-- **Why:** `if (/🛒/.test(raw)) return true; if (recipeUsesMarkers) return false;` returns before `staples` is ever read. For 82 of 105 base recipes the Lager has no effect at all.
-- **Proof:** `needsBuying('1 Stück Ingwer 🛒', staples incl. Ingwer) = true`, and Thai curry → list → "Ingwer STILL added". 82/105 recipes use markers. 42 of the 199 marked lines match a default staple, so the Lager would suppress them if it were checked.
-- **Fix:** Check the Lager first for every line: if the parsed item matches an in-stock name, skip it whatever the marker says. Use 🛒 / no-marker only as the fallback when nothing in the Lager matches. Pass the Lager list separately from `DEFAULT_STAPLES` so the "no-marker recipe" fallback keeps working.
-- **Regression test:** `needsBuying: Lager beats 🛒` with `"1 Stück Ingwer 🛒"`, `{recipeUsesMarkers:true, staples:["Ingwer"]}` → `false`. Also `aggregateIngredients([thaiCurry], {staples:[...,"Ingwer"]})` → no `Ingwer` item.
-- **Effort:** S
-
-### BH-05 [P1] The same ingredient becomes several list rows that never merge · confidence: high · evidence: E1
-- **Where:** `logic.js:50-52` (`itemKey` = whole parsed item text + unit), `logic.js:85-87` (`aggregateIngredients`), `logic.js:120-123` (`mergeItems`), `shopping.js:73-74` (`shopAdd` key with no unit).
-- **What breaks:** Ginger from different recipes and from the tile shows up as `Ingwer, gerieben|stück`, `Ingwer|stück` and `Ingwer|` — three rows, plus an `Ingwerpulver` row in Gemüse (BH-09). The user sees "Ingwer" several times.
-- **Why:** The key keeps the prep note (", gerieben") and the unit. The catalog tile always has `unit:null`. Nothing normalises keys to the catalog name.
-- **Proof:** `fr01_a.mjs`: keys `ingwer, gerieben|stück`, `ingwer|stück`, tile `ingwer|`. `fr01_b.mjs` ends with 4 ginger-looking rows (see FR-01 table).
-- **Fix:** Build the merge key from the catalog match name (`ingMatchCat(name)` → canonical `Ingwer`) with prep notes stripped (`, gerieben`, `(…)`). When units differ, keep one row and show the amounts combined (e.g. "1 Stück + 1"), or fall back to qty. Use the same key function in `shopAdd`, `mergeItems`, `applyFriendItems` and `catItemHTML`.
-- **Regression test:** `mergeItems: Zubereitungs-Zusatz merged` with `"1 Stück Ingwer, gerieben 🛒"` + `"1 Stück Ingwer 🛒"` → 1 row, amount 2. Then `shopAdd("Ingwer")` → still 1 row.
+### BH-16 [P3] Lost Drive write acknowledgement + a later edit on either side → the recipe is forked into a duplicate · confidence: med · evidence: E1
+- **Where:** `data/syncCore.js:114` (`drive.updateFile` succeeds on the server) → the response is lost or the app is closed before `:117` `plan.apply` → `syncRules.js:93` `store.setBase(merged)` never runs. On the next sync, `recipeMerge.js:121` (`B && !b && !sameContent(l, r)`) treats the recipe as two independent creations, and `:160` adds the local version as a copy with a fresh id.
+- **What breaks:** Marcel creates recipe X and the sync uploads it, but the phone loses signal before the reply comes back. The base is not updated. Then either (a) he edits X on the phone, or (b) his partner edits X on her device. On the next sync X appears **twice**: Drive's version under the old id and the phone's version under a new id. The duplicate syncs to every device. Before #49 this sub-case resolved to `prefer: "remote"`: no duplicate, but in case (a) the edit was lost. So the change trades a silent loss for a visible duplicate in (a). In (b) it turns a correct result into a duplicate.
+- **Why:** the fork rule assumes that "id not in base" means "never agreed with Drive". That is false when the write reached Drive but the base update did not.
+- **Proof:** probe `p2.mjs` / `p4.mjs` against the real `mergeRecipes`:
+  ```
+  lost-ack+edit:           [ 'r1795035307745:New edited', 'r200:New', 'r01:A' ]  forked 1
+  lost-ack + partner edit: [ 'r1795035361525:1 steps', 'r200:2 steps', 'r01:1 steps' ] forked 1
+  ```
+- **Fix:** only fork when the local recipe is not `origin: "user"`-created-and-pushed. A simpler option: record the ids of locally created recipes that were *written* (e.g. update base for written ids before `updateFile` resolves, or keep a "pushed ids" set in meta). Then a known own push falls back to the normal three-way path. Accepting the edge as is would also be reasonable, since a duplicate is recoverable and a loss is not.
+- **Regression test:** `test-recipe-merge.js` "lost ack: own recipe on Drive but not in base, local edit → no fork": `mergeRecipes({base:[a], local:[{...x,name:"edited"},a], remote:[x,a]})` → `forked.length === 0`, one `x` with the edited name (needs the chosen marker in the input).
 - **Effort:** M
-
-### BH-06 [P2] Catalog badge shows the count of a different row → the tap looks like a no-op → repeated taps · confidence: high · evidence: E1
-- **Where:** `shopping.js:420-426` (`catItemHTML`) and `shopping.js:455-461` (tile click updates the badge). Both use `live().find(name === low)`, matching on name only and taking the first hit.
-- **What breaks:** With `2 Stück Ingwer` (from a recipe) on the list, a tap on the Ingwer tile creates a separate `Ingwer` row (BH-05), but the badge keeps showing **1**, the recipe row's `qty`. Amount rows always have qty 1. The tap looks like it didn't register, the user taps again, and the hidden tile row climbs to ×2, ×3.
-- **Why:** The badge lookup (name only) and the `shopAdd` lookup (name + `unit:null` key) disagree on which row "is" Ingwer.
-- **Proof:** `fr01_b.mjs`: `catalog badge for Ingwer shows qty: 1 (row: 2 Stück Ingwer)` while a separate `Ingwer ×1` row exists.
-- **Fix:** Have the badge use the same row `shopAdd` changes. Either return the touched item from `shopAdd`, or share one `findSame()` helper. Better still, fix BH-05 so there is only one row.
-- **Regression test:** pure helper `findCatalogRow(items,"Ingwer")` with `[recipe row 2 Stück Ingwer, tile row Ingwer qty 3]` → returns the tile row (qty 3).
-- **Effort:** S
-
-### BH-07 [P2] `mergeItems` revives a deleted row although a live row with the same key exists → duplicate · confidence: high · evidence: E1
-- **Where:** `logic.js:123-125`
-- **What breaks:** The list holds a tombstone and a live row with the same key. This happens after a partner merge (BH-08) where one copy was deleted, or when a friend item was created next to a deleted tile row (`friendMerge.js:105` skips tombstones). Adding a recipe then brings the tombstone back *and* leaves the live row, so two identical rows appear.
-- **Why:** `out.find((x) => keyOf(x) === key)` returns the first match, which may be the tombstone. `shopAdd` (`shopping.js:76`) gets this right by preferring live rows; `mergeItems` doesn't.
-- **Proof:** `fr01_c.mjs` H-B: before `live:1 Stück Ingwer` → after `old:1 Stück Ingwer, live:1 Stück Ingwer`.
-- **Fix:** `const hit = out.find(x => !x.deleted && keyOf(x) === key) || out.find(x => keyOf(x) === key);`
-- **Regression test:** `mergeItems: lebender Artikel vor Tombstone` with `[tomb(key K), live(key K)]` + incoming K → 1 live row, amount summed, tombstone stays deleted.
-- **Effort:** S
-
-### BH-08 [P2] Partner sync never merges the same item added on two devices · confidence: high · evidence: E1
-- **Where:** `features/shopping/listMerge.js:8-16` (`mergeList` unions by `id`), called from `listSync.js:94` and `:103`.
-- **What breaks:** Marcel and his partner each press "Plan → Einkaufsliste" (or tap Ingwer). After sync both see two `1 Stück Ingwer` rows. Every sync keeps both.
-- **Why:** Local adds merge by name+unit key, but the cross-device merge goes by id. Two independent adds create two ids.
-- **Proof:** `fr01_c.mjs` H-A: `B after sync: li-…os85gh:1 Stück Ingwer, li-…d1u1xl:1 Stück Ingwer`.
-- **Fix:** After `mergeList`, fold live rows with the same key into the older id (sum amounts/qty, tombstone the other with a fresh `updated`). This has to be deterministic (lowest id wins) so both devices converge.
-- **Regression test:** `syncStep: gleicher Artikel auf zwei Geräten` → after A↔B sync exactly one live `Ingwer|stück` row, amount 2, and a second sync is a no-op.
-- **Effort:** M
-
-### BH-09 [P3] Two ingredients on one line become one bogus list row in the wrong aisle · confidence: high · evidence: E1
-- **Where:** `data/derive.js` `parseIngredient` (via `logic.js:84-88`). The catalog match picks the longest substring.
-- **What breaks:** 8 rows in the base recipes, e.g. `🫚 0,5 TL gemahlene Nelken , 1 TL Ingwerpulver [Gemüse]` (ginger icon in the vegetable aisle — part of FR-01's "Ingwer" sightings) and `🍄 300g Champignons , 1 Zwiebel, 200ml Sahne, Öl/Butter [Gemüse]`.
-- **Why:** These are data lines with several ingredients joined by commas. The parser treats the line as one item.
-- **Fix:** In `aggregateIngredients`, split a 🛒 line on `,` followed by a quantity (`/,\s*(?=[\d½¼¾])/`) before parsing. Long term, fix the data (→ data-guardian).
-- **Regression test:** `aggregateIngredients: Mehrfach-Zeile` with `"½ TL gemahlene Nelken 🛒, 1 TL Ingwerpulver 🛒"` → 2 items, `Nelken` and `Ingwerpulver`.
-- **Effort:** S
-
-### BH-10 [P3] "Zutaten auf die Liste" has no in-flight guard; pressing it again silently doubles everything · confidence: med · evidence: E2
-- **Where:** `features/cookbook/detail.js:151-163`. Compare `planner.js:164-165`, which disables its button.
-- **What breaks:** A double tap, or tapping again after cancelling the "switch to list?" confirm, runs `addItemsToList` twice. Every amount doubles (ginger 1 → 2 Stück). Nothing says the items are already on the list.
-- **Why:** No `btn.disabled` while the async import / `getStaples` / `addItemsToList` chain runs, and `mergeItems` sums by design.
-- **Fix:** Disable the button for the duration, the way the planner does. Optionally, if every aggregated item is already on the list from this recipe (`sources`), ask before adding again.
-- **Regression test:** none pure. Manual: double-tap the button → amounts must stay single.
-- **Effort:** S
-
-### BH-11 [P3] A device offline for more than 30 days brings deleted rows back · confidence: high · evidence: E1
-- **Where:** `listMerge.js:38-41` (`pruneTombstones`, 30 days) together with `mergeList` union.
-- **What breaks:** A row deleted on phone A gets pruned after 30 days. Laptop B, unsynced since before the delete, still holds it live. When B syncs, the row reappears on both devices "on its own".
-- **Proof:** `fr01_c.mjs` H-E: Drive after prune: 0 items → after the old device syncs: `x:1 Stück Ingwer`.
-- **Fix:** Store the prune horizon in the file (e.g. `prunedBefore`) and drop incoming live items whose `updated` is older than it. Otherwise this is an accepted trade-off and should be documented.
-- **Regression test:** `syncStep: veraltetes Gerät nach Prune` → the item stays gone.
-- **Effort:** S
 
 ## Checked and refuted
-- Friends inbox double-applies a suggestion on re-pull: `seen` covers it (E1). `seen` is saved before `fl_ack` (`friendInbox.js:97-100`).
-- Stale `data-i` after a background `onChange`: every `onChange` repaints the list synchronously (`shopping.js:135`), and indices only point into `ITEMS`, which is never spliced (tombstones only).
-- Lost tap during `listSync.doSync`: taps during the network round-trip are picked up by the `latest` re-read (`listSync.js:102-103`). The remaining window (between that read and `db.put(final)`) is a few ms and could only *lose* an edit, never duplicate one.
-- Planner ignores translated categories: categories stay canonical German in the overlay (`rezepte.snapshot.en.json`), so `MEAL_CATEGORIES` matches.
-- Any automatic or timer-driven list add: none exists. Only the four write paths listed under FR-01.
+- **Import dedup misses identical recipes because of `origin`/personal fields/`withDefaults`:** refuted. `sameContent` ignores `PERSONAL_FIELDS` and `origin`. Within-file duplicate ids → the first is kept or skipped and the second is renamed (`recipeImport.js:84-95`).
+- **Importing the same file again shows "Nothing imported – invalid":** refuted. `importFile.js:11` now subtracts `duplicates`, so the sheet reads "0 imported · 105 skipped".
+- **The same friend file imported on two devices of one account → duplicates after sync:** refuted for unchanged ids (`sameContent` → no fork). Renamed clashes give two copies, as expected for a double import.
+- **`updateRecipe` lets an edit change or drop `origin`:** refuted. `store.js:113-118` restores the previous string in both the optimistic and the queued edit.
+- **LOCALIZED marker (now an enumerable Symbol) reaches IndexedDB/JSON:** refuted. Symbol keys are skipped by `JSON.stringify` and structured clone. Only `assertCanonical` reads the marker (`export.js:35`, `recipeExport.js:9`), and every caller passes `getRecipesDe()`/`getRecipeDe()` (`menu.js:40-41`, `detail.js:181`).
+- **Month table collisions across DE/EN/ES/DA after the whole-word rewrite:** refuted by probe (0 collisions). "martes, 3 de marzo de 2026" → 202603, "Mai 2026" → 202605, "dic 2025" → 202512.
+- **`buildSystemPrompt` re-expands `{recipes}` inside a recipe name, or `$&` patterns:** refuted. It makes one pass with a function replacer (probe: the name stays literal). An empty `{fridge}` line is removed cleanly, also as the last line of a custom template.
+- **Timers: the pager and list views use different indices, or a fired alarm is missed on a hidden step:** refuted. Both use the step index (`cooking.js:186,204`), and `takeFired` runs on every 250 ms tick regardless of the visible step.
+- **Portions: a stored factor gives NaN/Infinity on reopen:** refuted. `startFor` guards `!(base > 0)` and non-finite values, and `setFactor` drops non-finite factors. (Pre-existing, not in this delta: the scaler clamps any target to 1..24, so a 40-cookie recipe jumps to 24 on the first tap.)
+- **English default flips existing German users:** refuted. `app.js:51-55` runs `migrateDefaultLang` before the seed. Existing devices always have IndexedDB recipes, so they get `de`. No module computes `t()` strings at top level (grep: 0), so nothing caches English before the migration.
+- **`Liter` added after `l` in the unit alternation fails to match:** refuted. `\b` forces a backtrack. Probe: "1 Liter Milch" → `l`/`Milch`, "1 Lauch" → no unit.
+- **`ingredientMatch.matchLine` crashes on real lines:** refuted. All 839 snapshot ingredient lines parse with 0 throws and no NaN. The module is not wired into the app yet.
+- **Similar-name note injects HTML:** refuted. The name goes through `esc()` before `t()` (`form.js:17`). Note: `t()` uses `replaceAll` with a string, so a name containing `$&` would expand. This is pre-existing, unrealistic, and outside the delta.
+- **Old stored model ids (`claude-haiku-4-5`) break the chat:** refuted. `gate.resolveModel` maps them to their successors, and `usage.priceOf` keeps the 4.x prices and strips date stamps.
 
 ## Verified clean
-- i18n: every literal `t("…")`/`tn("…")` key under `src/` resolves in de/en/es/da (E1 probe, plural `_one/_other` included). The dynamic `shopping.syncState.*` / `shopping.friends.state.*` keys all exist.
-- `friendMerge.applyFriendItems` / `trimSeen` / `snapshotOf`: `seen` ordering correct.
-- `listSync.syncStep` stability (two syncs in a row → no write), and a newer tombstone beats an older live copy.
-- `app.js:34-39` cleanup-on-route-change; `shopping.js:153` removes all 5 listeners.
-- Recipe sync conflict path (`decideSync` → `sync.js:114`).
+- i18n: every literal `t()`/`tn()` key under `v2/src` resolves in de/en/es/da. The only misses are dynamic prefixes and one comment. `settings.instrVar.*` resolves for all 5 variables (E1 `i18n_probe.mjs`).
+- `parseImportFile` hardening (size limits, https-only image, field whitelist, trimmed id) and `envelopeProblem`, shared with `inspectRemote`.
+- Settings instructions editor: empty or default text → reset, missing-variable warning, add-back.
+- `export.deliverExportFile` fallback and `exportFile` rejection path.
+- SW `SHELL` lists `portions.js`, `timers.js`, `units.js`, `ingredients.js`, `ingredientMatch.js` (`test-sw-shell.js` green).
 
 ## Definition drift
-None material. The agent file matches the tree (files, BUILD, suite size). The previous report pre-dated finding IDs; IDs BH-01..03 were assigned here.
+The agent file still names `decideSync.js` as the recipe sync decision point. Recipe sync runs through `syncCore.js` + `syncRules.js` + `recipeMerge.js` (three-way merge with `forked`), and `decideSync` is used only for the no-base legacy case.
 
 ## Cross-lens notes
-- → data-guardian: 8 base-recipe lines hold several ingredients in one string (BH-09). Ginger is 🛒-marked in 6 dinner recipes, so it gets bought every time even if it's usually at home.
-- → test-warden: no test combines `needsBuying` with a Lager entry for a 🛒 line (BH-04), and none covers `mergeItems` with a tombstone listed before a live row (BH-07).
-- → ux-curator: re-pressing Plan → list gives no "already on the list" feedback.
+- → test-warden: no test covers a lost write acknowledgement (Drive written, base not updated) followed by an edit (BH-16).
+- → ux-curator: the instructions editor loads the default template in German even with the new English default UI (`prompts.js` `DEFAULT_INSTRUCTIONS`). This is by design (the prompt is German), but users may not expect it.
+- → ux-curator: `settings.js:166` fills the textarea asynchronously, so text typed in the first few ms after opening Settings is overwritten.
 
 ## Summary
-P0 0 · P1 2 · P2 3 · P3 5 (BH-02, BH-03, BH-09, BH-10, BH-11). Most valuable fix: **BH-04** (Lager is ignored for 🛒 lines) together with **BH-05** (key normalisation). Between them they explain FR-01: ginger arrives with 75 % of random weekly plans even when it's in the Lager, and splits into 3–4 rows that never merge.
+P0 0 · P1 0 · P2 0 · P3 1 new (BH-16) + 2 carried (BH-02, BH-14). Fixed since last run: BH-03, BH-12, BH-13, BH-15.
+**No new P0/P1.** Most valuable: BH-16, a rare duplicate from the new fork rule when a Drive write's acknowledgement is lost. Not a release blocker.

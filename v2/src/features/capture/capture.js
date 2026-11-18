@@ -11,7 +11,7 @@ import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { addRecipe } from "../../store.js";
 import { getTotalMinutes } from "../../data/derive.js";
 import { getProfile, getStaples } from "../../data/settings.js";
-import { openForm } from "../cookbook/form.js";
+import { openForm, similarNoteHtml } from "../cookbook/form.js";
 import { BUILD } from "../../version.js";
 import { t } from "../../i18n.js";
 
@@ -210,9 +210,10 @@ export function renderCapture(container) {
     const mins = getTotalMinutes(r);
     const sub = [esc(r.category), mins ? esc(t("capture.bulkMins", { n: mins })) : "", esc(t("capture.bulkIngs", { n: r.ingredients.length }))]
       .filter(Boolean).join(" · ");
+    const similar = similarNoteHtml(r.name);
     return `<label class="bulk-row" data-row="${i}">
       <input type="checkbox" class="bulk-cb" data-i="${i}" checked />
-      <span class="bulk-meta"><span class="bulk-name">${esc(r.name)}</span><span class="bulk-sub">${sub}</span></span>
+      <span class="bulk-meta"><span class="bulk-name">${esc(r.name)}</span>${similar ? `<span class="bulk-similar">${similar}</span>` : ""}<span class="bulk-sub">${sub}</span></span>
       <button type="button" class="btn-sec bulk-edit" data-i="${i}">${t("capture.bulkEdit")}</button>
     </label>`;
   }

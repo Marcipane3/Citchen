@@ -1,4 +1,4 @@
-// i18n.js — Mehrsprachigkeit (DE Standard, EN, ES). Sprache in localStorage
+// i18n.js — Mehrsprachigkeit (EN Standard für neue Installationen, DE, ES, DA). Sprache in localStorage
 // (kochv2_lang) für synchronen Erst-Render ohne Flackern. t(key, params)
 // löst Punkt-Pfade auf; fehlt ein Key, Fallback auf DE, dann auf den Key selbst.
 // Rezeptinhalte bleiben in der Eingabesprache — übersetzt wird nur das UI.
@@ -23,8 +23,31 @@ export function hasLang() {
 export function getLang() {
   if (current) return current;
   try { current = localStorage.getItem(LANG_KEY); } catch (e) { current = null; }
-  if (!LANGS.some((l) => l.code === current)) current = "de";
+  if (!LANGS.some((l) => l.code === current)) current = "en";
   return current;
+}
+/** Nur für Tests: Cache verwerfen, damit getLang() wieder aus localStorage liest. */
+export function _resetLangCache() { current = null; }
+/**
+ * P8.2: Neue Installation → Englisch. Bestehende Nutzer (hasData) ohne gespeicherte Sprache
+ * bekommen einmalig "de" gespeichert und sehen weiter Deutsch. Gibt true zurück, wenn gespeichert wurde.
+ */
+export function migrateDefaultLang(hasData) {
+  if (!hasData || hasLang()) return false;
+  try { localStorage.setItem(LANG_KEY, "de"); } catch (e) { return false; }
+  current = null;
+  return true;
+}
+/** Hat dieses Gerät schon Daten einer früheren Version? (Rezepte in IndexedDB oder irgendeine kochv2_-Einstellung) */
+export function hasLegacyLocalData(recipeCount) {
+  if (recipeCount > 0) return true;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("kochv2_") && k !== LANG_KEY) return true;
+    }
+  } catch (e) { /* egal */ }
+  return false;
 }
 export function setLang(code) {
   if (!LANGS.some((l) => l.code === code)) return;
@@ -102,6 +125,8 @@ export function tLastCooked(v) {
 export const DICT = {
   /* ---------------- DEUTSCH ---------------- */
   de: {
+    export: { copied: "Markdown in Zwischenablage kopiert!", copyFail: "Zwischenablage nicht verfügbar: {msg}" },
+    importFile: { title: "Import", imported: "{n} importiert", skipped: "{n} übersprungen", renamed: "{n} mit neuer ID", invalid: "Nichts importiert. Die Datei ist ungültig oder enthält keine gültigen Rezepte.", readFail: "Lesen fehlgeschlagen: {msg}", saveFail: "Speichern fehlgeschlagen, nichts importiert: {msg}" },
     common: {
       save: "Speichern", saving: "Speichere…", cancel: "Abbrechen", delete: "Löschen",
       edit: "Bearbeiten", close: "Schließen", back: "Zurück", add: "Hinzufügen",
@@ -111,7 +136,7 @@ export const DICT = {
     nav: {
       cookbook: "Rezepte", match: "Koch-Match (Swipe)", shopping: "Einkaufsliste",
       planner: "Wochenplan", assistant: "KI-Assistent", capture: "Rezept erfassen (Foto/URL)",
-      lager: "Lager", settings: "Einstellungen", export: "Rezepte als Markdown exportieren",
+      lager: "Lager", settings: "Einstellungen", export: "Rezepte als Markdown exportieren", exportFile: "Ganzes Kochbuch als Import-Datei", importFile: "Rezepte aus Datei importieren",
       driveConnect: "Mit Google Drive verbinden", driveConnected: "Google Drive verbunden",
       driveSyncActive: "✓ Sync aktiv",
       guide: "Features & Versionen",
@@ -142,9 +167,11 @@ export const DICT = {
     },
     badge: { alltag: "⚡ Alltag", besonders: "✨ Besonders", mealprep: "🍱 Meal-Prep", totry: "🆕 Zu probieren" },
     detail: {
+      favoriteTitle: "Favorit",
       ingredients: "Zutaten", steps: "Zubereitung", tips: "Tipps",
       toShopping: "🛒 Zutaten zur Einkaufsliste", cookMode: "👨‍🍳 Kochmodus",
       cookedToday: "✓ Heute gekocht", cookedDone: "✓ Eingetragen!",
+      share: "↗ Teilen", shareCopied: "✓ Kopiert", shareFail: "Teilen fehlgeschlagen: {msg}",
       addPhoto: "📷 Foto aufnehmen oder hochladen",
       photoFail: "Foto fehlgeschlagen: {msg}",
       noteTitle: "💬 Notiz für Claude",
@@ -165,6 +192,7 @@ export const DICT = {
       apply: "Übernehmen",
       editsOriginal: "Du bearbeitest das deutsche Original — die Rezeptdatei ist deutsch, Übersetzungen werden nur angezeigt. Was du änderst, siehst du danach auch in deiner Sprache.",
       newRecipe: "Neues Rezept", editRecipe: "Rezept bearbeiten", reviewDraft: "Rezept-Entwurf prüfen",
+      similar: "Schon in deinem Kochbuch: „{name}“",
       name: "Name", namePlaceholder: "z.B. Linsensuppe", category: "Kategorie",
       time: "Zeit", servings: "Portionen", effort: "Aufwand", difficulty: "Schwierigkeit",
       cuisine: "Küche", cuisinePlaceholder: "z.B. Italienisch", season: "Saison", seasonPlaceholder: "optional",
@@ -300,6 +328,7 @@ export const DICT = {
       duplicate: "„{n}“ ist schon in der Liste — überschreiben?",
     },
     settings: {
+      showKey: "anzeigen",
       title: "Einstellungen",
       aiHeading: "🔑 KI (eigener Anthropic-Schlüssel)",
       aiNote: "Bring Your Own Key: Der Schlüssel bleibt <strong>nur auf diesem Gerät</strong> (localStorage), wird nie nach Drive synchronisiert und nur direkt an die Anthropic-API gesendet. Kosten laufen über dein Anthropic-Konto.",
@@ -325,6 +354,15 @@ export const DICT = {
       profileEquipment: "Küchenausstattung", profileSpices: "Gewürze im Haus", profileNotes: "Weitere Hinweise (optional)",
       profileSave: "Profil speichern", profileReset: "Auf Standard zurücksetzen",
       profileSaved: "✓ Profil gespeichert.", profileResetDone: "✓ Auf Standard zurückgesetzt.",
+      instrHeading: "🧠 Assistenten-Anweisungen",
+      instrNote: "So spricht und denkt der Assistent. Die Variablen in geschweiften Klammern füllt die App bei jeder Anfrage. Gilt nur auf diesem Gerät.",
+      instrVarsHeading: "Variablen",
+      instrVar: { profile: "dein Koch-Profil (oben)", stock: "Vorrat und Gewürze im Haus", fridge: "was gerade im Kühlschrank ist (fällt weg, wenn er leer ist)", recipes: "die Liste deiner Rezepte", language: "die App-Sprache, in der der Assistent antwortet" },
+      instrFixed: "Wird immer von der App angehängt (nicht editierbar)",
+      instrSave: "Anweisungen speichern", instrReset: "Anweisungen zurücksetzen",
+      instrSaved: "✓ Anweisungen gespeichert.", instrResetDone: "✓ Standard-Anweisungen wiederhergestellt.",
+      instrMissing: "Im Text fehlt: {vars}. Ohne diese Variable bekommt der Assistent diese Infos nicht.",
+      instrAddBack: "Wieder einfügen", instrSaveAnyway: "Trotzdem speichern",
       driveHeading: "☁️ Google Drive",
       driveNote: "Optional. Synchronisiert <code>rezepte.json</code> über deine Geräte — die App bleibt auch ohne Drive voll nutzbar (lokal).",
       driveConnect: "Mit Google verbinden", driveSync: "Jetzt synchronisieren", driveDisconnect: "Trennen",
@@ -363,6 +401,8 @@ export const DICT = {
 
   /* ---------------- ENGLISH ---------------- */
   en: {
+    export: { copied: "Markdown copied to clipboard!", copyFail: "Clipboard not available: {msg}" },
+    importFile: { title: "Import", imported: "{n} imported", skipped: "{n} skipped", renamed: "{n} got a new id", invalid: "Nothing imported. The file is invalid or has no valid recipes.", readFail: "Could not read file: {msg}", saveFail: "Saving failed, nothing imported: {msg}" },
     common: {
       save: "Save", saving: "Saving…", cancel: "Cancel", delete: "Delete",
       edit: "Edit", close: "Close", back: "Back", add: "Add",
@@ -372,7 +412,7 @@ export const DICT = {
     nav: {
       cookbook: "Recipes", match: "Cook-Match (Swipe)", shopping: "Shopping list",
       planner: "Meal plan", assistant: "AI assistant", capture: "Capture recipe (photo/URL)",
-      lager: "Stock", settings: "Settings", export: "Export recipes as Markdown",
+      lager: "Stock", settings: "Settings", export: "Export recipes as Markdown", exportFile: "Whole cookbook as import file", importFile: "Import recipes from file",
       driveConnect: "Connect Google Drive", driveConnected: "Google Drive connected",
       driveSyncActive: "✓ Sync active",
       guide: "Features & versions",
@@ -403,9 +443,11 @@ export const DICT = {
     },
     badge: { alltag: "⚡ Everyday", besonders: "✨ Special", mealprep: "🍱 Meal prep", totry: "🆕 To try" },
     detail: {
+      favoriteTitle: "Favorite",
       ingredients: "Ingredients", steps: "Method", tips: "Tips",
       toShopping: "🛒 Ingredients to shopping list", cookMode: "👨‍🍳 Cooking mode",
       cookedToday: "✓ Cooked today", cookedDone: "✓ Logged!",
+      share: "↗ Share", shareCopied: "✓ Copied", shareFail: "Sharing failed: {msg}",
       addPhoto: "📷 Take or upload a photo",
       photoFail: "Photo failed: {msg}",
       noteTitle: "💬 Note for Claude",
@@ -426,6 +468,7 @@ export const DICT = {
       apply: "Apply",
       editsOriginal: "You are editing the German original — the recipe file is German; translations are only shown. What you change is shown as you wrote it afterwards.",
       newRecipe: "New recipe", editRecipe: "Edit recipe", reviewDraft: "Review recipe draft",
+      similar: "Already in your cookbook: “{name}”",
       name: "Name", namePlaceholder: "e.g. Lentil soup", category: "Category",
       time: "Time", servings: "Servings", effort: "Effort", difficulty: "Difficulty",
       cuisine: "Cuisine", cuisinePlaceholder: "e.g. Italian", season: "Season", seasonPlaceholder: "optional",
@@ -561,6 +604,7 @@ export const DICT = {
       duplicate: "“{n}” is already in the list — overwrite?",
     },
     settings: {
+      showKey: "show",
       title: "Settings",
       aiHeading: "🔑 AI (your own Anthropic key)",
       aiNote: "Bring Your Own Key: the key stays <strong>only on this device</strong> (localStorage), is never synced to Drive and is sent only directly to the Anthropic API. Costs run through your Anthropic account.",
@@ -586,6 +630,15 @@ export const DICT = {
       profileEquipment: "Kitchen equipment", profileSpices: "Spices on hand", profileNotes: "Extra notes (optional)",
       profileSave: "Save profile", profileReset: "Reset to defaults",
       profileSaved: "✓ Profile saved.", profileResetDone: "✓ Reset to defaults.",
+      instrHeading: "🧠 Assistant instructions",
+      instrNote: "How the assistant talks and thinks. The app fills the variables in curly braces on every request. Applies to this device only.",
+      instrVarsHeading: "Variables",
+      instrVar: { profile: "your cook profile (above)", stock: "pantry and spices on hand", fridge: "what is in the fridge right now (left out when it is empty)", recipes: "the list of your recipes", language: "the app language the assistant answers in" },
+      instrFixed: "Always added by the app (not editable)",
+      instrSave: "Save instructions", instrReset: "Reset instructions",
+      instrSaved: "✓ Instructions saved.", instrResetDone: "✓ Default instructions restored.",
+      instrMissing: "Missing from the text: {vars}. Without it, the assistant does not get that information.",
+      instrAddBack: "Add back", instrSaveAnyway: "Save anyway",
       driveHeading: "☁️ Google Drive",
       driveNote: "Optional. Syncs <code>rezepte.json</code> across your devices — the app stays fully usable without Drive (local).",
       driveConnect: "Connect with Google", driveSync: "Sync now", driveDisconnect: "Disconnect",
@@ -624,6 +677,8 @@ export const DICT = {
 
   /* ---------------- ESPAÑOL ---------------- */
   es: {
+    export: { copied: "¡Markdown copiado al portapapeles!", copyFail: "Portapapeles no disponible: {msg}" },
+    importFile: { title: "Importar", imported: "{n} importadas", skipped: "{n} omitidas", renamed: "{n} con nuevo id", invalid: "No se importó nada. El archivo no es válido o no tiene recetas válidas.", readFail: "No se pudo leer el archivo: {msg}", saveFail: "Error al guardar, no se importó nada: {msg}" },
     common: {
       save: "Guardar", saving: "Guardando…", cancel: "Cancelar", delete: "Eliminar",
       edit: "Editar", close: "Cerrar", back: "Atrás", add: "Añadir",
@@ -633,7 +688,7 @@ export const DICT = {
     nav: {
       cookbook: "Recetas", match: "Cook-Match (deslizar)", shopping: "Lista de compra",
       planner: "Plan semanal", assistant: "Asistente IA", capture: "Capturar receta (foto/URL)",
-      lager: "Despensa", settings: "Ajustes", export: "Exportar recetas como Markdown",
+      lager: "Despensa", settings: "Ajustes", export: "Exportar recetas como Markdown", exportFile: "Todo el recetario como archivo de importación", importFile: "Importar recetas desde archivo",
       driveConnect: "Conectar Google Drive", driveConnected: "Google Drive conectado",
       driveSyncActive: "✓ Sync activo",
       guide: "Funciones y versiones",
@@ -664,9 +719,11 @@ export const DICT = {
     },
     badge: { alltag: "⚡ Diario", besonders: "✨ Especial", mealprep: "🍱 Meal prep", totry: "🆕 Probar" },
     detail: {
+      favoriteTitle: "Favorito",
       ingredients: "Ingredientes", steps: "Preparación", tips: "Consejos",
       toShopping: "🛒 Ingredientes a la lista", cookMode: "👨‍🍳 Modo cocina",
       cookedToday: "✓ Cocinado hoy", cookedDone: "✓ ¡Registrado!",
+      share: "↗ Compartir", shareCopied: "✓ Copiado", shareFail: "No se pudo compartir: {msg}",
       addPhoto: "📷 Hacer o subir una foto",
       photoFail: "Error con la foto: {msg}",
       noteTitle: "💬 Nota para Claude",
@@ -687,6 +744,7 @@ export const DICT = {
       apply: "Aplicar",
       editsOriginal: "Estás editando el original en alemán — el archivo de recetas es alemán; las traducciones solo se muestran. Lo que cambies se mostrará después tal como lo escribiste.",
       newRecipe: "Nueva receta", editRecipe: "Editar receta", reviewDraft: "Revisar borrador",
+      similar: "Ya está en tu recetario: “{name}”",
       name: "Nombre", namePlaceholder: "p. ej. Sopa de lentejas", category: "Categoría",
       time: "Tiempo", servings: "Raciones", effort: "Esfuerzo", difficulty: "Dificultad",
       cuisine: "Cocina", cuisinePlaceholder: "p. ej. Italiana", season: "Temporada", seasonPlaceholder: "opcional",
@@ -822,6 +880,7 @@ export const DICT = {
       duplicate: "“{n}” ya está en la lista — ¿sobrescribir?",
     },
     settings: {
+      showKey: "mostrar",
       title: "Ajustes",
       aiHeading: "🔑 IA (tu propia clave Anthropic)",
       aiNote: "Bring Your Own Key: la clave se queda <strong>solo en este dispositivo</strong> (localStorage), nunca se sincroniza a Drive y se envía solo directo a la API de Anthropic. Los costes corren por tu cuenta de Anthropic.",
@@ -847,6 +906,15 @@ export const DICT = {
       profileEquipment: "Equipamiento", profileSpices: "Especias en casa", profileNotes: "Notas extra (opcional)",
       profileSave: "Guardar perfil", profileReset: "Restablecer valores",
       profileSaved: "✓ Perfil guardado.", profileResetDone: "✓ Restablecido.",
+      instrHeading: "🧠 Instrucciones del asistente",
+      instrNote: "Cómo habla y piensa el asistente. La app rellena las variables entre llaves en cada consulta. Solo en este dispositivo.",
+      instrVarsHeading: "Variables",
+      instrVar: { profile: "tu perfil de cocina (arriba)", stock: "despensa y especias en casa", fridge: "lo que hay ahora en la nevera (se omite si está vacía)", recipes: "la lista de tus recetas", language: "el idioma de la app en el que responde el asistente" },
+      instrFixed: "La app siempre lo añade (no editable)",
+      instrSave: "Guardar instrucciones", instrReset: "Restablecer instrucciones",
+      instrSaved: "✓ Instrucciones guardadas.", instrResetDone: "✓ Instrucciones por defecto restauradas.",
+      instrMissing: "Falta en el texto: {vars}. Sin ella, el asistente no recibe esa información.",
+      instrAddBack: "Volver a añadir", instrSaveAnyway: "Guardar igualmente",
       driveHeading: "☁️ Google Drive",
       driveNote: "Opcional. Sincroniza <code>rezepte.json</code> entre dispositivos — la app sigue usable sin Drive (local).",
       driveConnect: "Conectar con Google", driveSync: "Sincronizar ahora", driveDisconnect: "Desconectar",
@@ -885,6 +953,8 @@ export const DICT = {
 
   /* ---------------- DANSK ---------------- */
   da: {
+    export: { copied: "Markdown kopieret til udklipsholderen!", copyFail: "Udklipsholder ikke tilgængelig: {msg}" },
+    importFile: { title: "Import", imported: "{n} importeret", skipped: "{n} sprunget over", renamed: "{n} fik nyt id", invalid: "Intet importeret. Filen er ugyldig eller har ingen gyldige opskrifter.", readFail: "Kunne ikke læse filen: {msg}", saveFail: "Kunne ikke gemme, intet importeret: {msg}" },
     common: {
       save: "Gem", saving: "Gemmer…", cancel: "Annuller", delete: "Slet",
       edit: "Rediger", close: "Luk", back: "Tilbage", add: "Tilføj",
@@ -894,7 +964,7 @@ export const DICT = {
     nav: {
       cookbook: "Opskrifter", match: "Kok-Match (swipe)", shopping: "Indkøbsliste",
       planner: "Madplan", assistant: "AI-assistent", capture: "Tilføj opskrift (foto/URL)",
-      lager: "Lager", settings: "Indstillinger", export: "Eksportér opskrifter som Markdown",
+      lager: "Lager", settings: "Indstillinger", export: "Eksportér opskrifter som Markdown", exportFile: "Hele kogebogen som importfil", importFile: "Importér opskrifter fra fil",
       driveConnect: "Forbind Google Drive", driveConnected: "Google Drive forbundet",
       driveSyncActive: "✓ Sync aktiv",
       guide: "Funktioner & versioner",
@@ -925,9 +995,11 @@ export const DICT = {
     },
     badge: { alltag: "⚡ Hverdag", besonders: "✨ Særlig", mealprep: "🍱 Meal prep", totry: "🆕 Prøv" },
     detail: {
+      favoriteTitle: "Favorit",
       ingredients: "Ingredienser", steps: "Fremgangsmåde", tips: "Tips",
       toShopping: "🛒 Ingredienser til indkøbsliste", cookMode: "👨‍🍳 Kogetilstand",
       cookedToday: "✓ Lavet i dag", cookedDone: "✓ Registreret!",
+      share: "↗ Del", shareCopied: "✓ Kopieret", shareFail: "Deling mislykkedes: {msg}",
       addPhoto: "📷 Tag eller upload et foto",
       photoFail: "Foto mislykkedes: {msg}",
       noteTitle: "💬 Note til Claude",
@@ -948,6 +1020,7 @@ export const DICT = {
       apply: "Anvend",
       editsOriginal: "Du redigerer den tyske original — opskriftsfilen er på tysk; oversættelser vises kun. Det, du ændrer, vises bagefter, som du skrev det.",
       newRecipe: "Ny opskrift", editRecipe: "Rediger opskrift", reviewDraft: "Tjek opskriftsudkast",
+      similar: "Allerede i din kogebog: „{name}“",
       name: "Navn", namePlaceholder: "f.eks. Linsesuppe", category: "Kategori",
       time: "Tid", servings: "Portioner", effort: "Indsats", difficulty: "Sværhedsgrad",
       cuisine: "Køkken", cuisinePlaceholder: "f.eks. Italiensk", season: "Sæson", seasonPlaceholder: "valgfrit",
@@ -1083,6 +1156,7 @@ export const DICT = {
       duplicate: "„{n}“ er allerede på listen — overskriv?",
     },
     settings: {
+      showKey: "vis",
       title: "Indstillinger",
       aiHeading: "🔑 AI (egen Anthropic-nøgle)",
       aiNote: "Bring Your Own Key: Nøglen bliver <strong>kun på denne enhed</strong> (localStorage), synkroniseres aldrig til Drive og sendes kun direkte til Anthropic-API’en. Omkostninger går via din Anthropic-konto.",
@@ -1108,6 +1182,15 @@ export const DICT = {
       profileEquipment: "Køkkenudstyr", profileSpices: "Krydderier i huset", profileNotes: "Yderligere noter (valgfrit)",
       profileSave: "Gem profil", profileReset: "Nulstil til standard",
       profileSaved: "✓ Profil gemt.", profileResetDone: "✓ Nulstillet til standard.",
+      instrHeading: "🧠 Assistentens instruktioner",
+      instrNote: "Sådan taler og tænker assistenten. Appen udfylder variablerne i krøllede parenteser ved hver forespørgsel. Gælder kun denne enhed.",
+      instrVarsHeading: "Variabler",
+      instrVar: { profile: "din kokkeprofil (ovenfor)", stock: "forråd og krydderier i huset", fridge: "hvad der er i køleskabet lige nu (udelades, når det er tomt)", recipes: "listen over dine opskrifter", language: "appens sprog, som assistenten svarer på" },
+      instrFixed: "Tilføjes altid af appen (kan ikke redigeres)",
+      instrSave: "Gem instruktioner", instrReset: "Nulstil instruktioner",
+      instrSaved: "✓ Instruktioner gemt.", instrResetDone: "✓ Standardinstruktioner gendannet.",
+      instrMissing: "Mangler i teksten: {vars}. Uden den får assistenten ikke de oplysninger.",
+      instrAddBack: "Indsæt igen", instrSaveAnyway: "Gem alligevel",
       driveHeading: "☁️ Google Drive",
       driveNote: "Valgfrit. Synkroniserer <code>rezepte.json</code> på tværs af dine enheder — appen virker fuldt ud uden Drive (lokalt).",
       driveConnect: "Forbind med Google", driveSync: "Synkronisér nu", driveDisconnect: "Afbryd",
@@ -1150,7 +1233,7 @@ export const DICT = {
    DE-Namen entsprechen toLocaleDateString("de-DE", {month:"long"}).
    ============================================================ */
 export const DE_MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-const MONTH_DICT = {
+export const MONTH_DICT = {
   en: ["January","February","March","April","May","June","July","August","September","October","November","December"],
   es: ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"],
   da: ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"],
