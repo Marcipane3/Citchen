@@ -122,9 +122,8 @@ No answers needed from Marcel here. Changes since 2026-10-01 are marked.
 - [ ] **C-8.** Google OAuth with a public listing: Testing mode caps at 100 test users and shows
       a warning screen. Confirm what production status needs for `drive.file` (non-sensitive scope)
       and the Picker: verified domain, privacy policy, branding review.
-- [x] **C-23.** *(moved to v2.x)* Recipe export/import: two formats (lossless file for import,
+- [ ] **C-23.** *(moved to v2.x)* Recipe export/import: two formats (lossless file for import,
       Markdown for reading), schema validation on import, id-clash rule, behaviour without Drive.
-      *(v2.18, 2026-11-18: issues #25 #29 #30 #42 #36 #48 #49 #50 #83.)*
 - [ ] **C-27.** *(new, only if D8 = yes)* English as stored language: file-format version 4,
       language-neutral category keys, migration of an existing German file, and a v2.x release
       that can read version 4 so the 30-day fallback keeps working.
