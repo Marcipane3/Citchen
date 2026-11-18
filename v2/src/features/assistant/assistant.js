@@ -9,7 +9,7 @@ import * as gate from "../../ai/gate.js";
 import { complete, AiError } from "../../ai/client.js";
 import { buildSystemPrompt, suggestUserPrompt, leftoverUserPrompt, fromStockUserPrompt, generateUserPrompt, elaborateUserPrompt } from "../../ai/prompts.js";
 import { extractJson, coerceRecipe, coerceSuggestions } from "../../ai/parse.js";
-import { getStaples, getProfile } from "../../data/settings.js";
+import { getStaples, getProfile, getInstructions } from "../../data/settings.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { openSheet } from "../../ui/sheet.js";
 import { openDetail } from "../cookbook/detail.js";
@@ -125,9 +125,10 @@ async function ask(container, displayText, apiPrompt) {
   container.querySelector("#ai-busy").style.display = "";
 
   try {
-    const [staples, profile, { getFridge }] = await Promise.all([getStaples(), getProfile(), import("../../data/lager.js")]);
+    const [staples, profile, template, { getFridge }] = await Promise.all([getStaples(), getProfile(), getInstructions(), import("../../data/lager.js")]);
     const fridge = await getFridge();
-    const system = buildSystemPrompt({ recipes: state.recipes, staples, fridge, profile, lang: getLang() });
+    // Q4.2: eigene Anweisungen aus den Einstellungen (Default = unverändert); der Planner nutzt sie nicht.
+    const system = buildSystemPrompt({ recipes: state.recipes, staples, fridge, profile, lang: getLang(), template });
     history.push({ role: "user", content: apiPrompt });
     if (history.length > 12) history = history.slice(-12); // Verlauf begrenzen
     // Q2: System-Prompt (Profil + Vorrat + Kochbuch) bleibt im Gespräch gleich → aus dem Cache.

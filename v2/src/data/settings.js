@@ -4,10 +4,11 @@
 
 import * as db from "./db.js";
 import { getInStock } from "./lager.js";
-import { DEFAULT_PROFILE } from "../ai/prompts.js";
+import { DEFAULT_PROFILE, DEFAULT_INSTRUCTIONS } from "../ai/prompts.js";
 
 const THEME_KEY = "theme"; // "system" | "light" | "dark"
 const PROFILE_KEY = "cookProfile"; // A3: nutzereditierbares Koch-Profil
+const INSTRUCTIONS_KEY = "assistantInstructions"; // Q4.2: nur dieses Gerät — nie synchronisiert, nie in rezepte.json
 
 export { DEFAULT_PROFILE };
 
@@ -32,6 +33,25 @@ export async function setProfile(profile) {
 export async function resetProfile() {
   await db.kvDel(PROFILE_KEY);
   return { ...DEFAULT_PROFILE };
+}
+
+/** Q4.2 (#70): Assistenten-Anweisungen (Vorlage aus Q4.1). Nichts gespeichert → mitgelieferter Default. */
+export async function getInstructions() {
+  const saved = await db.kvGet(INSTRUCTIONS_KEY, null);
+  return typeof saved === "string" && saved.trim() !== "" ? saved : DEFAULT_INSTRUCTIONS;
+}
+
+/** Speichert den Text wie getippt. Leer (oder gleich dem Default) = Reset: nie ohne Anweisungen. */
+export async function setInstructions(text) {
+  const s = typeof text === "string" ? text : "";
+  if (s.trim() === "" || s === DEFAULT_INSTRUCTIONS) return resetInstructions();
+  await db.kvSet(INSTRUCTIONS_KEY, s);
+  return s;
+}
+
+export async function resetInstructions() {
+  await db.kvDel(INSTRUCTIONS_KEY);
+  return DEFAULT_INSTRUCTIONS;
 }
 
 // Selbstverständliche Basics, die immer als "vorhanden" gelten (Öl/Wasser/Salz …).
