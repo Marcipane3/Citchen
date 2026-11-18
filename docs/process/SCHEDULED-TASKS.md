@@ -6,38 +6,40 @@ notification on. **Allowed tools:** Bash, Read, Write, Edit, Glob, Grep, plus **
 Release prep and Proposer digest (they spawn the `koch-*` agents; without it the guard pass silently
 can't run). WebFetch/WebSearch are not needed.
 
-> **Status 2026-11-16:** *Citchen · Release retry* now exists. Created from an interactive session at
-> Marcel's request (Sonnet 5.5, push on). Because agent-created tasks start without the repository, its
-> prompt has one extra paragraph: attach and clone `Marcipane3/Citchen` with `add_repo` when it is
-> missing. Its first run (Wed 18 Nov) shows whether that works; if it reports "no repo access",
-> Marcel recreates it at claude.ai/code/routines with the prompt below.
+> **Status 2026-11-18.** Live check of all six tasks:
+> - **Times** of Refiner, Builder and Reviewer were changed by Marcel on 12 Nov and run (Reviewer at :10,
+>   not :20; both work). **Prompts are still the 27 Oct versions**: they run on `main`, so the pipeline
+>   fixes and the release-prep retry mode on `next` are not used, and the Refiner still aims for 3.
+>   Copy the prompts below into each task.
+> - **Release prep failed on Sat 14 Nov** with "usage limit reached" at 07:51, about an hour before the
+>   weekly allowance resets (Saturday 09:00, as Marcel reported on 10 Nov). A week of three-round nights plus
+>   evening sessions most likely used up the weekly allowance. It now runs **Saturday 09:23**, after the reset.
+> - **Release retry**, created from an agent session on 16 Nov, **failed on Wed 18 Nov: no repo access**
+>   (`gh api` 403; `add_repo` is not available inside scheduled runs). That confirms the 11 Nov test: a task
+>   created by an agent session cannot work. It was deleted; **Marcel creates it** at
+>   claude.ai/code/routines with the repo attached, `Task` allowed and the prompt below.
 >
-> **Status 2026-11-11:** Marcel approved this setup on 10 Nov and asked for a higher cadence. **The five
-> tasks still run their 27 Oct prompts and times (last column) until Marcel changes them himself** at
-> claude.ai/code/routines: an agent session can neither edit nor start a task it did not create. A task
-> created by an agent session is no way around that. Tested on 11 Nov: its runs have no GitHub API
-> access to the repo and inherit the session's model (Fable instead of Sonnet). Reasons for every
-> change: `AGENT-PIPELINE.md` §8 and §11.
+> Every task: repository `Marcipane3/Citchen`, no connectors, model Sonnet 5.5, push notification on.
+> Reasons for every change: `AGENT-PIPELINE.md` §8 and §11.
 
-| Task | Schedule (Europe/Berlin) | Cron | Live today |
-|------|--------------------------|------|------------|
-| Citchen · Refiner | every night 01:30 | `CRON_TZ=Europe/Berlin 30 1 * * *` | Mon + Thu 07:39 |
-| Citchen · Builder | 02:10, 04:10, 06:10 | `CRON_TZ=Europe/Berlin 10 2,4,6 * * *` | 01:42 |
-| Citchen · Reviewer | 03:20, 05:20, 07:20 | `CRON_TZ=Europe/Berlin 20 3,5,7 * * *` | 06:58 |
-| Citchen · Release prep | Saturday 07:50 | `CRON_TZ=Europe/Berlin 50 7 * * 6` | Sat 08:17 |
-| Citchen · Release retry | Wednesday 07:50 | `CRON_TZ=Europe/Berlin 50 7 * * 3` | same (created 16 Nov) |
-| Citchen · Proposer digest | 1st of the month 10:17 | `CRON_TZ=Europe/Berlin 17 10 1 * *` | same |
+| Task | Schedule (Europe/Berlin) | Cron | `Task` tool |
+|------|--------------------------|------|-------------|
+| Citchen · Refiner | every night 01:30 | `CRON_TZ=Europe/Berlin 30 1 * * *` | no |
+| Citchen · Builder | 02:10, 04:10, 06:10 | `CRON_TZ=Europe/Berlin 10 2,4,6 * * *` | no |
+| Citchen · Reviewer | 03:10, 05:10, 07:10 | `CRON_TZ=Europe/Berlin 10 3,5,7 * * *` | **yes** |
+| Citchen · Release prep | Saturday 09:23 | `CRON_TZ=Europe/Berlin 23 9 * * 6` | **yes** |
+| Citchen · Release retry | Wednesday 07:50 | `CRON_TZ=Europe/Berlin 50 7 * * 3` | **yes** |
+| Citchen · Proposer digest | 1st of the month 10:17 | `CRON_TZ=Europe/Berlin 17 10 1 * *` | **yes** |
 
-In the Refiner prompt, replace "Target: 3 ready issues" with "Target: 5 ready issues (replaces the 3 in
-the skill)" and "buffer k/3" with "buffer k/5": three builder runs a night empty a buffer of three.
+The Refiner prompt below already says "Target: 5": three builder runs a night empty a buffer of three.
 
 **Why these times.** Refiner → Builder → Reviewer, three rounds a night: an answer given during the
-day is refined at 01:30, built at 02:10 and merged at 03:20; up to three issues a night instead of one.
+day is refined at 01:30, built at 02:10 and merged at 03:10; up to three issues a night instead of one.
 Scheduled runs and your own sessions share one 5-hour usage window, and on 10 Nov a long evening
 session used it up, so the 01:42 builder was rejected ("usage limit reached"). A window you open at
 21:00 has reset by 02:00, which is why nothing starts before 01:30. The last reviewer at 07:20 leaves
-you a window that is already running when you start and resets at 12:20. Release prep (the one heavy
-run, Opus review agents) follows the last reviewer on Saturday.
+you a window that is already running when you start and resets at 12:10. Release prep (the one heavy
+run, Opus review agents) runs on Saturday right after the weekly allowance resets.
 
 **Every prompt starts on `next`.** Scheduled sessions clone `main`, but merged work and pipeline fixes
 live on `next`. Only PRs that Marcel merges can change `.claude/` there (the `policy` check blocks
@@ -78,10 +80,10 @@ questions for Marcel go into the issue as described in the skill.
 
 First: git fetch origin && git switch --detach origin/next
 Then run the project skill /refine: read .claude/skills/refine/SKILL.md from this checkout and follow it
-exactly. Target: 3 ready issues. No code, no roadmap edits, never promote status:proposed.
+exactly. Target: 5 ready issues (replaces the 3 in the skill). No code, no roadmap edits, never promote status:proposed.
 If the skill file is missing, stop and report "pipeline skills missing".
 
-Final message: ready issues, open questions for Marcel (with issue links), buffer k/3.
+Final message: ready issues, open questions for Marcel (with issue links), buffer k/5.
 ```
 
 ## Citchen · Release prep
