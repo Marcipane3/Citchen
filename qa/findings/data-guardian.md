@@ -1,249 +1,127 @@
-# Data-Guardian — findings (2026-10-12T16:33Z)
-_Build 2026-10-04-v2.14 · CACHE koch-v2.14-1 · tests 215/215 · HEAD 70e8b9d · mode FULL_
+# Data-Guardian — findings (2026-11-18T21:30Z)
+_Build 2026-10-27-v2.17 (not yet bumped on this branch) · CACHE koch-v2.17-1 · tests 583/583 · HEAD fe191d6 (release-bump/2.18-r2 = origin/next) · mode DELTA origin/main..HEAD_
 
-Probes ran against the real modules. Pure modules were imported directly. For `sync.js`, `listSync.js` and `store.js`, I made verbatim copies in the OS temp dir and ran them against in-memory stubs of `db.js` and `drive.js`. Nothing touched Drive, Supabase or any repo file except this report. The repo-root `rezepte.json` is an untracked copy (`updated` 2026-06-08, 105 recipes). It is not the live Drive file.
+This is the v2.18 retry guard pass. Probes ran in Node against the real modules of this tree (`v2/src/...`). The "live code" comparison used verbatim copies of `origin/main:v2/src/data/*.js` in `/tmp/dg/main`. The real data was the bundled `v2/data/rezepte.snapshot.json` (105 recipes) plus the en/da/es snapshots. The repo-root `rezepte.json` no longer exists. Nothing touched Drive, Supabase, Anthropic or any repo file except this report. Probe scripts are in `/tmp/dg/probes/`.
 
 ## Field reports
-
-### FR-01: "Ingwer gets added to the shopping list randomly and multiple times without selecting it"
-
-**Verdict:** I reproduced it with E1 evidence. The most likely root cause is a legacy item with no `id` in the Drive `einkaufsliste.json`. That item copies itself into one more live row on every list sync. Three smaller key and merge effects make the duplicates worse.
-
-| Rank | Hypothesis | Evidence | Matches "randomly / multiple / not selected"? |
-|---|---|---|---|
-| 1 | **An item with no id in the Drive list makes one extra row per sync (DG-04).** v2.10 pushed recipe items to Drive without `id` or `updated`. That covers git `e5c0eef` (`shopping.js` `save()` → `listSync.saveList(ITEMS)`, where the ITEMS came from `mergeItems`), released on main from 2026-06-17 to 2026-10-02. Since v2.11 each sync merges that id-less remote object next to its local copy, and the local copy gets a fresh id on every load. | E1. Real `listSync.js` with stubs: sync #1..#5 gave **1, 2, 3, 4, 5 live Ingwer rows** (Drive also 1→5). After the user deletes every Ingwer row: debounced sync → 2, next sync → 3, Drive → 7. | Yes, on all three counts. It grows without any user action. Syncs are triggered by opening the list tab, 🔄, the `online` event, and 1.2 s after **any** list tap (`schedulePush`). Deleting does not stick. It is one specific item because only the **first** id-less item survives the merge (probe: 3 id-less items → only the first kept). |
-| 2 | One ingredient produces several merge keys (DG-09). | E1. 7 recipes mention Ingwer. Their keys are `ingwer\|stück` (5×), `ingwer, gerieben\|stück`, a mis-parsed `gemahlene nelken , 1 tl ingwerpulver\|tl`, and the catalog/friend key `ingwer\|`. Adding all 7 recipes → 3 Ingwer rows. | "Multiple" yes. "Without selecting" only partly: the user did tap "Zutaten auf die Liste" or "Plan → Liste", but for another dish. |
-| 3 | `mergeItems` revives a deleted row even though a live twin exists (DG-08). | E1. Tombstone `li-a` plus live friend twin `fr-x`, then adding a recipe with Ingwer → **2 live rows**. | "Multiple" yes. Needs the friends link or a partner. |
-| 4 | Two devices or a partner each add Ingwer. The merge unions by id, so both rows stay. | E1. `syncStep(devA, devB)` → 2 rows. | Yes on the *other* device: the row appears "by itself". |
-| — | The friend inbox replays suggestions after `trimSeen` | **Refuted.** The server caps open suggestions at 100 (`supabase/migrations/20261004182000_i3_friend_inbox.sql:145`), and `seen` keeps 300. The trim can't drop an unacknowledged id. The only remaining replay is DG-12 (P3). | — |
-
-**How to confirm on a device (any one of these):**
-- (a) Download Drive `einkaufsliste.json` and look for an item object with **no `"id"` key**. Hypothesis 1 predicts it is Ingwer, with v2.10-style fields (`sources`, `amount`, `unit: "Stück"`, no `updated`).
-- (b) DevTools → IndexedDB `koch-v2` → `lists` → `current`. Look for several Ingwer rows with the same `amount`/`unit`/`sources` but different `li-…` ids whose `updated` times equal sync times.
-- (c) Tap 🔄 on the list three times. If the Ingwer count goes up by one per tap, it is confirmed.
-
-The lasting fix needs a code guard (see DG-04). Deleting the rows in the UI cannot remove it.
+FR-01 (Ingwer duplicates) is covered by fixed DG-04/08/09/12 (v2.15.2/.3). The delta adds one small transitional duplicate source, the `Liter` parse change (DG-22, P3). It is not a new FR-01 cause.
 
 ## Status of previous findings
-First run. There is no previous report.
+The file on disk was still the v2.14 report (DG-01…DG-14). The v2.18 guard-pass findings DG-15…DG-18 were never written back to it. I rebuilt them from issues #48, #49, #50 and #53/#83.
+
+| ID | Title | Status | Note |
+|---|---|---|---|
+| DG-01 | Recipe saves overwrite Drive blind | ✅ fixed | T1, v2.15.1: `sync.js:146-160` `saveChange` = queued change + read → three-way merge → write |
+| DG-02 | Editing in EN/DA/ES writes the translation into German | ✅ fixed | T3: `detail.js:193` opens `getRecipeDe`. Re-proven E1 in the EN UI: stored name/ingredients stay German (probe `p_en_edit`) |
+| DG-03 | Recipe without `id` partly wipes IndexedDB | ✅ fixed | T2: `recipeMerge.inspectRemote` rescues missing ids. Probe: `{no id}` → `r1795…:noid`, 3 notes |
+| DG-04 | Id-less list item copies itself every sync (FR-01) | ✅ fixed | T4: `listMerge.js:48-80` `LEGACY_STAMP`/`stableItemId`/`adoptLegacy`/`collapseLegacyCopies` |
+| DG-05 | `{}`/`null`/`recipes` not an array wipes the local cookbook | ✅ fixed | Probe: `{}`→noRecipes, `null`→notObject, `recipes:null`→noRecipes, v4→newerFormat (all rejected, local kept) |
+| DG-06 | Duplicate recipe id loses a recipe | ✅ fixed | Probe: the duplicate `a` was re-id'd and kept |
+| DG-07 | In-file `updated` is the only change signal | ✅ fixed | Merge is per content now. Probe: a Claude edit with the same stamp is pulled (`A (Claude)`). `decideSync` only picks `prefer` when there is no base and the copy is dirty |
+| DG-08 | `mergeItems` revives a tombstone next to a live twin | ✅ fixed | T5: `logic.findSame` (live first) |
+| DG-09 | Same item → several list keys | ✅ fixed | T5: `logic.sameKey` (unit-agnostic, prep note stripped). DG-22 is a new small exception |
+| DG-10 | Assistant recipes saved in the UI language | ✅ fixed | T3 (v2.15.1) |
+| DG-11 | SCHEMA.md drift | ✅ fixed | T11. The sync section and the new export/import section match the code, except DG-19 below |
+| DG-12 | Friend replay crash window | ✅ fixed | P7 (v2.15b): list + `friendSeen` in one IDB transaction |
+| DG-13 | Tombstones pruned after 30 d resurrect | ✅ fixed | T7: `prunedBefore` |
+| DG-14 | Unexpected list file shape overwritten | ✅ fixed | T10: `listFile.js` refuses it |
+| DG-15 | Import keeps a file id that exists only on Drive → silent replace | ✅ fixed | 6dd0c52: `recipeMerge.js:121` fork. Probe: Drive-only `r…099` kept, import moved to `r1790000000500`, 107 recipes |
+| DG-16 (=BH-12) | Whole-cookbook re-import doubles base recipes | ✅ fixed | 2b27980. Probe: own export (106, with ♥/rating/feedback/lastCooked) into the same cookbook → imported 0, skipped 106. Raw `rezepte.json` (v1 shape) into the seed → 0 imported |
+| DG-17 | `LOCALIZED` marker lost on `{...r}` | ✅ fixed | 653dcb9: `baseLang.js:84` enumerable symbol. Probe: a spread copy is refused by `buildExportFile`; `JSON`/`structuredClone` carry no marker |
+| DG-18 (=BH-13) | Import accepts any version / untrimmed ids; export file not in SCHEMA | ✅ fixed | 6dd0c52: `recipeImport.js:48-51` (version required, >3 refused), `:61` trim, `SCHEMA.md:234-262` |
 
 ## New findings
 
-### DG-01 [P0] Recipe saves blindly overwrite Drive and destroy external writes (Claude, v1, the other device) · confidence: high · evidence: E1
-- **Asset at risk:** Drive `rezepte.json`, specifically every write that did not come from this device (requirements #2 and #3).
+### DG-19 [P2] Re-importing your own backup still duplicates recipes whose stored content doesn't survive the import filter (unknown field, non-https image) · confidence: high · evidence: E1
+- **Asset at risk:** The cookbook (no duplicates), and the SCHEMA promise "so verdoppelt der eigene Vollexport nichts" (`SCHEMA.md:260`).
 - **Where:**
-  - `v2/src/data/sync.js:149-173`: `saveCollection` PATCHes without reading Drive first (`:159-161`).
-  - `v2/src/app.js:96-103`: recipe sync runs only on a sign-in event or the manual Settings button. There is no sync on resume, visibility or interval.
-  - `v2/src/data/decideSync.js:27-33` + `sync.js:103-122`: a dirty local copy that is newer → `push`; a dirty local copy that is older → `conflict`, which keeps the local copy, never pulls, and the next save PATCHes over Drive.
-- **How it corrupts:** The phone pulls at 08:00 and the PWA stays in memory. At 12:00 Claude adds a recipe on Drive. At 18:00 Marcel taps ♥ → `saveCollection(recipesDe)` writes the 08:00 set to Drive → Claude's recipe is gone and the status reads "Synchronisiert ✓". The same happens after an offline edit (push) and after a `conflict` (the next save). Laptop and phone also overwrite each other's edits.
-- **Proof (real `sync.js`):**
-  - `B blind save: Drive before=106 after=105, Claude recipe present=false`
-  - `C dirty-newer push: Claude recipe present after=false`
-  - `D conflict=true then next save: Claude recipe present=false`
-- **Guard:**
-  - Read before write: in `saveCollection`, fetch the remote `updated` (or Drive `headRevisionId`) and run `decideSync` before PATCHing. If remote ≠ last-pulled, refuse and keep the change dirty.
-  - Sync on `visibilitychange` / resume.
-  - Show the conflict to the user instead of only a status line.
-  - Test: "remote changed since lastSync → saveCollection must not PATCH".
-  - Effort M.
+  - `v2/src/data/recipeImport.js:72-74`: `isSameRecipe` compares the *sanitized* incoming recipe with the *raw* stored one.
+  - The sanitizing happens at `recipeImport.js:13` / `:60` (unknown fields dropped) and `:62-63` (non-https `image` cleared).
+  - `recipeExport.js:8-15` writes both of those into the file unchanged.
+- **How it corrupts:**
+  - Unknown field: a recipe carries an extra field. `SCHEMA.md:170`/`:226` allow this ("unbekannte Felder innerhalb eines Rezepts bleiben"), e.g. project-Claude adds `nutrition`. Whole-cookbook export → import into the same cookbook → the recipe is not "the same" → a renamed copy **without** the field, `origin:"user"`, under a new id.
+  - Image: a user recipe with an `http:` image URL (the form doesn't restrict it) → re-import → duplicate with no image.
+  - Nothing is lost, but every backup → restore round adds one more copy of each such recipe, and the copy syncs to Drive and the partner.
+- **Proof (`/tmp/dg/probes/p_import.mjs`, case 4, + inline probe):**
+  - `recipe with unknown additive field, own export -> same cookbook: {"imported":1,…,"renamed":1,"duplicates":105}` (renamed "Apfelkuchen vom Blech…")
+  - `http image + own export: {"imported":1,"skipped":106,…,"renamed":1}`
+  - The bundled snapshot has 0 unknown fields and 0 images, so the seed alone is not affected. The live Drive file may differ.
+- **Guard:** In `planImport`, compare the incoming recipe with the existing one *passed through the same filter* (KEPT_FIELDS + image rule), e.g. `sameContent(r, sanitize(existing))`. Test: "own export of a recipe with `nutrition` / `http:` image → 0 imported". Effort S.
 
-### DG-02 [P0] Editing a recipe in EN/DA/ES writes the translation into the canonical German Drive file · confidence: high · evidence: E1
-- **Asset at risk:** The canonical-German rule (only German may ever reach Drive). All 105 recipes are affected: every Drive id has an entry in each of the en/da/es snapshots (probe: overlap 105/105/105).
-- **Where:** `v2/src/features/cookbook/detail.js:32` (`r = getRecipe(id)`, the localized view) → `detail.js:169` `openForm(r)` → `v2/src/features/cookbook/form.js:54-68` fills the form from the localized fields → `form.js:80-95` → `form.js:101` `updateRecipe(ed.id, x => Object.assign(x, fields))` → `v2/src/store.js:73-83` writes those fields onto the German object → `persist()` → Drive. `store.js:69-71` admits this in a comment ("selten").
-- **How it corrupts:** With the UI in English, open any recipe → ✎ → change only the time → Save. Drive `name`, `ingredients`, `steps` and `tips` become English. v1, project-Claude and the German UI now show English. Shopping-list matching for that recipe stops working, because the catalog and staples are German.
-- **Proof (real `store.js` + real snapshot):**
-  - `Drive name before: Schnelle Asia-Nudeln aus der Pfanne / after: Quick Asian Stir-Fry Noodles`
-  - `ing[0] after: 300g Chinese noodles`
-  - `German UI now shows: Quick Asian Stir-Fry Noodles`
-  - `test-canonical.js` does not catch this. It only checks `saveCollection(recipesDe)` wiring and `toFileString`.
+### DG-20 [P3] Import edge cases a backup or hand-edited file can hit: the app exports recipes its own importer refuses, and one recipe listed twice becomes two copies · confidence: high · evidence: E1
+- **Asset at risk:** Backup completeness; no duplicates.
+- **Where:**
+  - `v2/src/data/recipeExport.js:8` has no `IMPORT_LIMITS` check, while `recipeImport.js:10` / `:57-58` refuse over-limit recipes. The form has no `maxlength`.
+  - `recipeImport.js:87-95`: a second entry with the same id and the same content is not matched against the first (only against `existing`), so it is renamed.
+- **How it corrupts:**
+  - A recipe with `tips` over 5000 characters exports fine, but the restore skips it ("Rezept[1]: tips länger als 5000 Zeichen"). The user only learns this on restore.
+  - A file that lists the same recipe twice → 2 copies.
+  - Real data is far from the limits (max `tips` 398 characters, max 15 lines), so practical risk is low.
+- **Proof:**
+  - Probe: `reasons:["Rezept[1]: tips länger als 5000 Zeichen", …]`
+  - `file lists same recipe twice -> {"imported":2,…,"renamed":1}`
+- **Guard:** Warn at export time for recipes over `IMPORT_LIMITS` (or apply the limits in the form). In `planImport`, skip an incoming recipe that `isSameRecipe` matches an earlier `toAdd` entry. Effort S.
+
+### DG-21 [P3] The new "same id, different recipe" fork also fires on a lost write acknowledgement, and the two copies share Drive photo ids · confidence: med · evidence: E1 (merge) + E2 (trigger)
+- **Asset at risk:** Recipe identity (planner and translation links by id) and recipe photos on Drive.
+- **Where:**
+  - `v2/src/data/recipeMerge.js:121`: the fork condition `B && !b && !sameContent(l, r)`.
+  - `recipeMerge.js:158`: `{ ...l, id }` copies `photos`.
+  - `v2/src/features/cookbook/detail.js:209`: deleting a recipe deletes its Drive photos.
+  - `syncRules.js:94-95`: `setBase` only runs after a successful round trip.
+- **How it corrupts:**
+  1. Add recipe X. The Drive write lands, but the tab is killed or the response is lost before `setBase`, so the base doesn't know X.
+  2. The user changes X's content before the next successful sync.
+  3. The next merge sees "two different recipes with one id": the Drive version keeps `rX`, and the edited one moves to a new id. One recipe becomes two.
+  4. If X had photos, both copies point at the same Drive photo files. Deleting the stale copy deletes the photos of the kept one.
+
+  Usually the boot sync heals the base first (l == r → no fork), so the window is narrow.
+- **Proof (`/tmp/dg/probes/p_fork.mjs`):** `lost-ack + local edit: r1795000000000:Linsen-Dal (scharf):photos=drivePhoto1 | rX:Linsen-Dal:photos=drivePhoto1 … forked [{"from":"rX",…}]`
 - **Guard:**
-  - In edit mode, `openForm` must fill from `getRecipeDe(id)`. If it shows the overlay for comfort, it must write back only the fields the user actually changed.
-  - Alternatively, `updateRecipe` refuses content fields for ids in `langMap`.
-  - Test: overlay `en`, run the form-style `Object.assign` with the display values, then assert that the persisted `name` and `ingredients` are still German.
+  - Fork only when the local twin has `origin` from an import that is newer than the base, or record "ids I pushed" in meta before the write and treat those as known.
+  - Strip `photos` from the forked copy, or only delete photos that no other recipe references.
   - Effort S–M.
 
-### DG-03 [P0] A recipe without `id` from an external writer partly wipes IndexedDB, and the next edit pushes the cut-down cookbook to Drive · confidence: med · evidence: E1 (sync path) + E2 (IndexedDB commit semantics)
-- **Asset at risk:** The whole cookbook, both locally and on Drive.
-- **Where:**
-  - `v2/src/data/sync.js:96-97`: validation errors only go to `console.warn`.
-  - `sync.js:124-126` → `v2/src/data/db.js:75-81`: `replaceAll` issues `s.clear()` and then `s.put(v)` for each recipe.
-  - `put` on a keyPath store with a missing key throws `DataError` synchronously. That does **not** abort the transaction, so the clear and the earlier puts still commit.
-  - `v2/src/data/migrate.js:23-24`: `withDefaults(null)` → `{}`, so a `null` entry hits the same path.
-- **How it corrupts:**
-  1. Claude prepends a recipe and forgets the `id` (v1 also prepends), or writes `null`.
-  2. On sync, IndexedDB is cleared and keeps only the recipes before that entry. The status reads "Offline — lokale Daten", which is misleading.
-  3. On the next app start, `loadLocal` reads the cut-down set. If it is empty, `loadLocal` reseeds the bundled snapshot.
-  4. Every later sync fails the same way, and the first ♥/★ PATCHes the cut-down set to Drive.
-- **Proof (real `sync.js`; the stub `replaceAll` models spec semantics):**
-  - `F missing id at index 40: error=DataError IDB now=40 (was 105)`
-  - `after restart + one edit: Drive recipes=40`
-- **Guard:**
-  - Before any `replaceAll`, reject (do not pull) a collection where `validateCollection` reports a missing id, a duplicate id or a non-object.
-  - Make `replaceAll` validate keys first, or call `t.abort()` in a try/catch.
-  - Show the validation error to the user.
-  - **How to confirm in a browser:** in DevTools, run `replaceAll("recipes",[{id:"a"},{}])` on a scratch DB and check whether `a` was written.
-  - Effort S.
-
-### DG-04 [P1] An id-less item in `einkaufsliste.json` copies itself on every sync, deletes don't stick, and other id-less items are silently dropped (FR-01 root cause) · confidence: high · evidence: E1
-- **Asset at risk:** The shared shopping list, on Drive, on the partner device and in the friends showcase.
-- **Where:**
-  - `v2/src/features/shopping/listMerge.js:10-14`: the `Map` is keyed by `item.id` with no guard for a missing id, so all id-less items fold into key `undefined`.
-  - `v2/src/data/listSync.js:43-49`: `ensureItemMeta` gives the *local* copy a fresh id on every load.
-  - `listSync.js:91-105`: `merged` keeps the id-less remote object, is written back to Drive (`:98`) and to IndexedDB (`:105`).
-  - Source of the id-less data: v2.10 `shopping.js` `save()` (git `e5c0eef`, on main 2026-06-17 → 2026-10-02).
-- **How it corrupts:**
-  1. Drive holds `{name:"Ingwer", …}` without `id`.
-  2. Sync N: the local copy gets id `li-n` and the union with the id-less remote item gives one more row.
-  3. Repeat on every sync. Only the first id-less item survives the merge; any others are dropped for good on the first v2.11+ sync.
-- **Proof:**
-  - `sync #1..#5: live Ingwer rows locally=1,2,3,4,5; Drive=1..5`
-  - `after user deletes every Ingwer: … after next sync: live=3 Drive=7`
-  - `3 id-less remote items -> merged: ['Knoblauch']`
-- **Guard:**
-  - In `mergeList`/`syncStep`, give inbound items a **deterministic** id (e.g. a hash of name, unit and sources) or drop them with a warning. Never key on `undefined`.
-  - One-time cleanup: dedupe rows with identical `nameDe`/`unit`/`sources` that came from a single id-less origin.
-  - Test: "remote item without id + 3 syncs → exactly one live row".
-  - Effort S.
-
-### DG-05 [P1] A parseable but malformed `rezepte.json` (`{}`, `null`, `recipes` not an array) wipes every device's local cookbook and reports success · confidence: high · evidence: E1
-- **Asset at risk:** The local IndexedDB mirrors, which are the only remaining backups once Drive is damaged.
-- **Where:**
-  - `v2/src/data/migrate.js:18` (`null` → an empty default with **no** error reported) and `migrate.js:23` (a non-array → `[]`).
-  - `v2/src/data/sync.js:97` (errors are only warned).
-  - `v2/src/data/decideSync.js:37` (clean + stamps differ → `pull`).
-  - `sync.js:124-130` (`replaceAll([])`, status "Synchronisiert ✓").
-- **How it corrupts:** An external writer leaves `{}` (or `{"recipes":null}`) on Drive. Each device opens, gets `pull`, and its local copy becomes 0 recipes. The first new recipe then writes `[1 recipe]` to Drive. An empty file or truncated JSON is handled safely: it throws `SyntaxError` and local data is kept.
-- **Proof:**
-  - `A {}: changed=true localIDB=0 status="Synchronisiert ✓"`; the same for `recipes:null` and `'null'`.
-  - `empty file / truncated: error=SyntaxError localIDB=105`.
-- **Guard:**
-  - Refuse to `pull` when `report.errors` contains "recipes fehlt"/"Keine Daten", or when the input is not an object.
-  - Refuse to pull when the remote recipe count drops sharply (e.g. to 0 or by more than 50%) without confirmation.
-  - Show the error to the user.
-  - Effort S.
-
-### DG-06 [P1] A duplicate recipe id from an external writer loses one recipe on Drive after the next session's save · confidence: high · evidence: E1
-- **Asset at risk:** Single recipes.
-- **Where:** `v2/src/data/sync.js:97` (the `Doppelte ID` validation error is only warned) → `sync.js:126` → `v2/src/data/db.js:81` (`put` by keyPath keeps the last entry with that id) → `loadLocal` → `saveCollection`.
-- **How it corrupts:** `SCHEMA.md:50` and `:202` use **`r01`** as the example id, and `r01` is the real "Süßkartoffel-Curry". If a writer copies the example id, the session still shows 106 in memory, but IndexedDB keeps 105. After a restart, any edit pushes 105 → Claude's recipe is gone.
-- **Proof:** `E dup id: remote=106 in-memory=106 IDB=105; after next-session save: Drive=105`.
-- **Guard:**
-  - Never pull a collection with duplicate ids. Better: re-id the incoming duplicate with `makeIdFactory` and flag it.
-  - Change the SCHEMA example id to a timestamp-style id.
-  - Effort S.
-
-### DG-07 [P2] The in-file `updated` string is the only change signal: edits without a stamp are never pulled, and stamps in other formats are misordered · confidence: high · evidence: E1
-- **Asset at risk:** External edits.
-- **Where:** `v2/src/data/decideSync.js:29` and `:37` (plain string comparison, `remote !== local`).
-- **How it corrupts:**
-  - Claude edits but forgets to bump `updated` → `noop` → no device ever pulls it, and DG-01 overwrites it on the next save.
-  - `+02:00` / no-millis / date-only stamps are compared as text:
-    - `"2026-10-12T12:30:00+02:00"` (10:30Z) vs a dirty local `12:00Z` → `conflict`.
-    - Date-only `"2026-10-12"` vs a dirty local → `push`, which overwrites Claude.
-  - With a device clock one day fast, a dirty local edit beats a really newer remote.
-- **Proof:** `LWW Claude forgot to bump updated -> noop`, `date-only -> push`, `+1 day skew -> push`.
-- **Guard:**
-  - Detect changes with Drive metadata (`headRevisionId` / `md5Checksum` / `modifiedTime`) instead of the in-file stamp.
-  - Compare `Date.parse` values, not strings.
-  - Add these cases to `test-decide-sync.js`.
-  - Effort M.
-
-### DG-08 [P2] `mergeItems` revives the first tombstone with a matching key while a live twin exists → two live rows · confidence: high · evidence: E1
-- **Asset at risk:** The shopping list (no duplicates).
-- **Where:** `v2/src/features/shopping/logic.js:123-125`. `out.find` takes the first key match, even a deleted one. `shopAdd` (`v2/src/features/shopping/shopping.js:76`) already prefers live rows, but `mergeItems` does not. `friendMerge.js:42` skips deleted rows and creates a new `fr-` row, which is how the twin appears.
-- **How it corrupts:** Delete Ingwer → a friend adds Ingwer (new row) → "Zutaten auf die Liste" for a recipe with Ingwer → the tombstone is revived next to the friend row.
-- **Proof:** `tombstone-first + live twin, add recipe Ingwer -> live rows: 2`.
-- **Guard:** Prefer a live match, as `shopAdd` does: `out.find(live && key) || out.find(key)`. Add a test. Effort S.
-
-### DG-09 [P2] The same real-world item gets several list keys and partner/device adds union by id, so duplicates never merge · confidence: high · evidence: E1
-- **Asset at risk:** The shopping list (no duplicates). This is the FR-01 contributor the orchestrator flagged.
-- **Where:**
-  - `v2/src/features/shopping/logic.js:50-52`: `itemKey` = name text + unit, with descriptors kept.
-  - `logic.js:87`.
-  - `v2/src/features/shopping/listMerge.js:8-16`: union by id.
-- **How it corrupts:** Each of these becomes its own row that never merges:
-  - `1 Stück Ingwer 🛒` → `ingwer|stück`
-  - `1 Stück Ingwer, gerieben 🛒` → `ingwer, gerieben|stück`
-  - the catalog tile or a friend → `ingwer|`
-  - phone and laptop each adding "Ingwer" offline → 2 rows after sync
-  
-  Separately, a merged line `"½ TL gemahlene Nelken , 1 TL Ingwerpulver"` becomes one item.
-- **Proof:** 7 recipes → 3 Ingwer rows from one action, plus the catalog key `ingwer|`; `phone + laptop … -> 2 rows`.
-- **Guard:**
-  - Key on a normalized base name: strip descriptors after a comma and map to the catalog entry via `ingMatchCat`. Merge across units by keeping the amounts per unit inside one row.
-  - In `syncStep`, offer a dedupe of live rows that share the same base key.
-  - Effort M.
-
-### DG-10 [P2] Recipes generated by the assistant are saved in the UI language (non-German content reaches Drive) · confidence: med · evidence: E2
-- **Asset at risk:** The rule that Drive content is German. These are new recipes, not translations of existing ones, so nothing is lost. But matching against the German catalog and staples, and v1/Claude, all assume German.
-- **Where:** `v2/src/ai/prompts.js:77` ("Antworte IMMER auf ${langName}") covers the recipe JSON too → `v2/src/features/assistant/assistant.js:202` and `:230` `addRecipe(recipe)`. Capture is clean: `v2/src/features/capture/parse.js:72` and `:95` force German.
-- **How it corrupts:** In the English UI, "Generate recipe" → Save → an English `name`/`ingredients` in `rezepte.json`. Its shopping items fall into "Aus Rezepten" and get keys that are not German ("ginger" ≠ "Ingwer").
-- **How to confirm:** Generate a recipe in the English UI and inspect the `recipe` JSON.
-- **Guard:** Have the model write the recipe JSON in German (only `intro`/`text` in the UI language), as capture already does. Effort S.
-
-### DG-11 [P2] SCHEMA.md drift: the contract promises more safety than the code gives · confidence: high · evidence: E1/E2
-- **Asset at risk:** Writer behavior of external writers (project-Claude, v1).
-- **Where:** `SCHEMA.md` vs `v2/src/data/decideSync.js` and `v2/src/data/migrate.js`. Mismatches:
-  - (a) `SCHEMA.md:181-182` says "Neuere `updated`-Marke gewinnt". In code, a clean device pulls whenever the stamps **differ**, including when the remote is older (`decideSync.js:37`).
-  - (b) `SCHEMA.md:194` says "App neu öffnen → übernimmt". In code, sync runs only on a sign-in event (`v2/src/app.js:96`), so a resumed PWA does not pull.
-  - (c) `SCHEMA.md:195-196` limits the overwrite risk to "nicht gepushte Änderungen mit neuerer Marke". In reality any app save, or the other device, overwrites (DG-01). The `conflict` state is not documented at all.
-  - (d) `SCHEMA.md:170` says unknown fields pass through. True per recipe, but `serializeCollection` (`migrate.js:45-51`) drops **top-level** unknown keys and forces `version: 3` even on a v4 file. Probe: `future: version out 3 | top-level keys [version, updated, recipes]`.
-  - (e) There is no contract for `einkaufsliste.json` (ids required, tombstones, `updated` per item), although any Drive-for-Desktop writer can reach it (see DG-04).
-  - (f) The example id `r01` collides with a real recipe (DG-06).
-- **Guard:** Update SCHEMA.md to match the code, or the code to match it. Refuse to save over `version > SCHEMA_VERSION`, and keep top-level keys (`{...collection, version, updated, recipes}`). Effort S.
-
-### DG-12 [P3] Friend replay window: a crash between the list save and `patchInbox(seen)` double-counts a suggestion · confidence: high · evidence: E1
-- **Where:** `v2/src/data/friendInbox.js:93-99` vs the comment at `:3` ("Abbruch dazwischen = harmlos").
-- **How it corrupts:** The tab is killed after `applyExternal` saved but before `seen` was stored → the next pull applies the same suggestion again (qty +1).
-- **Proof:** `re-pull before seen persisted: Ingwer qty 2`.
-- **Guard:** Store `seen` before the list save (idempotent re-apply), or make the friend row id `fr-<uuid>` the dedupe key (skip if a row with that id exists). Effort S.
-
-### DG-13 [P3] Deletion markers (tombstones) are pruned after 30 days, so a device offline longer brings deleted items back · confidence: high · evidence: E1
-- **Where:** `v2/src/features/shopping/listMerge.js:38-41`.
-- **Proof:** `device offline > 30 d syncs again -> resurrected: 1`.
-- **Guard:** Keep tombstones until every known writer has synced past them (store `lastSync` per author), or don't let items older than the prune horizon revive. Effort M; low practical risk for two users.
-
-### DG-14 [P3] A list file in an unexpected shape is silently overwritten with the local list · confidence: high · evidence: E1
-- **Where:** `v2/src/data/listSync.js:92` (a non-array `items` → `[]`) and `:97-98`. There is no `version` check on `einkaufsliste.json`.
-- **How it corrupts:** A future-format or hand-edited file (`{"version":2,"entries":[…]}`) → `writeRemote=true` → replaced by the local items.
-- **Proof:** `items:null: writeRemote=true`.
-- **Guard:** Write only if `remote.items` is an array and `remote.version <= 1`; otherwise show `error`. Effort S.
+### DG-22 [P3] The `Liter` parse change makes one transitional duplicate list row per open "Liter …" item · confidence: high · evidence: E1
+- **Asset at risk:** The shopping list (no duplicates; FR-01 lens).
+- **Where:** `v2/src/data/derive.js:97` and `:144` (`"1 Liter Gemüsebrühe"` → unit `l`, item `Gemüsebrühe`; previously item `Liter Gemüsebrühe`). Identity is `logic.sameKey(name)`.
+- **How it corrupts:** A list that still has an open row "Liter Gemüsebrühe" (added by ≤ v2.17) gets a second row "Gemüsebrühe" the next time a recipe with that line is added after the update. 8 of 839 snapshot lines are affected (Gemüsebrühe ×7, Milch ×1). It is a one-time effect, and going forward the change is an improvement, because it now matches the catalog tile.
+- **Proof:** `sameKey("Liter Gemüsebrühe") = "liter gemüsebrühe"` vs `sameKey("Gemüsebrühe") = "gemüsebrühe"`. Old/new parse diff: 8 lines.
+- **Guard:** Have `sameKey` strip a leading unit word ("liter ") the same way the parser does, or accept it as a one-off and mention it in the release notes. Effort S.
 
 ## Checked and refuted
-- **Friend replay after `trimSeen`:** impossible today. The server caps open suggestions at 100 (`supabase/migrations/20261004182000_i3_friend_inbox.sql:145`) and `seen` keeps 300.
-- **Script/HTML in a friend suggestion name:** `v2/add.html` renders with `textContent` (`:106`, `:193`), the app list escapes (`shopping.js:343` via `esc`), and the server caps names at 80 characters. Clean.
-- **`addRecipe` id override:** `{id, ...fields}` would let a `fields.id` win, but every caller passes whitelisted objects (`ai/parse.js:59-97` `coerceRecipe`, `form.js:80-95`). There is no `id` key in any of them, so this is not reachable today.
-- **`detail.js:90` / `:98` mutating `r.rating` / `r.favorite`:** these run after `updateRecipe` replaced the object, so they only touch an orphaned display object. Harmless.
-- **Race between `syncWithDrive` and an edit during the network round trip:** it settles to the DG-01 outcome. There is no extra loss path.
-- **Recipe-side "Ingwer" source:** recipes are never written into the list without an explicit "Zutaten auf die Liste" / plan action (`detail.js`, `planner.js` → `addItemsToList`). No background path adds recipe items.
+- **`origin` read by the live (main) code:**
+  - `origin/main` validates a file with `origin:"user"` and `origin:"shared"` plus an unknown field (0 errors), pulls them, keeps them through a form-style `Object.assign` edit and a three-way merge with a Claude edit, and writes them back (probe `p_main_origin`: `after pull origin: user shared {"kcal":400} | after local edit origin: user | 3-way origin: user … Claude tip`).
+  - HEAD gives the identical result. No field loss in either direction.
+- **v1 (`index.html`) and `origin`:** `normalize` (`index.html:503`) and edit (`:1420` `Object.assign(ed, fields)`) keep the whole object, so `origin` survives v1 saves. A v1-created recipe has no `origin` and counts as a base recipe, which is consistent with the SCHEMA "fehlt = Grundrezept".
+- **Non-string `origin` from an external writer:** `inspectRemote` keeps it (null/5 kept, no crash). `store.updateRecipe` drops it on edit so the edit still validates (`store.js:113-117`). The import refuses that recipe with a named error. Safe.
+- **Fresh install + import before sign-in → stale seed overwrites Drive:** refuted. `loadLocal` seeds `recipesBase` = snapshot (`sync.js:90`), so the first sync is three-way, not "prefer local".
+- **Personal-only difference on an id the base doesn't know** (e.g. ♥ on an imported recipe that another device also imported): no fork, and Drive's personal state wins (`recipeMerge.js:123`). This predates the delta and is an edge case. Not reported.
+- **Import into a fresh install duplicates edited base recipes** (probe case 3: 3 renamed). This is the documented rule "gleiche id, anderer Inhalt → neue id" (`SCHEMA.md:260-262`). Nothing is lost. Design, not a bug.
+- **HTML in an imported name:** it is stored raw by design. Every render path for names uses `esc()` (import sheet `importFile.js:18`, similar-note `form.js:18`). Clean.
+- **Marker leaking into storage:** it is an enumerable symbol. `JSON.stringify` and `structuredClone` drop it (probe), so IDB and the file never see it.
 
 ## Invariants verified clean
-- **Round trip on the real `rezepte.json`:** 105 recipes, 0 validation errors, 0 defaults added, 0 fields lost, 0 fields changed, `updated` kept, `toFileString` stable after load → save → load. Unknown **per-recipe** fields (e.g. `nutrition`) pass through.
-- **Real `rezepte.json` ids:** no duplicates, none missing.
-- **`makeIdFactory`:** 1000 calls in the same millisecond → 1000 unique ids, existing ids avoided.
-- **List item ids:** `newItemId` (covered by an existing test) and `fr-<uuid>` friend ids don't collide.
-- **Persistence wiring:** `store.persist()` is the only recipe persist path and passes `recipesDe` (`v2/src/store.js:62-65`). `listSync` never touches `rezepte.json`. `localizeRecipes` does not mutate. The language snapshots are only read for display.
-- **Empty or truncated Drive file (recipes):** throws `SyntaxError` → local data kept, no write.
-- **Capture flows:** recipe content is forced to German.
-- **`decideSync` conflict rule:** it does not overwrite local data during sync. The loss happens later, at save time (DG-01).
+- **Canonical German:** every outbound path is fed `recipesDe` or `getRecipeDe`. Persist: `store.js:96` `saveChange(change)` on the IDB list. Exports: `menu.js:40-41` `getRecipesDe()`. Share: `detail.js:180` `getRecipeDe`. Edit: `detail.js:193`. List: `detail.js:163`, `planner.js:169`. `lastCooked` is written with `de-DE` (`detail.js:201`). The EN-default UI (#43) edit probe stored 0 English names out of 105.
+- **Round trip:** the snapshot (105) goes through `inspectRemote` → `mergeRecipes` → `toFileString` with no field lost. Unknown per-recipe fields and `origin` pass the sync path on both HEAD and main.
+- **Export → import of the seed / own cookbook:** 0 added, personal fields stripped (`feedback` not imported).
+- **The ingredient master (`ingredients.js`, `ingredientMatch.js`, `units.js`, `data/ingredients.json`)** is pure and not imported by any app path yet, so nothing persists it.
+- **Device-only settings:** `assistantInstructions` (kv) and per-recipe portions (localStorage, `portions.js:2`) never reach `rezepte.json`.
+- **`importRecipes`:** it re-plans against the queued IDB list (`store.js:170-176`), so an id clash that appears in between never overwrites. The DG-15 fork handles ids that exist only on Drive.
 
 ## Definition drift
-None in the agent file: every path it names exists. Fact correction for FR-01: Ingwer appears in **7** recipes (one as "Ingwerpulver" inside a merged line), not 6. The repo-root `rezepte.json` is untracked and from 2026-06-08, so it is a stale copy, not the live Drive state.
+- The repo-root `rezepte.json` is gone; I used `v2/data/rezepte.snapshot.json`.
+- The agent file names `data/decideSync.js` as the recipe sync decider. Since v2.15.1 that is `syncRules.recipeSync` + `recipeMerge.mergeRecipes` (three-way), and `decideSync` only picks `prefer` without a base.
+- The DG-15…18 findings of the first v2.18 pass were never saved to this file.
 
 ## Cross-lens notes
-- → bug-hunter: `parseIngredient` turns `"½ TL gemahlene Nelken , 1 TL Ingwerpulver"` into one item (two ingredients on one line).
-- → test-warden: these are untested:
-  - the form edit path under a language overlay (DG-02);
-  - `mergeList` with id-less items (DG-04);
-  - `replaceAll` with an invalid key (DG-03);
-  - `decideSync` with non-canonical stamps (DG-07);
-  - `mergeItems` revival when a tombstone and a live twin exist (DG-08).
-- → ux-curator: the conflict and validation states are only shown in a status line. "Offline — lokale Daten" is shown for a data error.
+- → release-captain: issues #48, #49, #50 and #83 are still `open` on GitHub although fixed on `next` (2b27980, 6dd0c52, 653dcb9).
+- → test-warden:
+  - No test covers "own export with an unknown field / http image → 0 imported" (DG-19), or a fork copy sharing photo ids (DG-21).
+  - #87 reports the DG-17 test flaking on a millisecond boundary of two `updated` stamps.
 
 ## Summary
-P0: 3 · P1: 3 · P2: 5 · P3: 3 (14 findings).
-
-The most valuable fixes are **DG-01** and **DG-02**. DG-01: a recipe save PATCHes Drive without reading it, so any recipe Claude adds is destroyed by the next ♥ on a device that hasn't re-pulled. DG-02: editing in English writes English into the German source. For FR-01, **DG-04** is the root cause, shown with E1 evidence. Fix it with deterministic ids for inbound items and a one-time dedupe.
+New: P0 0 · P1 0 · P2 1 · P3 3. All 18 previous findings are fixed (DG-01…DG-18). The most valuable item is **DG-19**: the "own backup never duplicates" promise breaks for recipes with an unknown field or a non-https image. Fix it by comparing against the existing recipe after the same import filter.
 
 ## Verdict
-**The data layer is not trustworthy today:** round-trips are clean, but external edits are blindly overwritten (DG-01), editing in a non-German UI persists translations (DG-02), and malformed inbound files can wipe or truncate the cookbook (DG-03, DG-05, DG-06). Fix DG-01 to DG-05 before relying on Claude-via-Drive or on more than one device.
+**The data layer is trustworthy for v2.18:** no path writes translated text, loses `origin` or unknown fields, or overwrites a recipe. The only new risks are duplicate-copy edge cases (P2/P3), none of which block the release.
