@@ -1,6 +1,6 @@
 # 03 · Questions and checks
 
-> Updated **2026-10-04** after Marcel's **third** round (see Part 3, Round 3). Earlier: 2026-10-02 second round. Answered questions are in the
+> Updated **2026-11-18** after the **replan round** (Part 3, Round 4). Earlier: 2026-10-04 third round, 2026-10-02 second round. Answered questions are in the
 > log in Part 3. Part 1 holds only what is still open, plus Marcel's task list.
 
 Three parts. **Part 1** is for Marcel: open questions. **Part 2** is for Claude Code: facts to
@@ -10,7 +10,9 @@ has been answered. Tick as you go; write the answer next to the question.
 ## Part 1 · Open questions for Marcel
 
 > **2026-10-04:** L1, A10, C7 (name), D9, A11, E6, G7 are answered, see Part 3 · Round 3. Their old text
-> is kept below for the record. **Still open: D10** (backend scope), nutrition model (V2 L1). C7 domain: `citchen.de` bought 2026-11-16.
+> is kept below for the record. C7 domain: `citchen.de` bought 2026-11-16.
+> **2026-11-18:** D10 and D11 answered, dates replanned (Part 3 · Round 4; plan view in `ROADMAP-V3.md`).
+> **Still open:** V1-R (keep v1 at `/v1/` for 30 days?), D11 timing (May 2027), nutrition model confirmed with v2.19a.
 
 ### Blocking — needed before the V3 plan can be written
 
@@ -171,6 +173,32 @@ No answers needed from Marcel here. Changes since 2026-10-01 are marked.
 - [ ] **C-19.** *(not applicable for v3.0: no monetisation)* DSA trader declaration.
 
 ## Part 3 · Answered
+
+### Round 4 (2026-11-18) — replan for the new pace
+
+Context: the agent pipeline builds the issues (29 PRs merged 1–18 Nov), Marcel has 12 testers, the
+Play developer account and `citchen.de`. Full decision table with effects: `ROADMAP-V3.md` §6.
+
+| ID | Question | Marcel's answer |
+|----|----------|-----------------|
+| T-1 | Time per week until launch | 4–6 h/week |
+| T-2 | Launch date | End of Feb 2027 (planned Fri 26 Feb; cutoff 31 Mar) |
+| T-3 | Play account | Personal, identity check pending |
+| T-4 | Start the closed test early on a TWA of today's app | Yes, December |
+| T-5 | What may move to v3.1 | Gesund & Langlebig hub, default photos |
+| T-6 | Format 4 / English stored data | v3.1 (V2 P6 dropped) |
+| T-7 | P3 / P4 phone tests | Marcel does them the week of 18 Nov |
+| T-8 | Release rhythm | Twice a week |
+| D10 | Accounts + recipe sharing | First release after the cut items (v3.2, May–Jun 2027) |
+| D11 | Sharing model | Public browsing too, with ratings/likes; timing decided after launch. Overrides E4 and A6 #5 ("no public links"); comments/feed stay out |
+| H-1 | URL layout | `citchen.de` = landing, app at `/app` |
+| H-2 | Supabase plan | Free + keep-alive until accounts |
+| H-3 | Testers and the AI key | AI optional for testers |
+| H-4 | Must-haves in v3.0 | Home-screen rethink, feedback form via backend (not: accessibility pass, iPhone as tested target) |
+| H-5 | Scope freeze | 15 Dec 2026 |
+| H-6 | Small wins before the freeze | M1–M3 nutrition goal + macro chips |
+| H-7 | When Marcel's own data moves | Right away in December |
+| H-8 | Partner + iPhone | Partner as tester, iPhone best-effort |
 
 ### Round 3b (2026-10-05) — recipe architecture
 

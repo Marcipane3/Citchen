@@ -19,6 +19,11 @@ can't run). WebFetch/WebSearch are not needed.
 >   created by an agent session cannot work. It was deleted; **Marcel creates it** at
 >   claude.ai/code/routines with the repo attached, `Task` allowed and the prompt below.
 >
+> - **Planned change (Marcel, 18 Nov): two releases a week.** The Wednesday 07:50 run becomes a full release
+>   prep (not retry-only), so releases go out Wednesday + Saturday. Marcel edits the task at
+>   claude.ai/code/routines; the `/release-prep` skill's retry-mode wording is updated in the same interactive
+>   session. Until then releases stay weekly. Watch the weekly allowance: release prep is the heavy run.
+>
 > Every task: repository `Marcipane3/Citchen`, no connectors, model Sonnet 5.5, push notification on.
 > Reasons for every change: `AGENT-PIPELINE.md` §8 and §11.
 

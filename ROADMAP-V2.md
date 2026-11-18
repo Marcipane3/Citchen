@@ -5,9 +5,9 @@
 > **Not here:** domain, Play Store, onboarding tour, default photos, clean-up, anything after
 > v3.0 → see **[ROADMAP-V3.md](ROADMAP-V3.md)**. What to do next → **[ROADMAP.md](ROADMAP.md)**.
 >
-> Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-10-27** (QA fleet findings of
-> 2026-10-12 placed as Epic T; v2.15b merged, v2.16 built, v2.16.1 update fix, v2.16.2 sync tweaks, v2.17 find recipes) · Current build: **v2.17** (`/v2`, 358 unit tests + 46
-> end-to-end tests in `v2/e2e/` + the Supabase test run `supabase/tests/run.sh`; v2.15b merged with PR #15 on 2026-10-26).
+> Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-11-18** (replan with Marcel: two
+> releases a week, scope freeze **15 Dec**, P6 → v3.1, M1–M3 in, E3/QW-6/QW-7 → v3.x; dates in §2) ·
+> Live: **v2.18** (`/v2`, release PR #98 merged 18 Nov).
 
 ---
 
@@ -17,7 +17,7 @@ An item belongs to **V2** if it can ship on today's address and architecture **a
 into V3 unchanged. It belongs to **V3** if it needs the new domain, the Play build, the clean-up,
 or is explicitly scheduled after v3.0 by Marcel's answers (`docs/v3/03-QUESTIONS.md`).
 
-After the **scope freeze (31 Dec 2026)** the V2 list does not grow with new features: new ideas go
+After the **scope freeze (15 Dec 2026, moved from 31 Dec on 2026-11-18)** the V2 list does not grow with new features: new ideas go
 to `ROADMAP-V3.md` tagged v3.x. Bug fixes always go to V2 as long as v2 is the live app.
 
 **Markers used below**
@@ -28,36 +28,30 @@ to `ROADMAP-V3.md` tagged v3.x. Bug fixes always go to V2 as long as v2 is the l
 
 ---
 
-## 2. Version plan (draft)
+## 2. Version plan (replanned 2026-11-18)
 
-One release ≈ one 2–3 h test session for Marcel. Dates are targets, not promises. The three
-**gate** items (★) must land before V3 slice 1; everything after them can run in parallel to the
-V3 slices in Q1 2027 if time is short (risk R19).
+One release ≈ one ~1 h device checklist for Marcel; **two releases a week** (release prep Wednesday +
+Saturday, Marcel's answer of 18 Nov: 4–6 h/week). Dates are targets, not promises. The gate items (★)
+must land before V3 slice 1 (domain switch, **Sat 5 Dec**). After the switch these releases go live on
+`citchen.de/app` and reach the closed testers at once. Cut order if December runs late: R5 → R4 →
+M1–M3 move to v3.1 (R2, R3, R6, L2 are protected).
 
 | Version | Theme | Items | Target | Status | Blocked by |
 |---------|-------|-------|--------|--------|------------|
-| **v2.14** | Friends link | I3 | 4 Oct 2026 | ✅ live (PR #8 merged 4 Oct) · live test open (P4) | — |
-| — (no release) | ★ Safety net | P2 end-to-end tests | mid Oct | ✅ 12 Oct | — |
-| **v2.14.1** | Hotfix (found by P2) | Settings listeners broke every later save | 12 Oct | ✅ live (PR #9, 19 Oct) | — |
-| **v2.15** | ★ One sync core | P1 | late Oct | ✅ built 19 Oct · deploy = merge | — |
-| **v2.15.1** | 🔴 Hotfix: safe recipe sync | T1 · T2 · T3 · T11 (+ T12 core, T8 recipe tests) | Oct | ✅ merged 19 Oct (PR #11) | — |
-| **v2.15.2** | 🔴 Hotfix: shopping list data safety (FR-01 root cause) | T4 · T7 · T10 + their T8 tests | Oct | ✅ merged 26 Oct (PR #12) | — |
-| **v2.15.3** | Shopping list: one identity rule + Lager beats 🛒 (FR-01 duplicates) | T5 · T6 + their T8 tests | Oct/Nov | ✅ merged 26 Oct (PR #13) | ✅ Marcel: T5 yes, T6 yes (26 Oct) |
-| **v2.16b** | Shopping list clarity | T9 | Nov | ✅ merged 26 Oct (PR #14) | — |
-| **v2.15b** | Backend hardening | P7 (migrations in repo, advisor check, pause/backup plan) | Nov | ✅ merged 26 Oct (PR #15) · ✅ migration applied on prod + advisors clean (18 expected warnings), 26 Oct | D10 only for V3's final scope |
-| — (Marcel) | ★ Sharing proof | P3 two-account test, P4 live friend test | Oct | open since v2.11 | Picker key + partner as test user |
-| **v2.16** | AI housekeeping | Q1 Sonnet 5.5 capture + model config · Q2 prompt caching · Q3 token measurement | early Nov | ✅ built 26 Oct (pulled forward) · deploy = merge **+ Marcel's capture check on 10 real photos/URLs** | — |
-| **v2.17** | Find recipes faster | F4 (b) (c) (d time) (e) — lean cut, Marcel 2026-10-27 | mid Nov | ✅ built 27 Oct · deploy = merge | — |
-| **v2.17b** | Photo grid | F4 (a) | with V3 default photos (slice 7) or once own photos exist | later | photos |
-| **v2.18** | Recipe export / import | G2 | ✅ 18 Nov | ✅ built 18 Nov (#25 #26 #28 #29 #30 #35 #36 #39 #42 #43 #48 #49 #50 #51 #52 #83 #95) · deploy = merge; ahead-of-plan pieces ride along: Q4.1/Q4.2 (#69 #70), G3.1 (#72), Q5 (#79), R2.1/R3.1 (#61 #62), QW-2/4/8 (#63 #65 #64), P8.1/P8.2 (#26 #43) | — |
-| — (no release) | ★ Data-model spike | R1 ingredient model + unit spec + format-4 design (shared with P6, P7, D10) | Nov, before format 4 is frozen | proposed | — |
-| **v2.19** | Ingredient master + calories | R2 → R3 → L2 → L3 (L1 resolved by R2, proposed) | Dec | planned (grows to L; split if needed) | R1 |
-| **v2.19b** | Structured recipe editor + capture | R4 · R5 · R6 | Jan 2027 | proposed | R2, R3 |
-| — | **Scope freeze** | no new v2 features after this | **31 Dec 2026** | — | — |
-| **v2.20** | Assistant: edits recipes + editable instructions | G3 · Q4 | Jan 2027 | planned · G3 and Q4 planned (questions answered) | E6 ✅, A11 ✅ answered |
-| **v2.21** | Move to the new app + English | P5 · P6 (format 4 incl. R1 fields) · P8 | Jan 2027, **before the domain switch** | planned · **P8.1 ready**, P8.2 planned (P8-Q1 answered) | C-20 ✅ same repo, D8 ✅ English |
-| **v2.22+** | Small wins *(proposed)* | M1–M3, E3, QW-2, QW-4, QW-6 | Q1 2027, only if time | backlog | L2 for M1–M3 |
-| v2.x final | Fallback | fixes only, then read-only for 30 days after v3.0 | May 2027 | — | V3 launch |
+| v2.14 … v2.17 | Friends link · sync core · data safety · AI housekeeping · find recipes | see the shipped log (§5) | Oct 2026 | ✅ live | — |
+| **v2.18** | Recipe export / import | G2 + ahead-of-plan pieces: Q4.1/Q4.2 (#69 #70), G3.1 (#72), Q5 (#79), R2.1/R3.1 (#61 #62), QW-2/4/8 (#63 #65 #64), P8.1/P8.2 (#26 #43) | 18 Nov | ✅ **live 18 Nov** (release PR #98) · device checklist open | — |
+| — (Marcel) | ★ Sharing proof | P3 two-account test, P4 live friend test | **week of 18 Nov** | open since v2.11 — **last V2 gate items** | Picker key + partner as test user |
+| **v2.20** | Assistant edits recipes | G3.2 (#73, PR #87) · G3.3 (#74) · Q4 ✅ already live in v2.18 | **Wed 25 Nov** | in review | — |
+| **v2.19** | Ingredient master + structured items | R2 (master 70 → ~150 ingredients; Marcel spot-checks 20) · R3 `items[]` + re-link on load | **Sat 28 Nov** | R2.1/R3.1 ✅ in v2.18 · rest planned | ✅ R1 accepted 10 Nov |
+| **v2.21** | ★ Move to the new address | P5 move helper · (P8 ✅ in v2.18 · P6 → v3.1, Marcel 18 Nov) | **Wed 2 Dec** — must be live **before** the switch on 5 Dec | planned | — |
+| *(V3)* | *Domain switch = v3.0-a1* | *`ROADMAP-V3.md` slice 1; export window for existing users 2–5 Dec* | *Sat 5 Dec* | — | P5 |
+| **v2.19a** | Calories | L2 `estimateNutrition` + "≈ 520 kcal" · L3 outlier tool (R1-Q7 split) | **Wed 9 Dec** | planned | R3 |
+| **v2.19b** | Structured editor + ownership | R6 `origin`/`forkedFrom` + "reset to original" · R4 editor with ingredient picker | **Sat 12 Dec** | planned | R3 |
+| — | **Scope freeze** | no new v2 features after this | **Tue 15 Dec 2026** | — | — |
+| **v2.19c** | Capture maps to the master | R5 + capture check on 10 real samples | **Wed 16 Dec** | planned | R3 |
+| **v2.22** | Nutrition goal | M1–M3 (Marcel 18 Nov: in before the freeze) | **Sat 19 Dec** | planned | L2 |
+| v2.17b | Photo grid | F4 (a) | → **v3.1** with the default photos | moved | photos |
+| v2.x final | Last v2-named release | After 19 Dec every release is `v3.0-…` (`ROADMAP-V3.md` §3); 19 Dec – 6 Jan fixes only | Dec 2026 | — | — |
 
 **Versioning rules:** `v2.N` per release (`BUILD` = `YYYY-MM-DD-v2.N`, SW `CACHE` = `koch-v2.N-1`);
 hotfix = `v2.N.1`; test-only or doc-only work gets **no** version bump. Every release: changelog
@@ -122,14 +116,14 @@ core, end-to-end tests."
 |---|------|---------------------|-----|-----|--------|
 | **P1** | ✅ **One sync core** (check C-7, US-22) — *2026-10-19, v2.15* | One engine behind recipes (file-level last-write-wins + `decideSync`) and the shopping list (item merge + tombstones). The friend inbox (I3) stays its own channel. **Done:** both instances pass the full existing suite plus new two-instance tests; no behaviour change visible to the user; e2e specs 07 + 08 green. Also fix the race P2 found: linking the partner list while a push is in flight silently loses the link. → `v2/src/data/syncCore.js` (engine: queue, single-flight, atomic meta patches, find/create/read/write, status) + `syncRules.js` (`lastWriteWins`, `itemMerge`); `sync.js` / `listSync.js` are now configuration. 20 two-device tests in `v2/tests/test-sync-core.js`. Link race fixed (known-bug test now a regression test); also: a save made during a running pull is no longer overwritten. A third file (shared weekly plan, C-28) = one more rule. | P1 | L | ✅ |
 | **P2** | ✅ **End-to-end browser tests** (check C-13) — *2026-10-12* | Playwright, dev-only (nothing ships to users). Flows: first run, language switch, add/edit recipe, capture review, cooking mode, shopping list, partner sync, offline start, update from previous build; planner → shopping at lower priority. **Done:** suite runs locally with one command and is green on the current build. → `v2/e2e/` (`npm --prefix v2/e2e test`), 11 specs / 27 tests (one pins a known bug for P1), fake Google + Drive + Picker + Anthropic, no network. Found and fixed the v2.14.1 bug on its first run. | P1 | L | ✅ |
-| **P3** | **Two-account sharing proof** (US-06) — *Marcel* | The I2 test with your partner, steps in `v2/docs/SHARING.md`. Needs first: Google Picker API key in `drive.js` + partner added as OAuth test user. **Done:** two real accounts, Android + iPhone, both edit offline, no item lost. | P1 | S | Oct |
-| **P4** | **Friends link live test** (I3) — *Marcel* | ✅ PR #8 merged 2026-10-04. Open the live app, create a link, a real friend adds an item from their phone. **Done:** item arrives with "von …" after reopening. Watch: Supabase free projects pause after ~7 days without traffic. | P1 | S | Oct |
-| **P5** | **"Move to the new app" helper** (US-04, risk R13) | Exports browser-only data (stock, fridge, profile, settings, **friends-link owner token**) before the domain switch; warns about unsynced edits; tells the user the AI key must be re-entered. **Done:** export on old address → import on new address restores everything except the key. | P1 | M | v2.21 |
-| **P6** | **v2 reads file format 4** (check C-27) — *D8 = English stored data, decided 2026-10-04* | A v2.x release that can read the new format **before** V3 writes it, so the 30-day fallback keeps working. Language-neutral category keys; German/Danish/Spanish become display translations. | P1 | M | v2.21 |
+| **P3** | **Two-account sharing proof** (US-06) — *Marcel* | The I2 test with your partner, steps in `v2/docs/SHARING.md`. Needs first: Google Picker API key in `drive.js` + partner added as OAuth test user. **Done:** two real accounts, Android + iPhone, both edit offline, no item lost. | P1 | S | **week of 18 Nov** |
+| **P4** | **Friends link live test** (I3) — *Marcel* | ✅ PR #8 merged 2026-10-04. Open the live app, create a link, a real friend adds an item from their phone. **Done:** item arrives with "von …" after reopening. Watch: Supabase free projects pause after ~7 days without traffic. | P1 | S | **week of 18 Nov** |
+| **P5** | **"Move to the new app" helper** (US-04, risk R13) | Exports browser-only data (stock, fridge, profile, settings, **friends-link owner token**) before the domain switch; warns about unsynced edits; tells the user the AI key must be re-entered. **Done:** export on old address → import on new address restores everything except the key. **Why it can't slip (2026-11-18):** the custom domain on GitHub Pages redirects the whole old address on 5 Dec, so the export has to happen on the old address between 2 and 5 Dec. Also: redirect pages for `/v2/…` and friends' `add.html` links (with slice 1). | P1 | M | **v2.21, Wed 2 Dec** |
+| **P6** | ~~**v2 reads file format 4**~~ **→ dropped, format 4 moves to v3.1** (Marcel 2026-11-18: one app on one address, no old reader left to protect; the migration itself is in `ROADMAP-V3.md` v3.1) (check C-27) — *D8 = English stored data, decided 2026-10-04* | A v2.x release that can read the new format **before** V3 writes it, so the 30-day fallback keeps working. Language-neutral category keys; German/Danish/Spanish become display translations. | — | — | v3.1 |
 | **P7** | ✅ **Backend hardening** (D9; check C-30) — *v2.15b: `supabase/tests/run.sh` rebuilds a fresh Postgres from `supabase/migrations/` only and tests all 9 RPCs as `anon` (no table access, RLS on, fixed `search_path`, exactly the `fl_*` functions executable) = schema restore proven; new migration `20261026220000_p7_hardening.sql` (AR-12: 30 new lists/hour, lazy clean-up of abandoned lists, cap 500 kept); DG-12: list + applied suggestion ids in one IndexedDB transaction (`friendSeen`); app names `rate`/`capacity` honestly; secrets scan clean; dev/prod: local test DB + optional dev project per device (`localStorage["koch.supabase"]`); **decision: Free + keep-alive** (`.github/workflows/supabase-keepalive.yml`), Pro when V3 slice 1b holds data Drive can't rebuild — `docs/v3/adr/ADR-D9-supabase-backend.md`, how-to `supabase/README.md`. **Left for Marcel:** apply the migration + run the security advisor on prod (this session's Supabase connector sees a different account).* | I3 already runs on Supabase. Bring it to production standard on today's app: schema as migration files in the repo, dev/prod separation, row-level security + Supabase security advisor clean, secrets review, decision *free + keep-alive* vs *Pro $25/mo* (free pauses after 1 week, no backups), restore tested. From the QA fleet: `fl_create` is an open capacity sink — anyone can fill the 500-list cap (AR-12, add a rate limit / proof of origin); close the crash window between the local save and remembering `seen` (DG-12). **Done:** a fresh project can be rebuilt from the repo; ADR written. | P1 | M | v2.15b |
-| **P8** | **English as the default interface** (D8a) *(status=tracking — split into P8.1, P8.2, 2026-10-27)* | New users see English first; DE/DA/ES stay selectable; existing users keep their choice. Docs/Guide copy checked; remaining hardcoded German strings in UI paths moved into i18n (QA UX-06). **Done:** first-run e2e test in English. | P1 | S | v2.21 |
-| **P8.1** | **Hardcoded German UI strings into i18n (QA UX-06)** *(status=ready)* | Move the remaining hardcoded German strings in UI paths into `i18n.js`, in all 4 languages (de/en/es/da). Known spots (line numbers may have drifted — `grep` for the German text): `assistant.js` "Speichern fehlgeschlagen: …" (alert, ~237) · `export.js` the two clipboard alerts (~27, ~29) · `helpers.js` "+ Zeile hinzufügen" (~134; an `addRow` key already exists at `i18n.js:174`) · `cookbook.js` FAB `title="Neues Rezept"` (~196) · `detail.js` heart `title="Favorit"` (~39) · `settings.js` `title="anzeigen"` (~27). `planner.js:162` already uses `t("planner.needPlan")` — leave. **Accept when:** (1) none of the listed German literals remain in the `.js` files above; (2) each new key exists in all 4 languages (extend the key-parity check in `v2/tests/test-i18n.js` with the new keys); (3) with the UI set to English, those six spots render English (one assertion each, unit-level for helpers, e2e `02-language.spec.js` for the two visible tooltips if cheap); (4) German wording unchanged for German users; (5) `npm test`-equivalent (`node v2/tests/run.js`) green. **Files:** `v2/src/i18n.js`, `v2/src/features/assistant/assistant.js`, `v2/src/features/cookbook/export.js`, `v2/src/ui/helpers.js`, `v2/src/features/cookbook/cookbook.js`, `v2/src/features/cookbook/detail.js`, `v2/src/features/settings/settings.js`, `v2/tests/test-i18n.js`. No behaviour change, no data change. | P1 | S | v2.21 (can ship earlier — no dependency) |
-| **P8.2** | **Switch the default language to English** *(status=planned — P8-Q1 answered: yes)* | `getLang()` currently falls back to `"de"` when nothing is stored. **Open question:** P8-Q1 what "existing users keep their choice" means for users who never picked a language (see block below the table). | P1 | S | v2.21 |
+| **P8** | ✅ **English as the default interface** (D8a) — *v2.18: P8.1 (#26) + P8.2 (#43)* | New users see English first; DE/DA/ES stay selectable; existing users keep their choice. Docs/Guide copy checked; remaining hardcoded German strings in UI paths moved into i18n (QA UX-06). **Done:** first-run e2e test in English. | P1 | S | v2.21 |
+| **P8.1** | ✅ **Hardcoded German UI strings into i18n (QA UX-06)** — *v2.18 (#26)* | Move the remaining hardcoded German strings in UI paths into `i18n.js`, in all 4 languages (de/en/es/da). Known spots (line numbers may have drifted — `grep` for the German text): `assistant.js` "Speichern fehlgeschlagen: …" (alert, ~237) · `export.js` the two clipboard alerts (~27, ~29) · `helpers.js` "+ Zeile hinzufügen" (~134; an `addRow` key already exists at `i18n.js:174`) · `cookbook.js` FAB `title="Neues Rezept"` (~196) · `detail.js` heart `title="Favorit"` (~39) · `settings.js` `title="anzeigen"` (~27). `planner.js:162` already uses `t("planner.needPlan")` — leave. **Accept when:** (1) none of the listed German literals remain in the `.js` files above; (2) each new key exists in all 4 languages (extend the key-parity check in `v2/tests/test-i18n.js` with the new keys); (3) with the UI set to English, those six spots render English (one assertion each, unit-level for helpers, e2e `02-language.spec.js` for the two visible tooltips if cheap); (4) German wording unchanged for German users; (5) `npm test`-equivalent (`node v2/tests/run.js`) green. **Files:** `v2/src/i18n.js`, `v2/src/features/assistant/assistant.js`, `v2/src/features/cookbook/export.js`, `v2/src/ui/helpers.js`, `v2/src/features/cookbook/cookbook.js`, `v2/src/features/cookbook/detail.js`, `v2/src/features/settings/settings.js`, `v2/tests/test-i18n.js`. No behaviour change, no data change. | P1 | S | v2.21 (can ship earlier — no dependency) |
+| **P8.2** | ✅ **Switch the default language to English** — *v2.18 (#43)* | `getLang()` currently falls back to `"de"` when nothing is stored. **Open question:** P8-Q1 what "existing users keep their choice" means for users who never picked a language (see block below the table). | P1 | S | v2.21 |
 
 ### Epic R — Ingredient model & recipe ownership *(Marcel's rethink, 2026-10-05; placed in v2.x by Marcel)*
 
@@ -139,12 +133,12 @@ core, end-to-end tests."
 
 | # | Item | Detail & acceptance | Pri | Eff | Target |
 |---|------|---------------------|-----|-----|--------|
-| **R1** | **Data-model spike + unit spec** *(proposed)* | Written spec: ingredient record, unit table, recipe line, `origin` (base · user · shared), `forkedFrom`, personal state kept separate, how it fits file format 4 (P6) so there is **one** migration, not two. Checked against 10 real recipes incl. "double unit" cases. Verify how base recipes reach a new user's file today. **Done:** spec in `docs/v3/adr/`, Marcel signs off. | P1 | M | Nov |
-| **R2** | **Ingredient master** (~300 to start) | `ingredients.json`: id, names DE/EN/ES/DA, base unit, conversions, per-100 g kcal/protein/carbs/fat, source (USDA/Frida, licence noted — C-18). AI-drafted, Marcel reviews. Replaces the L2 "nutrient table". | P1 | M–L | v2.19 |
-| **R3** | **Structured ingredient items, additive** | New optional `items[]` beside the existing `ingredients` strings; a matcher fills it from the strings, unmatched stay free text. `SCHEMA.md` + round-trip + canonical tests. v2 and the fallback keep working. G2 export/import carries `items`. | P1 | M–L | v2.19 |
-| **R4** | **Recipe editor with ingredient picker** | Type-ahead over the master, amount + unit, free-text fallback always available; recipe form stays usable without picking. Cooking mode scales by amounts. | P1 | L | v2.19b |
-| **R5** | **Capture and AI map to the master** | Photo/URL/AI recipes arrive as structured items with a "not matched" list for review; capture check re-run on 10 real samples (like Q1). | P1 | M | v2.19b |
-| **R6** | **Ownership fields + personal-state split** | `origin` (base · user · shared) and `forkedFrom`; editing a base recipe's content creates a user copy, favourites/notes never do. Gives G3 its delete guard. | P1 | S–M | v2.19b |
+| **R1** | ✅ **Data-model spike + unit spec** — *accepted 2026-11-10, `docs/v3/adr/ADR-R1-ingredient-model.md`* | Written spec: ingredient record, unit table, recipe line, `origin` (base · user · shared), `forkedFrom`, personal state kept separate, how it fits file format 4 (P6) so there is **one** migration, not two. Checked against 10 real recipes incl. "double unit" cases. Verify how base recipes reach a new user's file today. **Done:** spec in `docs/v3/adr/`, Marcel signs off. | P1 | M | ✅ 10 Nov |
+| **R2** | ◐ **Ingredient master** (~150 to start, per ADR R1; R2.1 with 70 entries live in v2.18) | `ingredients.json`: id, names DE/EN/ES/DA, base unit, conversions, per-100 g kcal/protein/carbs/fat, source (USDA/Frida, licence noted — C-18). AI-drafted, Marcel reviews. Replaces the L2 "nutrient table". | P1 | M–L | v2.19, Sat 28 Nov |
+| **R3** | **Structured ingredient items, additive** | New optional `items[]` beside the existing `ingredients` strings; a matcher fills it from the strings, unmatched stay free text. `SCHEMA.md` + round-trip + canonical tests. v2 and the fallback keep working. G2 export/import carries `items`. *R3.1 matcher live in v2.18.* | P1 | M–L | v2.19, Sat 28 Nov |
+| **R4** | **Recipe editor with ingredient picker** | Type-ahead over the master, amount + unit, free-text fallback always available; recipe form stays usable without picking. Cooking mode scales by amounts. | P1 | L | v2.19b, Sat 12 Dec |
+| **R5** | **Capture and AI map to the master** | Photo/URL/AI recipes arrive as structured items with a "not matched" list for review; capture check re-run on 10 real samples (like Q1). | P1 | M | v2.19c, Wed 16 Dec |
+| **R6** | **Ownership fields + personal-state split** | `origin` (base · user · shared) and `forkedFrom`; editing a base recipe's content creates a user copy, favourites/notes never do. Gives G3 its delete guard. | P1 | S–M | v2.19b, Sat 12 Dec |
 
 Risk: this is the biggest data change before V3. Cut order if time runs out: R5 → R4 (free-text editor stays) → R6. R1–R3 are protected because format 4 depends on them.
 
@@ -155,8 +149,8 @@ Risk: this is the biggest data change before V3. Cut order if time runs out: R5 
 | Q1 | ◐ **Capture on Sonnet 5.5 + model IDs in one config** (C-9, risk R9) — *built in v2.16: every model ID and price lives in `v2/src/ai/models.js` (a unit test fails if an ID appears anywhere else in `src/`); photo/URL capture and the fridge scan run as fixed tasks on `claude-sonnet-5-5` at effort `low`, 8,000/4,000 max tokens (thinking counts toward the limit), server-side refusal fallback on, `refusal` answers shown as such. Left: **Marcel's capture check on 10 real photos/URLs** with his key.* | Capture still runs on `claude-sonnet-4-6`. Move all model IDs to one config; switch capture to `claude-sonnet-5-5`; re-run a capture check on 10 real photos/URLs. | P1 | S | v2.16 |
 | Q2 | ✅ **Prompt caching** (C-11) — *v2.16: the assistant sends its system prompt as one block with `cache_control`; byte-identical between turns (e2e 04). On Haiku 4.5 the API only caches from 4,096 tokens, i.e. a cookbook of roughly 60+ recipes — the usage view shows whether it hits ("from cache").* | Cache the assistant system prompt (profile + stock + recipe list) to cut cost per chat turn. | P2 | S | v2.16 |
 | Q3 | ◐ **Measure real token usage** (C-10) — *built in v2.16: `v2/src/ai/usage.js` logs `response.usage` (incl. cache and web-fetch counts, summed over `pause_turn` rounds) per action on the device, numbers only, last 500 calls; Settings → KI → „Verbrauch (dieses Gerät)“ shows per action calls, Ø tokens in/out, cache share and ≈ US$, with „Als JSON kopieren“. Left: after ~2 weeks of use Marcel copies the JSON to Claude, who replaces the estimates in V3 report chapter 07.* | Log `response.usage` per action locally; replace the estimates in the V3 report. Also the data source for the v3.x spend display. | P2 | S | v2.16 |
-| Q5 | *(status=ready — issue #79; decided by Marcel 10 + 16 Nov: replace Haiku 4.5 / Sonnet 4.6, high priority)* **Chat on the 5.5 generation** | Found while building Q1–Q2: Haiku 5.5 costs $0.10/$0.50 per million tokens vs $1/$5 for Haiku 4.5 (the chat default) and caches from 512 tokens instead of 4,096, so Q2 would hit for every cookbook size. Sonnet 5.5 ($2/$10) would replace Sonnet 4.6 ($3/$15) as the stronger option. Needs an explicit effort level per model and a short quality check of assistant answers. **Done:** both options in `models.js`, assistant answers checked on 10 real questions. | **P1** | S | **v2.19** |
-| **Q4** | **Editable assistant instructions** (A11 = b) *(status=planned — questions answered 2026-10-27)* | Settings screen where the user edits the assistant's instructions; variables (e.g. `{profile}`, `{stock}`, `{recipes}`, `{language}`) are filled in at send time. "Reset to default" button; default text shipped with the app; guard against removing the variables silently. **Done:** edited instructions persist and change assistant behaviour; reset restores default. | P1 | M | v2.20 |
+| Q5 | ✅ **Chat on the 5.5 generation** — *v2.18 (#79)* | Found while building Q1–Q2: Haiku 5.5 costs $0.10/$0.50 per million tokens vs $1/$5 for Haiku 4.5 (the chat default) and caches from 512 tokens instead of 4,096, so Q2 would hit for every cookbook size. Sonnet 5.5 ($2/$10) would replace Sonnet 4.6 ($3/$15) as the stronger option. Needs an explicit effort level per model and a short quality check of assistant answers. **Done:** both options in `models.js`, assistant answers checked on 10 real questions. | **P1** | S | ✅ v2.18 |
+| **Q4** | ✅ **Editable assistant instructions** (A11 = b) — *v2.18 (Q4.1 #69, Q4.2 #70)* | Settings screen where the user edits the assistant's instructions; variables (e.g. `{profile}`, `{stock}`, `{recipes}`, `{language}`) are filled in at send time. "Reset to default" button; default text shipped with the app; guard against removing the variables silently. **Done:** edited instructions persist and change assistant behaviour; reset restores default. | P1 | M | v2.20 |
 
 ### Epic F — Discovery *(Marcel's main pain: "finding recipes is the hardest part")*
 
@@ -169,12 +163,12 @@ Risk: this is the biggest data change before V3. Cut order if time runs out: R5 
 
 | # | Item | Detail & acceptance | Pri | Eff | Target |
 |---|------|---------------------|-----|-----|--------|
-| **G2** | **Recipe export / import** *(status=tracking — split into G2.1–G2.4, 2026-10-27)* (US-07, check C-23) | Share button asks: "for import into the app" (lossless file) or "readable for others" (Markdown). Recipient imports; recipe appears in their cookbook. Works without Drive on either side; import validated against `SCHEMA.md`; an id clash never overwrites. Also settles **S2** (mixed-language Markdown export) and old quick win #7 (one-recipe share). | P1 | M | v2.18 |
+| **G2** | ✅ **Recipe export / import** — *live in v2.18; follow-ups #53 #84 #89* (US-07, check C-23) | Share button asks: "for import into the app" (lossless file) or "readable for others" (Markdown). Recipient imports; recipe appears in their cookbook. Works without Drive on either side; import validated against `SCHEMA.md`; an id clash never overwrites. Also settles **S2** (mixed-language Markdown export) and old quick win #7 (one-recipe share). | P1 | M | v2.18 |
 | **G2.1** | **Import core (pure, no UI)** *(status=ready)* | New pure module `v2/src/data/recipeImport.js`: `parseImportFile(text)` → `{recipes, errors}` and `planImport(incoming, existing)` → `{toAdd, skipped, renamed}`. **File shape = the `rezepte.json` shape** `{version, updated, recipes[]}` (`SCHEMA_VERSION` 3), so the same file is also valid for G2.2. **Accept when (unit tests in new `v2/tests/test-recipe-import.js`, registered in `run.js`):** (1) invalid JSON, a non-object, a missing `recipes` array or a wrong `version` type → `errors` non-empty, nothing to add. (2) Each recipe goes through `validateRecipe`; invalid ones are listed with their index and reason and skipped, valid ones in the same file still import. (3) `photos` is always dropped on import (Drive file IDs are useless to another account — `SCHEMA.md` §Bilder); `image` URL and all other fields are kept. (4) Id clash with an existing recipe **never overwrites**: the incoming recipe gets a fresh id via `makeIdFactory(existingIds)` and is reported in `renamed`. (5) Duplicate ids inside the file are handled the same way. (6) Importing the same file twice adds the recipes twice, each with fresh ids (no silent merge — duplicates are the user's call). (7) Input recipes are not mutated; `withDefaults` applied. **Files:** new `v2/src/data/recipeImport.js`, new `v2/tests/test-recipe-import.js`, `v2/tests/run.js`; read-only use of `schema.js`. No UI, no store change, no SW change beyond adding the module to the shell list (`test-sw-shell.js` enforces it). | P1 | S | v2.18 |
 | **G2.2** | **Lossless export file (single recipe or whole cookbook)** *(status=planned — G2-Q1, Q2 answered, refine to ready when the buffer has room)* | Builds on G2.1's file shape; adds the "for import into the app" action. **Open questions for Marcel (details in the block below this table):** G2-Q1 personal fields, G2-Q2 file name/extension. | P1 | S–M | v2.18 |
 | **G2.3** | **Import UI** *(status=planned, after G2.1 + G2.2)* | File picker (`<input type=file>`), result sheet "N imported · M skipped (reason) · K got a new id", recipes appear in the cookbook, works signed-out and offline. Uses G2.1; saves through `store.js`. Will be refined to ready once G2.1 is merged. | P1 | S–M | v2.18 |
 | **G2.4** | **Readable Markdown share for one recipe + S2** *(status=planned — G2-Q3 answered: Markdown is always English)* | Share button on the recipe detail asks "for import into the app" / "readable for others"; readable = Markdown of that one recipe (reuses/extends `exportMarkdown`, replaces the hardcoded German alerts in `export.js`). **Open question:** G2-Q3 language of the Markdown (S2). | P1 | S | v2.18 |
-| **G3** | **Assistant creates, updates and deletes recipes** *(status=planned — questions answered 2026-10-27)* (writes structured `items` once R3 exists) (US-26, E6 ✅) | The in-app assistant can add and change recipes; **every change is shown for confirmation**. It may delete **only recipes the user created**, never the default base recipes (guard on the recipe's origin; tested). Replaces the old "project-Claude edits `rezepte.json`" contract. | P1 | S–M | v2.20 |
+| **G3** | **Assistant creates, updates and deletes recipes** *(status=planned — questions answered 2026-10-27)* (writes structured `items` once R3 exists) (US-26, E6 ✅) | The in-app assistant can add and change recipes; **every change is shown for confirmation**. It may delete **only recipes the user created**, never the default base recipes (guard on the recipe's origin; tested). Replaces the old "project-Claude edits `rezepte.json`" contract. *G3.1 `origin` live in v2.18; G3.2 #73 (PR #87) + G3.3 #74 left.* | P1 | S–M | v2.20, Wed 25 Nov |
 
 ### Epic L — Calories & nutrition *(v2.x first, per Marcel)*
 
@@ -191,32 +185,30 @@ Risk: this is the biggest data change before V3. Cut order if time runs out: R5 
 
 | # | Item | Detail & acceptance | Pri | Eff | Target |
 |---|------|---------------------|-----|-----|--------|
-| L1 | **Decide the nutrition model** | **Resolved by R2 (proposed):** the ingredient master carries nutrition per 100 g, so (a) bundled data is the core; (b) AI estimate stays a v3.x fallback. Marcel confirms. | P1 | S | v2.19 |
-| L2 | **Offline calorie calculator** | Built on R2/R3: master + unit→gram table + pure `estimateNutrition(recipe)` with tests. "≈ 520 kcal / Portion" on cards + detail; "≈" when < 80 % of weight matched. | P1 | M | v2.19 |
-| L3 | **Plausibility check** | One-off Node tool runs L2 over all base recipes and lists outliers for manual review. | P1 | S | v2.19 |
+| L1 | ✅ **Decide the nutrition model** | **Resolved by R2 (ADR R1, R1-Q5/Q6):** the ingredient master carries nutrition per 100 g, so (a) bundled data is the core; (b) AI estimate stays a v3.x fallback. Marcel confirms. | P1 | S | v2.19 |
+| L2 | **Offline calorie calculator** | Built on R2/R3: master + unit→gram table + pure `estimateNutrition(recipe)` with tests. "≈ 520 kcal / Portion" on cards + detail; "≈" when < 80 % of weight matched, no number below 50 % (R1-Q6). | P1 | M | v2.19a, Wed 9 Dec |
+| L3 | **Plausibility check** | One-off Node tool runs L2 over all base recipes and lists outliers for manual review. | P1 | S | v2.19a, Wed 9 Dec |
 
 *L4 (AI fallback) and L5 (scale with portions / planner totals) → `ROADMAP-V3.md`, v3.x.*
 
-### Epic M — Fitness & diet preferences *(proposed for v2.x; needs L2 numbers)*
+### Epic M — Fitness & diet preferences *(Marcel 2026-11-18: M1–M3 in, v2.22; needs L2 numbers)*
 
 | # | Item | Detail & acceptance | Pri | Eff | Target |
 |---|------|---------------------|-----|-----|--------|
-| M1 | **Nutrition goal in the cook profile** *(proposed)* | Preset (Ausgewogen · High Protein · Low Carb · Low Fat · High Fat/Keto · Kalorienbewusst) + optional daily kcal/protein target. Local only. | P2 | S | v2.22+ |
-| M2 | **Macro filter chips** *(proposed)* | "💪 ≥ 25 g Protein", "🪶 < 500 kcal", "🥑 Low Carb", derived in memory from L2, never written to Drive. | P2 | S | v2.22+ |
-| M3 | **Goal-aware AI** *(proposed)* | The goal flows into the assistant system prompt (already reads the profile). | P2 | S | v2.22+ |
+| M1 | **Nutrition goal in the cook profile** | Preset (Ausgewogen · High Protein · Low Carb · Low Fat · High Fat/Keto · Kalorienbewusst) + optional daily kcal/protein target. Local only. | P2 | S | v2.22, Sat 19 Dec |
+| M2 | **Macro filter chips** | "💪 ≥ 25 g Protein", "🪶 < 500 kcal", "🥑 Low Carb", derived in memory from L2, never written to Drive. | P2 | S | v2.22, Sat 19 Dec |
+| M3 | **Goal-aware AI** | The goal flows into the assistant system prompt (already reads the profile). | P2 | S | v2.22, Sat 19 Dec |
 
 Guardrail: no medical claims, no weight-loss plans. *M4 (planner), M5 (protein-boost tips) → v3.x.*
 
-### Small-wins backlog *(proposed — only if a release has room)*
+### Small-wins backlog *(settled 2026-11-18)*
 
-| # | Item | Detail & acceptance | Pri | Eff |
-|---|------|---------------------|-----|-----|
-| E3 | **Photo-based partial removal** *(proposed)* | Photo of what you bought/own → AI strikes just those items from the shopping list. Same vision path as the fridge scan. | P2 | M |
-| QW-2 | **Servings memory per recipe** *(proposed)* | Cooking mode opens at the portion size you last used for that recipe. | P2 | S |
-| QW-4 | **Duplicate guard on capture** *(proposed)* | Warn before saving a recipe whose name closely matches an existing one. | P2 | S |
-| QW-6 | **Planned day → "cooked"** *(proposed)* | Marking a planned day cooked updates `lastCooked`, so planner rotation becomes real. | P3 | S |
-| QW-8 | **Step timers keep running in cooking mode** *(proposed, QA BH-03)* | Moving to the next/previous step or changing portions stops running timers (`cooking.js` → `paint()` → `clearTimers()`). Cooking is core tier → take it into the next release that has room. | P2 | M |
-| QW-7 | **Slimmer shopping header** *(proposed, QA UX-17)* | The sticky shopping header (search + free-text add) eats a large part of a phone screen; collapse it on scroll or move free-text add into the list. Needs a live check first. | P3 | S |
+| # | Item | Where |
+|---|------|-------|
+| QW-2 · QW-4 · QW-8 | Servings memory · duplicate guard on capture · step timers keep running | ✅ live in v2.18 (#63 #65 #64) |
+| E3 | Photo-based partial removal from the shopping list | → `ROADMAP-V3.md` v3.x (Marcel 18 Nov) |
+| QW-6 | Planned day → "cooked" | → `ROADMAP-V3.md` v3.x |
+| QW-7 | Slimmer shopping header (QA UX-17) | → `ROADMAP-V3.md` v3.x |
 
 ### Dropped
 
@@ -289,7 +281,7 @@ Full detail lives in the git history, the in-app changelog (`v2/src/version.js`)
 | v2.16.1 (2026-10-26) | Atomic app updates: the service worker reads only its own cache and no longer refreshes assets piecemeal in the background (could mix old and new modules, and re-created the old cache after the update — e2e 10 flaked under load); stray old caches swept on the next open; e2e 10 also runs the update from the current worker |
 | v2.16.2 (2026-10-27) | Two follow-ups to v2.15.1, per Marcel's 2026-10-26 answers: mass-delete prompt now at **≥ 5 recipes or ≥ 20 %** (was > 3 and > 20 %, i.e. from 22 of 105) · translation overlay no longer hides fields edited in German (`buildLangMap(lang, de)` keeps the snapshot originals; edited fields show as stored) · tests: threshold cases in `test-recipe-merge.js`/`test-sync-core.js`, overlay cases in `test-baselang.js`, e2e 02 edit-in-Spanish-stays-visible |
 | v2.17 (2026-10-27) | F4 lean cut: sort menu in the search field (newest · last cooked · most cooked · ♥ first · A–Z; remembered per device in `kochv2_sort`, first open = newest), multi-word search over name/ingredients/tips/cuisine ignoring accents and ß, time chips ≤ 15 / ≤ 30 / ≤ 60 (a chip only appears if it adds something), shorter search placeholder · `filter.js` `sortRecipes` / `cookedMonthKey` / `searchNorm` · tests: `test-filter.js` (+6), e2e `13-find-recipes.spec.js` |
-| v2.18 (2026-11-18) | G2 recipe export/import: lossless export file (#29), Markdown share (#30), import core (#25), import UI (#42), untrusted-file hardening (#36 #49 #50 #48), canonical menu export (#35), export download fallback (#83) · QA-02/TW-15 month names (#28 #51) · P8.1/P8.2 i18n clean-up + English default (#26 #43) · UX-18 contrast (#39) · ahead of plan: Q4.1/Q4.2 editable assistant instructions (#69 #70), G3.1 `origin` field (#72), Q5 chat on 5.5 models (#79), R2.1 ingredient master + R3.1 matcher (#61 #62), QW-2/QW-4/QW-8 (#63 #65 #64) |
+| v2.18 (2026-11-18, live) | G2 recipe export/import: lossless export file (#29), Markdown share (#30), import core (#25), import UI (#42), untrusted-file hardening (#36 #49 #50 #48), canonical menu export (#35), export download fallback (#83) · QA-02/TW-15 month names (#28 #51) · P8.1/P8.2 i18n clean-up + English default (#26 #43) · UX-18 contrast (#39) · ahead of plan: Q4.1/Q4.2 editable assistant instructions (#69 #70), G3.1 `origin` field (#72), Q5 chat on 5.5 models (#79), R2.1 ingredient master + R3.1 matcher (#61 #62), QW-2/QW-4/QW-8 (#63 #65 #64) |
 
 **Architecture decisions worth remembering** (details in the linked files):
 - Sharing models (Epic I): couples = shared Drive file + Google Picker, no backend; friends without

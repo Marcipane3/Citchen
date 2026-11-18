@@ -1,27 +1,40 @@
 # 🍳 Koch — V3 Roadmap (v3.0 and after)
 
 > **Scope of this file:** the **V3 line** — the v3.0 infrastructure release (domain, Play Store,
-> clean-up, onboarding) and everything planned after it (v3.1, v3.x, v3.5/v4, someday).
+> clean-up, onboarding) and everything planned after it (v3.1, v3.2, v3.x, v3.5/v4, someday).
 > **Not here:** features and foundation that ship on today's app → **[ROADMAP-V2.md](ROADMAP-V2.md)**.
 > What to do next across both → **[ROADMAP.md](ROADMAP.md)**.
 > **Why** each decision was made lives in the preparation package **[docs/v3/](docs/v3/README.md)**;
 > this file is the plan view and wins if the two disagree on *when*.
 >
-> Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-10-19** (QA fleet items placed in slices 1 and 6)
+> Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-11-18** (replan round 4: launch pulled
+> forward to **26 Feb 2027**, closed test from **12 Dec 2026**, format 4 + photos + hub → v3.1, accounts → v3.2,
+> D10/D11 decided — §6)
 
 ---
 
 ## 1. What V3 is (one paragraph)
 
 V3 is an **infrastructure release for friends and family with a public Play Store listing**. It
-stays a PWA, moves to a custom domain with a landing page (app name **Citchen**), gets an Android
-build (Trusted Web Activity), keeps recipes in each user's own Google Drive and keeps BYOK AI.
-**New (2026-10-04, D9): a proper production backend (Supabase) is part of v3.0**, not an exception.
-It starts with what Drive cannot do (sharing, friends link, feedback). **Direction (2026-10-05): many users can share recipes with each other**, which needs accounts; timing and scope are D10/D11.
-**English is the main language** (interface and stored recipe data, D8). The code is cleaned
-up, not rebuilt. Features keep arriving through v2.x and carry over.
-**Dates (confirmed):** scope freeze **31 Dec 2026** · launch target **30 Apr 2027** · hard cutoff
-**31 May 2027** (unfinished slices move to v3.1; V3 ships anyway). Budget: 2–3 h/week of Marcel.
+stays a PWA, moves to a custom domain with a landing page (app name **Citchen**, `citchen.de`, app at
+`citchen.de/app`), gets an Android build (Trusted Web Activity), keeps recipes in each user's own
+Google Drive and keeps BYOK AI. **Supabase is a proper production backend (D9)**; in v3.0 it holds
+what Drive cannot do (friends link, feedback form). **Accounts and sharing recipes between many users
+come right after launch (v3.2, D10)**; public publishing with ratings is the direction after that
+(D11, decided after launch). **English is the main language**: interface now, stored recipe data in
+v3.1 (D8). The code is cleaned up, not rebuilt.
+**Dates (replanned 2026-11-18):** closed test starts **12 Dec 2026** · scope freeze **15 Dec 2026** ·
+launch target **Fri 26 Feb 2027** · hard cutoff **31 Mar 2027** (unfinished slices move to v3.1; V3
+ships anyway). Budget: **4–6 h/week of Marcel** = two releases a week with a ~1 h device checklist each.
+
+### Why the dates moved (2026-11-18)
+
+The dates of 2 Oct assumed Marcel codes alongside 2–3 h/week of testing. Since 27 Oct the agent
+pipeline builds the issues: 23 PRs merged in October, 29 in the first 18 days of November, and the
+v2.19 milestone (due 18 Dec) was empty by 18 Nov because its pieces shipped early inside v2.18. The
+limit is now **Marcel's decisions and device checks**, not code. The 12 testers, the Play developer
+account and the domain are in hand, so the 14-day closed test — the one fixed lead time Google
+imposes — can start in December instead of February.
 
 ---
 
@@ -32,72 +45,103 @@ Process: `docs/v3/01-PROCESS.md`. A gate is passed only with its evidence.
 | Phase | Gate | Status | What is missing |
 |-------|------|--------|-----------------|
 | 0 Intent | G0 | ✅ passed 2026-10-02 | — |
-| 1 Discovery | G1 | 🟡 mostly done | Partner's view of the app |
-| 2 Decisions | G2 | 🟡 D1–D9 decided (4 Oct) | **D10** backend scope · ADRs not yet written (incl. backend + hosting ADR) |
-| 3 Spikes | G3 | ⏳ Dec 2026 | TWA on the domain (C-1), Google sign-in production (C-8), photo pipeline (C-21), repo layout (C-20) |
-| 4 Plan | G4 | ⏳ Dec 2026 | V3 phase plan (written after G2 + G3) |
-| 5 Build | G5 | ⏳ Jan–Mar 2027 | Slices 1–9 below |
-| 6 Beta | G6 | ⏳ Mar–Apr 2027 | Closed test (12 testers × 14 days) |
-| 7 Launch | G7 | ⏳ by 30 Apr 2027 | v2 fallback works for 30 days |
+| 1 Discovery | G1 | 🟡 mostly done | Partner's view: partner joins the closed test (iPhone, web app); 15-min feedback chat in **Jan 2027** closes G1 |
+| 2 Decisions | G2 | 🟢 all decided (D1–D11, 18 Nov) | ADRs D10/D11 + hosting/URL layout in `docs/v3/adr/` — **by 28 Nov** |
+| 3 Spikes | G3 | ⏳ **by 2 Dec 2026** | TWA on `citchen.de/app` (C-1), Google sign-in production + domain verification (C-8), URL layout + github.io redirect (C-20). Photo pipeline (C-21) → v3.1 with slice 7 |
+| 4 Plan | G4 | 🟡 this file (18 Nov) | Confirm after the spikes; re-date if a spike fails |
+| 5 Build | G5 | ⏳ **Dec 2026 – early Feb 2027** | Slices below |
+| 6 Beta | G6 | ⏳ **12 Dec 2026 – 19 Feb 2027** | Closed test (12 testers × 14 days, then until launch) |
+| 7 Launch | G7 | ⏳ **26 Feb 2027** | Production listing live; rollback = revert the release on `main` (see §3 note) |
 
 **Prerequisites from the V2 line (must be ✅ before slice 1):** ✅ P1 one sync core (v2.15) · ✅ P2 end-to-end
-tests · P3 two-account sharing proof. Tracked in `ROADMAP-V2.md`, Epic P. **Plus (2026-10-19):**
-the data-safety fixes T1–T5 (Epic T) — V3 must not migrate a cookbook that sync can still corrupt.
+tests · ✅ data-safety fixes T1–T10 (Epic T) · **P3 two-account sharing proof + P4 live friend test —
+Marcel, week of 18 Nov** · **P5 move helper (v2.21, 2 Dec)** — the domain switch moves everyone at once (below).
 
 ---
 
-## 3. Version plan (draft)
+## 3. Version plan (replanned 2026-11-18)
+
+Releases go out **twice a week** (release prep Wednesday + Saturday, Marcel merges and runs a ~1 h
+checklist). From the domain switch on, every release goes to `citchen.de/app`, and the closed-test
+Android build (a TWA) shows it at once: testers get each web release without a new Play upload.
 
 | Version | Theme | Contains | Target | Status |
 |---------|-------|----------|--------|--------|
-| *pre-V3* | Long-lead items (Marcel) | ✅ Domain **`citchen.de`** bought (C7, 16 Nov) · support e-mail on it (C-26) · Play developer account ($25, identity check takes days) · list 12+ Android testers | Nov 2026 | in progress |
-| *pre-V3* | Spikes + decisions | C-1, C-8, C-21 spikes · **backend spike (C-30)** · ADRs D1–D10 in `docs/v3/adr/` · V3 phase plan | Dec 2026 | open |
-| — | **Scope freeze** | v3.0 content fixed; new ideas → v3.x | **31 Dec 2026** | — |
-| **v3.0-a1 … a9** | Internal slice builds | One build per slice (§4), tested in one session each | Jan–Mar 2027 | planned |
-| **v3.0-b1 …** | Closed test (Play) | Starts with slice 3; testers + partner; bug triage; migration rehearsal (G5) | Feb–Apr 2027 | planned |
-| **v3.0** | **Launch** | Public listing + custom domain live; v2 becomes a 30-day read-only fallback | **30 Apr 2027** | planned |
-| — | **Hard cutoff** | Anything unfinished moves to v3.1 | **31 May 2027** | — |
-| **v3.1** | Cut items + clean-up | First candidate: the "Gesund & Langlebig" hub; retire v1 + v2 | Jun 2027 | planned |
-| **v3.x** | Sharing + data options | §5 | H2 2027 | backlog |
+| *pre-V3* | Long-lead items (Marcel) | ✅ Domain **`citchen.de`** (16 Nov) · ✅ 12 Android testers · Play developer account (personal) — **identity check pending, must finish before 9 Dec** · support e-mail on the domain (C-26) · DNS access for GitHub Pages | Nov 2026 | in progress |
+| *pre-V3* | Spikes + decisions | C-1, C-8, C-20 spikes · ADRs D10, D11, hosting/URL layout · this plan confirmed | **by 2 Dec** | open |
+| **v3.0-a1** | **Domain switch** (slice 1) | `citchen.de` landing + privacy policy (4 languages) + app at `/app` + CSP + OAuth origins + redirects from the old paths | **Sat 5 Dec** | planned |
+| **v3.0-a3** | **Android build** (slice 3) | TWA on the internal track (9 Dec) → **closed test starts Sat 12 Dec** | **9–12 Dec** | planned |
+| — | **Scope freeze** | v3.0 content fixed; new ideas → v3.1 / v3.x | **Tue 15 Dec 2026** | — |
+| — | 14-day clock | 12 testers opted in for 14 days in a row → apply for production access (~28 Dec – 4 Jan; Google answers in ≈ 7 days) | 26 Dec → mid Jan | — |
+| **v3.0-a5** | Capture: camera/gallery + share a photo into the app (slice 5) | | **Sat 9 Jan 2027** | planned |
+| **v3.0-a1b** | Backend for v3.0 (slice 1b, reduced) | Feedback table + RPC, privacy policy + Play data-safety name the backend; **accounts schema is an ADR only**. `supabase/` is a protected path → built in an interactive session with Marcel | **Wed 13 Jan** | planned |
+| **v3.0-a4** | Onboarding tour + home-screen rethink (slice 4) | | **Wed 20 Jan** | planned |
+| **v3.0-a6** | Clean-up + feedback form (slice 6) | | **Sat 30 Jan** | planned |
+| **v3.0-b1 …** | Closed-test fixes | Tester bugs, store listing (4 languages, screenshots, data-safety form) | Feb 2027 | planned |
+| **v3.0-rc** | Release candidate | Release-captain GO, listing approved | **Sat 20 Feb** | planned |
+| **v3.0** | **Launch** | Production rollout on Play; landing page links the store | **Fri 26 Feb 2027** | planned |
+| — | **Hard cutoff** | Anything unfinished moves to v3.1 | **31 Mar 2027** | — |
+| **v3.1** | Cut items + English data | **Format 4 / English stored data (D8)** · default photos + photo grid · "Gesund & Langlebig" hub · accessibility pass · iPhone as tested target | **Mar – Apr 2027** | planned |
+| **v3.2** | **Accounts + send/invite sharing** (D10) | Google sign-in via Supabase · send a recipe to a person or household (linked copy, edits fork) · Supabase **Pro** from this release | **May – Jun 2027** | planned |
+| **v3.x** | Public recipes + household | Public publishing + browsing + **ratings/likes** (D11, scheduled after launch feedback — review **May 2027**) · shared household cookbook + weekly plan · §5 | H2 2027 | backlog |
 | **v3.5 / v4** | Money (only if wanted) | Payment screen or sponsored AI via a proxy. No subscription planned. | 2028+ | parked |
 | *someday* | Envy list | Voice cooking mode · social-video import · iPhone App Store | — | parked |
 
-**Versioning rules:** internal slice builds `v3.0-aN`, closed-test builds `v3.0-bN`, launch `v3.0`,
-then `v3.N` per release and `v3.N.1` for hotfixes. `BUILD` + SW `CACHE` bump as in v2.
+**The domain switch is one day for everyone (5 Dec).** Setting a custom domain on GitHub Pages
+redirects the whole `marcipane3.github.io/Citchen/…` site to `citchen.de/…`. Browser-only data
+(stock, fridge, profile, settings, friends-link owner token, AI key) lives per address, so it can't be
+read once the redirect is on. Recipes and the shopping list are safe in Drive. That's why the
+**move helper (P5) ships on 2 Dec**: Marcel, partner and friends **export between 2 and 5 Dec** and
+import on `citchen.de/app` right after the switch (Marcel's choice: switch in December, together with
+the testers). Old links (`/v2/…`, friends' `add.html` links) get redirect pages to `/app/…`.
+
+**The "30-day v2 fallback" is retired.** It assumed V3 lives on a new address while v2 stays on the
+old one. Now there is one app on one address, and format 4 moves to v3.1, so the launch carries no
+data migration. Rollback = revert the release on `main` (GitHub Pages redeploys in minutes) + the
+local recipe backup (`kv recipesBackup`). The **legacy v1** app at the repo root is replaced by the
+landing page at the switch (slice 1); `/v1/` keeps it reachable for 30 days *(proposed — Marcel confirms)*.
+
+**Versioning rules:** internal slice builds `v3.0-aN`, closed-test fixes `v3.0-bN`, launch `v3.0`,
+then `v3.N` per release and `v3.N.1` for hotfixes. Releases whose main content is a V2 epic keep their
+`v2.N` name until the scope freeze (15 Dec); after it every release is `v3.0-…`. `BUILD` + SW `CACHE`
+bump as in v2.
 
 ---
 
-## 4. v3.0 — slices (each testable in one 2–3 h session)
+## 4. v3.0 — slices (each testable in one ~1 h session)
 
 Source: `docs/v3/02-SCOPE.md` (slice order) and `00-INTENT-AND-USER-STORIES.md` (stories).
 
 | # | Build | Slice | Stories | Size | Target | Depends on |
 |---|-------|-------|---------|------|--------|------------|
-| 1 | v3.0-a1 | Custom domain **`citchen.de`**, hosting, landing page (4 languages, privacy policy incl. backend), support e-mail | US-02, US-28 | M | Jan 2027 | ✅ C7 `citchen.de` bought · C-20 = same repo (decided) · move helper P5 live first |
-| 1b | v3.0-a1b | **Production backend (D9/D10):** Supabase prod project in the EU, migrations as files, row-level security, backups/pause plan, friends link + shared-list data moved onto it, privacy policy + Play data-safety updated; **schema designed for owners, recipe content vs personal state, `forkedFrom` (from V2 R1)**, even if accounts ship later | *new* (US-08c) | M–L | Jan–Feb 2027 | D10 · C-30 spike · V2 P7 · slice 1 (domain) |
-| 2 | v3.0-a2 | Data slice: move helper live in v2 (V2 P5); **English stored data → file format 4 + migration (D8 = yes, firm)** | US-04, US-16, US-27 | M–L | Jan 2027 | V2 P5/P6/P8 |
-| 3 | v3.0-a3 | TWA build on the internal test track; **closed test starts** (14-day clock) | US-01 | L | Feb 2027 | Slice 1 · Play account · 12 testers |
-| 4 | v3.0-a4 | Guided onboarding tour incl. key setup (skippable, reopenable); points to the editable assistant instructions (V2 Q4) | US-03, US-11 | M–L | Feb 2027 | A11 ✅ answered (b) · V2 Q4 |
-| 5 | v3.0-a5 | Capture: camera/gallery chooser + share a photo into the app | US-09, US-13 | M | Feb 2027 | C-22 |
-| 6 | v3.0-a6 | Simplification pass + before/after report · cook match removed · feedback button. **Input from the QA fleet 2026-10-12:** dead symbols, unused imports and over-exported internals (SI-07), repeated aisle-sort / "has amount" expressions (SI-08), permanently-on `FLAGS.captureParse` (SI-09), duplicated build-line footer (SI-03) | US-22, US-24 | M | Mar 2027 | V2 P2 e2e tests · C-25 baseline |
-| 7 | v3.0-a7 | Default photos (~30 own + ~75 AI-generated, ≤ 80 KB each) | US-19 | M–L | Mar 2027 | C-21 · Marcel's photos |
-| 8 | — | ~~Shared weekly plan~~ **moved to v3.x (A10 = b, 2026-10-04)**; slot freed for buffer / backend overflow | — | — | — | — |
-| 9 | v3.0-a9 | "Gesund & Langlebig" hub (N2), sources reviewed by Marcel | US-20 | M | Apr 2027 | Marcel's source review · **first to cut** |
+| 1 | v3.0-a1 | Custom domain **`citchen.de`**: landing page (4 languages, privacy policy incl. Supabase), app served at **`/app`**, support e-mail, **Content-Security-Policy** (QA AR-05), Google OAuth origins + domain verification (C-8), redirect pages for `/v2/…` and `add.html` links | US-02, US-28 | M | **Sat 5 Dec** | C-1/C-8/C-20 spikes · **P5 move helper live (2 Dec)** |
+| 3 | v3.0-a3 | TWA build (Bubblewrap), `/.well-known/assetlinks.json`, internal track (9 Dec) → **closed test starts 12 Dec** (14-day clock). Testers use the app **without AI by default**; 2–3 bring their own key; onboarding says AI needs a key | US-01 | L | **9–12 Dec** | Slice 1 · **Play identity check done** · 12 testers |
+| 5 | v3.0-a5 | Capture: camera/gallery chooser + share a photo into the app (Web Share Target, works in the TWA) | US-09, US-13 | M | **Sat 9 Jan** | C-22 |
+| 1b | v3.0-a1b | **Production backend, v3.0 part (D9/D10):** feedback table + token-checked RPC, privacy policy + Play data-safety updated, advisors clean. **Accounts, owners and shared recipes: schema written down in an ADR only** (built in v3.2). Free plan + keep-alive stays until v3.2 | US-24 (form) | S–M | **Wed 13 Jan** | ADR D10 · `supabase/` = interactive session with Marcel |
+| 4 | v3.0-a4 | Guided onboarding tour incl. key setup (skippable, reopenable); points to the editable assistant instructions · **home-screen rethink**: "what can I cook now" card, cookbook search + chips in thumb reach (QA UX-02) | US-03, US-11 | M–L | **Wed 20 Jan** | ✅ V2 Q4 |
+| 6 | v3.0-a6 | Simplification pass + before/after report · cook match removed · **feedback form via the backend** (replaces the e-mail button) · generated SW `SHELL` list (QA AR-04) · QA input: SI-07, SI-08, SI-09, SI-03 | US-22, US-24 | M | **Sat 30 Jan** | Slice 1b · C-25 baseline |
+| — | v3.0-b1 … | Tester bugs · store listing in 4 languages, screenshots, data-safety form · Lighthouse ≥ 80 | — | M | **Feb** | Slice 3 |
+| ~~2~~ | — | ~~Data slice~~ **dissolved 2026-11-18:** move helper → V2 P5 (2 Dec, before slice 1); English stored data / format 4 → **v3.1** | — | — | — | — |
+| ~~7~~ | — | ~~Default photos~~ → **v3.1** (Marcel, 18 Nov) | — | — | — | — |
+| ~~8~~ | — | ~~Shared weekly plan~~ → v3.x (A10 = b, 2026-10-04) | — | — | — | — |
+| ~~9~~ | — | ~~"Gesund & Langlebig" hub~~ → **v3.1** (Marcel, 18 Nov) | — | — | — | — |
 
-**In the v3.0 scope list but not yet in a slice** *(proposed placement — confirm in the V3 plan)*:
+**Scope list items, placed 2026-11-18:**
 
-| Item | Source | Proposal |
-|------|--------|----------|
-| Home-screen rethink with a "what can I cook now" card (old quick win #9) — also move cookbook search + chips into thumb reach (QA UX-02) | 02-SCOPE W1 | Fold into slice 4 (what a stranger sees first) or move to v3.1 |
-| Accessibility audit (WCAG 2.2 AA spot check, C-15) — include the open QA items: shopping done-toggle (unlabelled `span`, UX-16), `title`-only icon buttons (UX-03), focus ring gaps (UX-04), remaining sub-44 px targets (UX-08), 39 native `alert/confirm` calls (UX-07) | 02-SCOPE W1 | Part of slice 6 |
-| Google sign-in out of Testing mode (C-8) | 02-SCOPE W4 | Part of slice 1 (needs domain + privacy policy) |
-| Generated SW precache list · performance budget (Lighthouse ≥ 80) — QA AR-04: keep no-bundler through v3.0, add a small *generator* for the SHELL list instead of a bundler | 02-SCOPE W3 | Part of slice 6 / slice 3 |
-| Content-Security-Policy that enforces "no third-party scripts" (BYOK key in `localStorage`) — QA AR-05 *(proposed)* | QA fleet 2026-10-12 | Part of slice 1 (new domain = new headers/meta) |
-| iPhone PWA as a tested target (C-4) | 02-SCOPE W2 | Part of the closed test |
+| Item | Source | Placement |
+|------|--------|-----------|
+| Home-screen rethink with a "what can I cook now" card + search/chips in thumb reach (QA UX-02) | 02-SCOPE W1 | ✅ **v3.0, slice 4** (Marcel: must be in) |
+| Feedback form with a backend (was v3.x) | US-24 | ✅ **v3.0, slices 1b + 6** (Marcel: must be in) |
+| Google sign-in out of Testing mode (C-8) | 02-SCOPE W4 | v3.0, slice 1 (domain + privacy policy) |
+| Content-Security-Policy (QA AR-05) | QA fleet | v3.0, slice 1 |
+| Generated SW precache list · Lighthouse ≥ 80 (QA AR-04) | 02-SCOPE W3 | v3.0, slice 6 / b-builds |
+| Accessibility audit (WCAG 2.2 AA, C-15; UX-16, UX-03, UX-04, UX-08, UX-07) | 02-SCOPE W1 | **v3.1** (not a launch must) |
+| iPhone PWA as a tested target (C-4) | 02-SCOPE W2 | **best-effort in v3.0** (partner tests on iPhone, bugs fixed when reported, no iPhone row per checklist) · tested target in **v3.1** |
 
 **Carried over from v2.x (no new work in V3):** everything shipped on the V2 line by launch,
-including the friends link (I3), calories (Epic L), export/import (G2), recipe finding (F4),
-assistant edits recipes (G3), capture on Sonnet 5.5 (Q1).
+including the friends link (I3), calories (Epic L), nutrition goal (M1–M3), export/import (G2),
+recipe finding (F4), assistant edits recipes (G3), the structured recipe editor (R4–R6), capture on
+Sonnet 5.5 (Q1).
 
 **Removed in V3:** cook match (and with it the dropped F3).
 
@@ -105,18 +149,29 @@ assistant edits recipes (G3), capture on Sonnet 5.5 (Q1).
 
 ## 5. After v3.0 — backlog
 
-### v3.1 — what the cutoff pushes out
-- Anything not finished by 31 May 2027 (the hub N2 is designated first cut).
-- Retire v1 (redirect) and v2 (after the 30-day fallback).
+### v3.1 — cut items + English data (Mar – Apr 2027)
+- **English stored data = file format 4** (D8, P6 design in `docs/v3/adr/ADR-R1-ingredient-model.md` §7).
+  Moved out of v3.0 on 2026-11-18: one app on one address means no old reader has to understand
+  format 4, so V2 P6 is dropped. The migration keeps a backup file and asks once.
+- Default photos (old slice 7: ~30 own + ~75 AI-generated, ≤ 80 KB each, C-21) + photo grid (F4 a).
+- "Gesund & Langlebig" hub (old slice 9, N2), sources reviewed by Marcel.
+- Accessibility pass (C-15 + the UX items above) · iPhone as a tested target (C-4).
+- Anything not finished by the cutoff (31 Mar 2027). Retire `/v1/`.
 
-### v3.x — sharing, data options, deeper features
+### v3.2 — accounts + send/invite sharing (May – Jun 2027)
+
+| # | Item | Notes |
+|---|------|-------|
+| US-L1 | **Accounts** (Google sign-in via Supabase) | D10 = (b). Recipes stay in Drive; accounts identify owners. Supabase **Pro** from here (data Drive can't rebuild) |
+| US-08d | **Send/invite recipes** to a person or household | Receiver gets a linked copy, edits fork it (`forkedFrom`, R6) |
+
+### v3.x — public recipes, household, deeper features
 
 | # | Item | Source | Notes |
 |---|------|--------|-------|
-| US-08d | **Share recipes with many people** *(new 2026-10-05)* | Marcel | Needs accounts (D10 b). Share = send/invite to people or a household; the receiver gets a linked copy, edits fork it. **Not** public browsing (D11). First step of v3.x unless D10 pulls it into v3.0 |
-| US-08b | **Shared household cookbook** | Marcel, round 2 | Now possible on the v3.0 backend instead of Drive; decide in the v3.x plan |
-| US-08 | **Shared weekly plan** | A10 = (b), decided 2026-10-04 | Together with the shared cookbook; reuses the sync core + backend |
-| US-L1 | **Accounts** (Google sign-in via Supabase) | D10 = (b) direction | Prerequisite for US-08d, US-08b, US-08. Recipes may stay in Drive while accounts only identify owners, or move to the backend later (c) |
+| US-08e | **Public recipes: publish, browse, copy, rate/like** *(new 2026-11-18, D11)* | Marcel | Direction set; **scheduled after launch feedback (review May 2027)**. Needs accounts (v3.2), report + takedown flow, photo/recipe copyright rule, vote-abuse protection, privacy policy + data-safety update. **Still not wanted:** comments, follows, feed |
+| US-08b | **Shared household cookbook** | Marcel, round 2 | On the backend instead of Drive; decide in the v3.x plan |
+| US-08 | **Shared weekly plan** | A10 = (b) | Together with the shared cookbook; reuses the sync core + backend |
 | US-12 | AI spend display with default limit, **warning only** | D5 | Data source: V2 Q3 token measurement |
 | L4 | AI calorie estimate for unmatched recipes (marked ✨) | Epic L | Needs V2 L2 |
 | L5 | Calories scale with portions; planner weekly totals *(proposed)* | Epic L | Touches the planner |
@@ -128,7 +183,9 @@ assistant edits recipes (G3), capture on Sonnet 5.5 (Q1).
 | N5 | Weekly longevity check in the planner *(proposed)* | Epic N | Needs L2 |
 | N6 | "Ask the AI about an ingredient" (BYOK, must cite sources) *(proposed)* | Epic N | — |
 | QW-5 | Bought perishables → Lager fridge in one tap *(proposed)* | old quick win #5 | Closes the shop → stock → cook loop |
-| — | Feedback form with a backend (replaces the e-mail button) | US-24 | Backend exists in v3.0 → first candidate for v3.1 |
+| QW-6 | Planned day → "cooked" *(moved from V2, 18 Nov)* | V2 small wins | Updates `lastCooked` |
+| E3 | Photo-based partial removal from the shopping list *(moved from V2, 18 Nov)* | V2 small wins | Same vision path as the fridge scan |
+| QW-7 | Slimmer shopping header *(moved from V2, 18 Nov)* | QA UX-17 | Needs a live check first |
 
 ### v3.5 / v4 — money (only if wanted)
 - US-L2 AI without your own key: payment screen or sponsored quota via a proxy (Cloudflare Worker), per-user caps.
@@ -138,12 +195,36 @@ assistant edits recipes (G3), capture on Sonnet 5.5 (Q1).
   US-L5 iPhone App Store build · N7 "Trends & news" feed *(proposed)*.
 
 ### Not wanted
-- US-L6 public recipe links · social feed, comments, ratings · real-time collaborative editing ·
-  grocery-delivery integrations · subscription.
+- Social feed, comments, follows · real-time collaborative editing · grocery-delivery
+  integrations · subscription. *(Public recipe links/browsing, US-L6, moved to v3.x as US-08e on
+  2026-11-18.)*
 
 ---
 
 ## 6. Decisions and open questions
+
+### Answered 2026-11-18 (round 4 — replan)
+
+| ID | Question | Decision | Effect |
+|----|----------|----------|--------|
+| **T-1** | Marcel's time | **4–6 h/week** | Two releases a week (Wed + Sat), ~1 h checklist each |
+| **T-2** | Launch date | **End of Feb 2027** (Fri 26 Feb); cutoff 31 Mar | §3 replanned |
+| **T-3** | Play account | Personal, **identity check pending** | 12 testers × 14 days applies; check must finish before 9 Dec |
+| **T-4** | Start the closed test early | **Yes, December** | Slice 3 moves to 9–12 Dec, right after the domain switch |
+| **T-5** | What may move to v3.1 | **Gesund hub + default photos** (structured editor and calories stay before launch) | Slices 7 + 9 → v3.1 |
+| **T-6** | Format 4 / English stored data | **v3.1** | V2 P6 dropped, slice 2 dissolved, no migration at launch |
+| **T-7** | P3 / P4 phone tests | **Marcel, week of 18 Nov** | Last V2 gate items |
+| **T-8** | Release rhythm | **Twice a week** | Release-prep task: Wed run becomes a full release (Marcel edits the task) |
+| **D10** | Accounts + recipe sharing: when? | **First release after the cut items = v3.2 (May–Jun 2027)**; v3.0 only writes the schema down | Slice 1b reduced; Supabase Pro from v3.2 |
+| **D11** | Sharing model | **Public browsing too**, **with ratings/likes**; timing **decided after launch** (review May 2027). Send/invite comes first (v3.2) | Overrides E4 / A6 "no public links"; US-08e added; comments/feed still not wanted |
+| **H-1** | URL layout | **`citchen.de` = landing, app at `/app`** | One origin for TWA + sign-in; redirect pages for old paths |
+| **H-2** | Supabase plan | **Free + keep-alive until accounts**, Pro from v3.2 | ADR D9 unchanged |
+| **H-3** | Testers and the AI key | **AI optional for testers**; 2–3 bring their own key | BYOK unchanged; onboarding explains |
+| **H-4** | Launch extras | **Home-screen rethink + feedback form** in v3.0; a11y pass + iPhone target → v3.1 | §4 placements |
+| **H-5** | Scope freeze | **15 Dec 2026** | — |
+| **H-6** | Small wins before the freeze | **M1–M3 nutrition goal + macro chips** (v2.22); QW-6, E3, QW-7 → v3.x | `ROADMAP-V2.md` |
+| **H-7** | When Marcel's own data moves | **Right away in December** (with the switch on 5 Dec) | Export window 2–5 Dec |
+| **H-8** | Partner + iPhone | Partner joins the closed test on iPhone; **iPhone best-effort** in v3.0; feedback chat in Jan closes G1 | — |
 
 ### Answered 2026-10-04 (round 3)
 
@@ -182,12 +263,14 @@ assistant edits recipes (G3), capture on Sonnet 5.5 (Q1).
 
 | ID | Question | Blocks | Recommendation |
 |----|----------|--------|----------------|
-| **D10** *(direction set 2026-10-05)* | What does the backend hold, and when? **(a)** sharing only, no accounts · **(b)** (a) + accounts, recipes can be shared between users · **(c)** all user data incl. recipes moves from Drive to the backend. Marcel's answer: **many users should be able to share, so (b) is the direction.** Open: is (b) in v3.0, or the first step of v3.x? | Slice 1b size, privacy policy, sync design, risk R1 | **v3.0 = (a) plus a schema ready for (b); accounts + recipe sharing as the first v3.x release (target Jun–Sep 2027).** (c) later and only if wanted. Reason: accounts, privacy review, Play data-safety, the English format migration and the structured-recipe rebuild already fill the 2–3 h/week budget until April |
-| **D11** *(new)* | Sharing model: **send/invite to people or a household** (receiver gets a linked copy) vs **public publishing/browsing** of user recipes. Public needs moderation, takedown, recipe/photo copyright and probably a bigger legal setup, and contradicts the earlier "no public links, no social feed" answers (E4, A6) | US-08d design, privacy policy | **Send/invite only; the curated base catalog is the only public content** |
-| **L1 (nutrition)** | Nutrition model (a)+(b) vs (b) only | V2 v2.19 | (a) bundled table + (b) AI fallback later |
+| **V1-R** *(new)* | The landing page replaces the legacy v1 app at the repo root on 5 Dec. Keep v1 at `/v1/` for 30 days, or retire it that day? | Slice 1 | **`/v1/` for 30 days**, then a redirect (v1 reads the same flat-v3 file, so nothing breaks while it stays) |
+| **D11-T** | When do public recipes (publish, browse, copy, rate/like) ship? | US-08e | Decide in **May 2027** with tester and launch feedback, after v3.2 accounts |
+| **L1 (nutrition)** | Nutrition model: (a) bundled table (via the R2 ingredient master) + (b) AI fallback later | — | Treated as resolved by R2 (ADR R1, R1-Q5); confirm with the v2.19a calories release |
 
 Full question list and Claude's technical checks: `docs/v3/03-QUESTIONS.md`.
-Risks: `docs/v3/05-RISKS-MIGRATION.md` (top: R1 scope, R2/R13/R18 data, R3/R19 time).
+Risks: `docs/v3/05-RISKS-MIGRATION.md` (top: R1 scope, R2/R13/R18 data, R3/R19 time). The replan
+lowers R2/R18 (no migration at launch) and R19 (time), and adds two: the Play identity check is late
+(blocks 12 Dec), and the one-day domain switch loses browser-only data for anyone who skips the export.
 
 ---
 
