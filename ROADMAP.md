@@ -1,31 +1,38 @@
 # 🍳 Koch — Roadmap index
 
 > Start here. This page says **what is next** and where everything else lives.
-> **Last updated: 2026-11-18** (v2.18 export/import release candidate prepared, includes parts of v2.19–v2.21 that were built early · R1 spec accepted · domain **citchen.de** bought) · Live: **v2.17** (v2.18 goes live when Marcel merges the release PR)
+> **Last updated: 2026-11-18** (replan with Marcel: **launch 26 Feb 2027**, closed test from **12 Dec**,
+> domain switch **5 Dec**, scope freeze **15 Dec**, two releases a week; D10/D11 decided) · Live: **v2.18**
+> (release PR #98 merged 18 Nov)
 
 ## The two roadmaps
 
 | File | Covers | Boundary |
 |------|--------|----------|
-| **[ROADMAP-V2.md](ROADMAP-V2.md)** | The **v2.x line**: features + the foundation V3 needs, until V3 launches and v2 becomes the fallback | Ships on today's address and architecture, carries over into V3 unchanged |
-| **[ROADMAP-V3.md](ROADMAP-V3.md)** | The **V3 line**: v3.0 infrastructure release (domain, Play Store, production backend, clean-up, onboarding), then v3.1, v3.x, v3.5/v4, someday | Needs the new domain, the Play build or the clean-up, or Marcel scheduled it after v3.0 |
+| **[ROADMAP-V2.md](ROADMAP-V2.md)** | The **v2.x line**: features + the foundation V3 needs, until the scope freeze (15 Dec 2026) | Ships on today's architecture and carries over into V3 unchanged |
+| **[ROADMAP-V3.md](ROADMAP-V3.md)** | The **V3 line**: v3.0 (domain, Play Store, backend for feedback, onboarding, clean-up), then v3.1, v3.2 accounts, v3.x, v3.5/v4, someday | Needs the new domain, the Play build or the clean-up, or Marcel scheduled it after v3.0 |
 
 Background and reasoning for V3: [`docs/v3/`](docs/v3/README.md). New idea after the scope freeze
-(31 Dec 2026)? → `ROADMAP-V3.md`, tagged v3.x.
+(15 Dec 2026)? → `ROADMAP-V3.md`, tagged v3.1 or v3.x.
 
 ---
 
-## The road to V3 at a glance
+## The road to V3 at a glance *(replanned 2026-11-18)*
+
+Why the dates moved: the agent pipeline now writes the code (23 PRs merged in October, 29 in the first
+18 days of November; the v2.19 milestone was empty a month early), Marcel has 4–6 h/week, and the
+12 testers, Play account and domain are in hand. Details: `ROADMAP-V3.md` §1 and §6.
 
 | When | V2 line | V3 line |
 |------|---------|---------|
-| **Oct 2026** | ✅ v2.14 friends link live (4 Oct) · ✅ e2e tests (12 Oct) + v2.14.1 hotfix · ✅ **v2.15** one sync core (19 Oct) · ✅ **v2.15.1** safe recipe sync · ✅ **v2.15.2** list data safety · ✅ **v2.15.3** list identity + Lager rules · ✅ **v2.16b** shopping list clarity (pulled forward from Nov) · ✅ **v2.15b** backend hardening (pulled forward from Nov) · ✅ **v2.16** AI housekeeping (built, pulled forward from Nov) · two-account sharing proof | ✅ Decisions D8, A10, D9, A11, E6, G7 answered (4 Oct) · open: D10 |
-| **Nov 2026** | ✅ **v2.17** find recipes faster (built 27 Oct) · ✅ **v2.18** export/import (built 18 Nov, release PR open) · ★ **R1 data-model spike** (ingredient model, format 4) | Long-lead: ✅ domain **citchen.de** bought (16 Nov) · support e-mail on it · Play account · 12 testers |
-| **Dec 2026** | **v2.19** ingredient master + calories | Spikes (TWA, sign-in, photos, **backend + hosting**) · ADRs · V3 plan · **scope freeze 31 Dec** |
-| **Jan–Mar 2027** | **v2.19b** structured recipe editor + capture · **v2.20** assistant edits recipes + editable instructions · **v2.21** move helper + English format/UI (before the domain switch) · v2.22+ small wins if time | **v3.0-a1 … a9** = slices 1, **1b backend**, 2–7, 9 (slice 8 moved to v3.x) · closed test from slice 3 |
-| **Apr 2027** | Fixes only | **v3.0 launch, target 30 Apr** |
-| **May 2027** | 30-day read-only fallback | Buffer · **hard cutoff 31 May** → leftovers to v3.1 |
-| **H2 2027** | Retired | v3.1 · v3.x (shared cookbook, spend display, longevity cards …) |
+| **Oct 2026** | ✅ v2.14 – v2.16b: friends link, e2e tests, one sync core, data-safety hotfixes, backend hardening, AI housekeeping | ✅ Decisions D8, A10, D9, A11, E6, G7 (4 Oct) |
+| **Nov 2026** | ✅ v2.17 find recipes · ✅ **v2.18** export/import (live 18 Nov) · P3 + P4 phone tests (Marcel, week of 18 Nov) · **v2.20** assistant edits recipes (25 Nov) · **v2.19** ingredient master + `items[]` (28 Nov) | ✅ domain `citchen.de` · ✅ 12 testers · ✅ D10/D11 + replan (18 Nov) · Play identity check (pending) · spikes C-1/C-8/C-20 + ADRs (by 2 Dec) |
+| **Dec 2026** | **v2.21** move helper (2 Dec) · **v2.19a** calories (9 Dec) · **v2.19b** structured editor + ownership (12 Dec) · **v2.19c** capture → master (16 Dec) · **v2.22** nutrition goal (19 Dec) | **v3.0-a1 domain switch Sat 5 Dec** (everyone moves; export 2–5 Dec) · **v3.0-a3 Android build → closed test starts Sat 12 Dec** · **scope freeze Tue 15 Dec** · 19 Dec – 6 Jan fixes only |
+| **Jan 2027** | — (all releases are `v3.0-…`) | Apply for Play production access (~28 Dec – 4 Jan) · **a5** capture camera/share (9 Jan) · **a1b** feedback backend (13 Jan) · **a4** onboarding + home screen (20 Jan) · **a6** clean-up + feedback form (30 Jan) · partner feedback chat (G1) |
+| **Feb 2027** | — | **b-builds**: tester fixes, store listing · **rc 20 Feb** · **v3.0 launch Fri 26 Feb** |
+| **Mar 2027** | — | Buffer · **hard cutoff 31 Mar** · **v3.1** starts: format 4 / English data, default photos, Gesund hub, accessibility, iPhone |
+| **Apr – Jun 2027** | — | v3.1 (Mar–Apr) · **v3.2 accounts + send/invite sharing** (May–Jun) · public recipes decision (May) |
+| **H2 2027** | — | v3.x: public recipes + ratings, shared household cookbook/plan, spend display, longevity cards … |
 
 ---
 
@@ -36,23 +43,25 @@ below every time an item is crossed off.
 
 | # | Item | Line | Owner | Why now | Effort | Unblocks |
 |---|------|------|-------|---------|--------|----------|
-| 1 | **Merge the v2.18 release PR and run its device checklist** (also finish the open v2.15b / v2.16 checks listed in earlier releases) | V2 | Marcel (Claude guides) | Live beats new (rule 1). **v2.15b:** ✅ migration applied on prod + ✅ advisors checked (26 Oct: the 18 expected `fl_*` warnings, nothing else) · GitHub → Actions → "Supabase keep-alive" → *Run workflow* once (green = keep-alive works) · friends link still works. **v2.16:** build line v2.16 · capture check (Q1): 10 real recipes — ~6 photos (book page, handwritten, screenshot) + ~4 URLs; each draft complete and faithful? · ask the assistant twice → Settings → KI → „Verbrauch“ shows both calls (and „aus Cache“ > 0 % if the cookbook is big enough). **v2.16b:** Thai curry → result sheet → rows say „aus Thai-Style Gemüsecurry“, ✕ + „Rückgängig“, tiles stay under your finger. **v2.17:** sort menu right in the search field → pick „Zuletzt gekocht“, close and reopen the app → still selected · search „linsen spinat“ → only recipes with both | 40 min | P7, Q1 closed · FR-01 closed |
-| 2 | **Live friend test** (V2 P4) — PR #8 merged 2026-10-04 | V2 | Marcel | The backend piece should be proven with a real friend before it is hardened (P7). Now unblocked: the list code it writes into is fixed (v2.15.2) | 15 min | P7, closes I3 |
-| 3 | **Two-account sharing proof** (V2 P3): Picker API key, partner as test user, run the test in `v2/docs/SHARING.md` | V2 | Marcel (Claude guides) | **Last open V3 gate item** (P1 ✅, P2 ✅). The e2e suite proves the flow with fake accounts; this is the real-phone proof — now on a clean list | ~45 min | V3 gate, US-06 |
-| 4 | **Assistant edits recipes** (G3.2, issue #73, PR #87 has changes requested) | V2 | Claude | G3.1 and Q4 are merged; this is the user-visible half of v2.20 | S–M | v2.20 |
-| 5 | ★ **R1 data-model spike** (ingredient model, unit spec, format 4) | V2 | Claude (+ Marcel signs off) | Gates v2.19 (ingredient master + calories) and P6/format 4; due in Nov before format 4 is frozen. Also the right moment for the vegetarian/vegan flag skipped in v2.17 | M | v2.19, P6 |
+| 1 | **v2.18 device checklist + P3 two-account proof + P4 live friend test** (this week) | V2 | Marcel (Claude guides) | Live beats new (rule 1) and gates beat features (rule 2): P3/P4 are the **last V2 gate items** before the domain switch on 5 Dec. v2.18 checks are in its release PR (#98); still open from earlier releases: v2.16 capture check on 10 real photos/URLs, keep-alive *Run workflow* once. P3 needs the Picker API key + partner as OAuth test user (`v2/docs/SHARING.md`) | ~1.5 h | V3 gate, US-06, closes I3 |
+| 2 | **Finish the Play identity check · support e-mail on `citchen.de` · DNS access for GitHub Pages** | V3 | Marcel | Nothing else can start the 14-day clock on 12 Dec. Google's identity check can take days | ~30 min + waiting | Slice 1, slice 3 |
+| 3 | **Assistant edits recipes** (G3.2 #73 — PR #87 has changes requested; then G3.3 #74) | V2 | Claude | Core tier; due Wed 25 Nov (v2.20) | S–M | v2.20 |
+| 4 | **R2 ingredient master 70 → ~150 + R3 `items[]` on recipes** (Epic R, ADR R1 §8) | V2 | Claude | Due Sat 28 Nov (v2.19); gates calories (v2.19a), the editor (v2.19b) and capture mapping (v2.19c) | M–L | v2.19a–c |
+| 5 | **P5 move helper** + spikes **C-1** (TWA on `citchen.de/app`), **C-8** (Google sign-in production), **C-20** (`/app` layout + github.io redirect) + ADRs D10 / D11 / hosting | V2 + V3 | Claude (+ Marcel signs off ADRs) | The domain switch on Sat 5 Dec redirects the whole old address; P5 must be live on 2 Dec so people can export first | M + S | Slice 1 (5 Dec), slice 3 (12 Dec) |
 
-**Waiting on Marcel — from the QA fleet (2026-10-12), each a yes/no:**
-*All answered:* T5 ✅ yes and T6 ✅ yes (26 Oct, built in v2.15.3) · T3 and T12 settled by v2.15.1 without a decision.
+**Waiting on Marcel — 5-minute answers / actions:**
+- **Release prep twice a week:** the skill is updated (19 Nov); set the *Citchen · Release prep* task to `CRON_TZ=Europe/Berlin 23 9 * * 3,6` and paste its new prompt from `docs/process/SCHEDULED-TASKS.md`. Don't re-create *Release retry*. Until then releases stay weekly and the December dates slip.
+- **Export window 2–5 Dec:** you, your partner and friends who use the app run „Umzug“ export on the old address before the switch.
+- **G1:** your partner joins the closed test on iPhone; 15-min feedback chat in January.
 
-*Answered 2026-10-27:* G2-Q1…Q3 (Markdown always English), G3-Q1/Q2, Q4-Q1/Q2, P8-Q1 — all as suggested; items are `planned` and get promoted as the ready buffer frees up.
-
-✅ **Q5 answered** (10 + 16 Nov): the chat moves to Haiku 5.5 (default) and Sonnet 5.5, high priority → issue #79, milestone v2.19.
-
-**Waiting on Marcel — 5-minute answers that unblock the queue** (details in `ROADMAP-V3.md` §6):
-**D10** timing: accounts + recipe sharing in v3.0 or first in v3.x (recommended: v3.x) · **D11** sharing = send/invite, not public (recommended) · **R1** sign-off on the ingredient/unit spec (Nov) · **L1 nutrition** now resolved by R2, please confirm ·
-✅ **C7** domain bought: **`citchen.de`** (16 Nov). Not connected to the app yet: that happens in V3 slice 1, after the move helper (P5, v2.21). *Answered 2026-10-04 and now unblocked:*
-G7 → v2.17 · E6 + A11 → v2.20 · D8 English → v2.21 · A10 → v3.x · D9 → P7 + slice 1b · C-20 same repo.
+*Answered 2026-11-18 (round 4, replan):* time 4–6 h/week · launch end of Feb · closed test from Dec ·
+hub + default photos → v3.1 · format 4 → v3.1 (P6 dropped) · P3/P4 this week · two releases a week ·
+D10 accounts = v3.2 · D11 public browsing + ratings later (decide May 2027) · app at `citchen.de/app` ·
+Supabase Free until accounts · testers without AI by default · home screen + feedback form in v3.0 ·
+freeze 15 Dec · M1–M3 in · switch own data in Dec · partner as tester, iPhone best-effort ·
+*19 Nov:* v1 archived at the switch (no users) · GitHub milestones re-dated to this plan (new: v3.0-a1, v2.19a,
+v3.0-a3, v2.19c, v2.22).
+Full table: `ROADMAP-V3.md` §6. *Earlier rounds:* `docs/v3/03-QUESTIONS.md` Part 3.
 
 ---
 
@@ -75,11 +84,11 @@ flowchart TD
 
 **The rules behind it, in priority order**
 1. **Live beats new.** Something built but not deployed or not verified on a real device comes first.
-2. **Gates beat features.** Items that gate the next V3 gate (currently V2 P1–P3) come before anything else.
+2. **Gates beat features.** Items that gate the next V3 gate (currently V2 P3–P5) come before anything else.
 3. **Decisions are cheap, waiting is expensive.** A blocked item is never "next"; its question goes to Marcel instead, and the next unblocked item moves up.
 4. **Core tier first.** Recipes + cooking mode, shopping list, AI capture and chat beat plan, stock and extras (usage tiers in `docs/v3/00-INTENT-AND-USER-STORIES.md`).
-5. **Fits the week.** One release = one 2–3 h test session for Marcel. Split anything bigger.
-6. **Dates win.** What can't make the scope freeze (31 Dec 2026) or the cutoff (31 May 2027) moves out, it doesn't stretch the date.
+5. **Fits the slot.** One release = one ~1 h test session for Marcel, two a week (since 2026-11-18). Split anything bigger.
+6. **Dates win.** What can't make the scope freeze (15 Dec 2026) or the cutoff (31 Mar 2027) moves out, it doesn't stretch the date.
 
 ---
 
@@ -99,7 +108,7 @@ Part of every release's definition of done (Claude Code does this; the release-c
 
 | File | What it is |
 |------|------------|
-| [`docs/v3/`](docs/v3/README.md) | V3 preparation package: intent, user stories, decisions D1–D10, questions, risks, learning track |
+| [`docs/v3/`](docs/v3/README.md) | V3 preparation package: intent, user stories, decisions D1–D11, questions, risks, learning track |
 | [`v2/docs/SHARING.md`](v2/docs/SHARING.md) | How partner sharing and the friends link work + test steps |
 | [`qa/FLEET-REPORT.md`](qa/FLEET-REPORT.md) | QA agent findings; promoted into a roadmap by hand (2026-10-12 run → V2 Epic T) |
 | [`qa/FIELD-REPORTS.md`](qa/FIELD-REPORTS.md) | What you saw on a real device (`FR-NN`); the QA fleet root-causes these first |
