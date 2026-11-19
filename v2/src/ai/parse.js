@@ -2,7 +2,7 @@
 // Modelle halten sich meist, aber nicht immer an "nur JSON" — wir extrahieren
 // das erste JSON-Objekt und koerzieren das Rezept ins flache v3-Schema.
 
-import { CATEGORIES, validateRecipe, EFFORT_VALUES, DIFFICULTY_VALUES } from "../data/schema.js";
+import { CATEGORIES, validateRecipe, EFFORT_VALUES, DIFFICULTY_VALUES, RECIPE_FIELDS, PERSONAL_FIELDS } from "../data/schema.js";
 
 /** Erstes vollständiges JSON-Objekt aus Text ziehen (auch in ```-Zäunen). */
 export function extractJson(text) {
@@ -116,4 +116,124 @@ export function coercePlanDays(raw, knownIds) {
     if (["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].includes(day) && knownIds.has(id)) out[day] = id;
   }
   return Object.keys(out).length ? { days: out, note: toStr(raw.note) } : null;
+}
+
+/**
+ * G3.2 (#73): Inhaltsfelder, die der Assistent bei einer Änderung anfassen darf. id, origin, image
+ * und die persönlichen Felder (PERSONAL_FIELDS) gehören nicht dazu: die kommen immer aus dem
+ * gespeicherten Rezept. Abgeleitet aus RECIPE_FIELDS, damit ein neues Inhaltsfeld automatisch mitläuft.
+ */
+export const CONTENT_FIELDS = Object.freeze(RECIPE_FIELDS.filter((f) =>
+  !["id", "origin", "image"].includes(f) && !PERSONAL_FIELDS.includes(f)));
+
+/** Inhaltsfelder von `source` auf `target` übertragen (fehlt eins in source, fällt es in target weg). */
+export function applyContentFields(target, source) {
+  for (const f of CONTENT_FIELDS) {
+    if (source[f] === undefined) delete target[f];
+    else target[f] = Array.isArray(source[f]) ? source[f].slice() : source[f];
+  }
+  return target;
+}
+
+/**
+ * Update-Antwort {"type":"update","id","recipe"} → das komplette geänderte Rezept.
+ * `recipeDe` = das gespeicherte (deutsche) Rezept. Unbekannte/abweichende id → Fehler.
+ * Nur Inhaltsfelder kommen vom Modell; was es weglässt, bleibt wie gespeichert. Alles andere
+ * (id, origin, Herz, Bewertung, Notiz, Fotos, Koch-Daten, Bild, unbekannte Zusatzfelder) bleibt.
+ */
+export function coerceUpdate(json, recipeDe) {
+  if (!recipeDe || !json || typeof json !== "object" || toStr(json.id) !== recipeDe.id) {
+    return { recipe: null, errors: ["Unbekanntes Rezept: " + toStr(json && json.id)] };
+  }
+  const raw = json.recipe;
+  const { recipe: content, errors } = coerceRecipe(raw);
+  if (!content) return { recipe: null, errors };
+  // Nur ein Wert vom richtigen Typ zählt als „gegeben“; alles andere lässt das Gespeicherte stehen.
+  const typed = {
+    tips: () => typeof raw.tips === "string" || (raw.tips && typeof raw.tips === "object") || (raw.tipps && typeof raw.tipps === "object"),
+    tags: () => Array.isArray(raw.tags),
+    effort: () => EFFORT_VALUES.includes(raw.effort) || raw.effort === "",
+    difficulty: () => DIFFICULTY_VALUES.includes(raw.difficulty) || raw.difficulty === "",
+  };
+  const given = (f) => f === "toTry" ? false // Vertragsvorlage trägt "toTry":true — der Kochstatus kommt nie vom Modell
+    : typed[f] ? !!typed[f]()
+    : raw[f] !== undefined && raw[f] !== null;
+  const out = { ...recipeDe };
+  for (const f of CONTENT_FIELDS) {
+    if (!given(f)) continue;
+    if (content[f] === undefined) delete out[f];
+    else out[f] = content[f];
+  }
+  // Zeitfelder hängen zusammen: wurde eins geändert, die abgeleiteten aus dem Ergebnis neu bilden.
+  if (["time", "prepTime", "cookTime", "totalTime"].some(given)) {
+    if (!given("totalTime") && out.prepTime !== undefined && out.cookTime !== undefined) out.totalTime = out.prepTime + out.cookTime;
+    if (!given("time") && out.totalTime) out.time = out.totalTime + " Min";
+  }
+  const v = validateRecipe(out);
+  return v.valid ? { recipe: out, errors: [] } : { recipe: null, errors: v.errors };
+}
+
+/** Mehrfachmengen-Differenz: Zeilen aus a, die in b (gleich oft) fehlen. */
+function linesMissing(a, b) {
+  const left = new Map();
+  for (const x of b) left.set(x, (left.get(x) || 0) + 1);
+  return a.filter((x) => {
+    const n = left.get(x) || 0;
+    if (n) { left.set(x, n - 1); return false; }
+    return true;
+  });
+}
+
+/**
+ * Was eine Änderung an den Inhaltsfeldern bewirkt: [{field, before, after}] für einfache Felder,
+ * [{field, added, removed}] für ingredients und steps (Zeilen). Leer = nichts geändert.
+ */
+export function recipeChanges(before, after) {
+  const out = [];
+  for (const f of CONTENT_FIELDS) {
+    const a = before ? before[f] : undefined, b = after ? after[f] : undefined;
+    if (JSON.stringify(a) === JSON.stringify(b)) continue;
+    if (f === "ingredients" || f === "steps") {
+      const x = Array.isArray(a) ? a : [], y = Array.isArray(b) ? b : [];
+      out.push({ field: f, added: linesMissing(y, x), removed: linesMissing(x, y) });
+    } else {
+      out.push({ field: f, before: a, after: b });
+    }
+  }
+  return out;
+}
+
+const norm = (v) => JSON.stringify(v === undefined ? null : v);
+
+/**
+ * Karten-Nutzlast: nur die geänderten Felder, jeweils mit dem Wert „vorher“ (base) und „nachher“ (set).
+ * So überschreibt das Übernehmen nie, was inzwischen anderswo geändert wurde (B1, #73).
+ */
+export function makeUpdatePatch(before, after) {
+  const base = {}, set = {};
+  for (const c of recipeChanges(before, after)) {
+    base[c.field] = before[c.field] === undefined ? null : before[c.field];
+    set[c.field] = after[c.field] === undefined ? null : after[c.field];
+  }
+  return { id: before.id, base, set };
+}
+
+/**
+ * Patch auf `target` (aktuell gespeichertes Rezept) anwenden. Hat sich ein betroffenes Feld seit der
+ * Karte verändert (oder wurde der Patch schon angewendet), passiert nichts und die Felder kommen zurück.
+ */
+export function applyUpdatePatch(target, patch) {
+  const conflicts = Object.keys(patch.set).filter((f) => norm(target[f]) !== norm(patch.base[f]));
+  if (conflicts.length) return { applied: false, conflicts };
+  for (const f of Object.keys(patch.set)) {
+    if (patch.set[f] === null) delete target[f];
+    else target[f] = Array.isArray(patch.set[f]) ? patch.set[f].slice() : patch.set[f];
+  }
+  return { applied: true, conflicts: [] };
+}
+
+/** Offener Chat, Änderungswunsch: {"type":"change","id"} → {id, intro}; nur bekannte ids. */
+export function coerceChange(json, knownIds) {
+  if (!json || !json.id || !knownIds.has(json.id)) return null;
+  return { id: json.id, intro: toStr(json.intro) };
 }
