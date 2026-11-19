@@ -51,7 +51,6 @@ below every time an item is crossed off.
 
 **Waiting on Marcel — 5-minute answers / actions:**
 - **Release prep twice a week:** edit the *Citchen · Release retry* task (Wednesday 07:50) so it runs a full release prep, not only a retry (`docs/process/SCHEDULED-TASKS.md`). Until then releases stay weekly and the December dates slip.
-- **V1-R:** keep the legacy v1 app at `/v1/` for 30 days after the switch (recommended) or retire it on 5 Dec?
 - **Export window 2–5 Dec:** you, your partner and friends who use the app run „Umzug“ export on the old address before the switch.
 - **G1:** your partner joins the closed test on iPhone; 15-min feedback chat in January.
 
@@ -59,7 +58,9 @@ below every time an item is crossed off.
 hub + default photos → v3.1 · format 4 → v3.1 (P6 dropped) · P3/P4 this week · two releases a week ·
 D10 accounts = v3.2 · D11 public browsing + ratings later (decide May 2027) · app at `citchen.de/app` ·
 Supabase Free until accounts · testers without AI by default · home screen + feedback form in v3.0 ·
-freeze 15 Dec · M1–M3 in · switch own data in Dec · partner as tester, iPhone best-effort.
+freeze 15 Dec · M1–M3 in · switch own data in Dec · partner as tester, iPhone best-effort ·
+*19 Nov:* v1 archived at the switch (no users) · GitHub milestones re-dated to this plan (new: v3.0-a1, v2.19a,
+v3.0-a3, v2.19c, v2.22).
 Full table: `ROADMAP-V3.md` §6. *Earlier rounds:* `docs/v3/03-QUESTIONS.md` Part 3.
 
 ---

@@ -98,8 +98,10 @@ the testers). Old links (`/v2/…`, friends' `add.html` links) get redirect page
 **The "30-day v2 fallback" is retired.** It assumed V3 lives on a new address while v2 stays on the
 old one. Now there is one app on one address, and format 4 moves to v3.1, so the launch carries no
 data migration. Rollback = revert the release on `main` (GitHub Pages redeploys in minutes) + the
-local recipe backup (`kv recipesBackup`). The **legacy v1** app at the repo root is replaced by the
-landing page at the switch (slice 1); `/v1/` keeps it reachable for 30 days *(proposed — Marcel confirms)*.
+local recipe backup (`kv recipesBackup`). The **legacy v1** app at the repo root is **archived at the switch**
+(slice 1, Marcel 2026-11-19: nobody uses it): the landing page takes the root, the v1 files (`index.html`,
+`sw.js`, `manifest.json` and icons at the root) leave the published site, and a git tag `v1-final` keeps
+the last version. No `/v1/` path.
 
 **Versioning rules:** internal slice builds `v3.0-aN`, closed-test fixes `v3.0-bN`, launch `v3.0`,
 then `v3.N` per release and `v3.N.1` for hotfixes. Releases whose main content is a V2 epic keep their
@@ -114,7 +116,7 @@ Source: `docs/v3/02-SCOPE.md` (slice order) and `00-INTENT-AND-USER-STORIES.md` 
 
 | # | Build | Slice | Stories | Size | Target | Depends on |
 |---|-------|-------|---------|------|--------|------------|
-| 1 | v3.0-a1 | Custom domain **`citchen.de`**: landing page (4 languages, privacy policy incl. Supabase), app served at **`/app`**, support e-mail, **Content-Security-Policy** (QA AR-05), Google OAuth origins + domain verification (C-8), redirect pages for `/v2/…` and `add.html` links | US-02, US-28 | M | **Sat 5 Dec** | C-1/C-8/C-20 spikes · **P5 move helper live (2 Dec)** |
+| 1 | v3.0-a1 | Custom domain **`citchen.de`**: landing page (4 languages, privacy policy incl. Supabase), app served at **`/app`**, support e-mail, **Content-Security-Policy** (QA AR-05), Google OAuth origins + domain verification (C-8), redirect pages for `/v2/…` and `add.html` links · **v1 archived** (tag `v1-final`, root files removed; `CLAUDE.md` map updated) | US-02, US-28 | M | **Sat 5 Dec** | C-1/C-8/C-20 spikes · **P5 move helper live (2 Dec)** |
 | 3 | v3.0-a3 | TWA build (Bubblewrap), `/.well-known/assetlinks.json`, internal track (9 Dec) → **closed test starts 12 Dec** (14-day clock). Testers use the app **without AI by default**; 2–3 bring their own key; onboarding says AI needs a key | US-01 | L | **9–12 Dec** | Slice 1 · **Play identity check done** · 12 testers |
 | 5 | v3.0-a5 | Capture: camera/gallery chooser + share a photo into the app (Web Share Target, works in the TWA) | US-09, US-13 | M | **Sat 9 Jan** | C-22 |
 | 1b | v3.0-a1b | **Production backend, v3.0 part (D9/D10):** feedback table + token-checked RPC, privacy policy + Play data-safety updated, advisors clean. **Accounts, owners and shared recipes: schema written down in an ADR only** (built in v3.2). Free plan + keep-alive stays until v3.2 | US-24 (form) | S–M | **Wed 13 Jan** | ADR D10 · `supabase/` = interactive session with Marcel |
@@ -156,7 +158,7 @@ Sonnet 5.5 (Q1).
 - Default photos (old slice 7: ~30 own + ~75 AI-generated, ≤ 80 KB each, C-21) + photo grid (F4 a).
 - "Gesund & Langlebig" hub (old slice 9, N2), sources reviewed by Marcel.
 - Accessibility pass (C-15 + the UX items above) · iPhone as a tested target (C-4).
-- Anything not finished by the cutoff (31 Mar 2027). Retire `/v1/`.
+- Anything not finished by the cutoff (31 Mar 2027).
 
 ### v3.2 — accounts + send/invite sharing (May – Jun 2027)
 
@@ -225,6 +227,7 @@ Sonnet 5.5 (Q1).
 | **H-6** | Small wins before the freeze | **M1–M3 nutrition goal + macro chips** (v2.22); QW-6, E3, QW-7 → v3.x | `ROADMAP-V2.md` |
 | **H-7** | When Marcel's own data moves | **Right away in December** (with the switch on 5 Dec) | Export window 2–5 Dec |
 | **H-8** | Partner + iPhone | Partner joins the closed test on iPhone; **iPhone best-effort** in v3.0; feedback chat in Jan closes G1 | — |
+| **V1-R** *(19 Nov)* | Legacy v1 app | **Archive it at the switch** — nobody uses it | Slice 1; no `/v1/` path, git tag `v1-final` |
 
 ### Answered 2026-10-04 (round 3)
 
@@ -263,7 +266,6 @@ Sonnet 5.5 (Q1).
 
 | ID | Question | Blocks | Recommendation |
 |----|----------|--------|----------------|
-| **V1-R** *(new)* | The landing page replaces the legacy v1 app at the repo root on 5 Dec. Keep v1 at `/v1/` for 30 days, or retire it that day? | Slice 1 | **`/v1/` for 30 days**, then a redirect (v1 reads the same flat-v3 file, so nothing breaks while it stays) |
 | **D11-T** | When do public recipes (publish, browse, copy, rate/like) ship? | US-08e | Decide in **May 2027** with tester and launch feedback, after v3.2 accounts |
 | **L1 (nutrition)** | Nutrition model: (a) bundled table (via the R2 ingredient master) + (b) AI fallback later | — | Treated as resolved by R2 (ADR R1, R1-Q5); confirm with the v2.19a calories release |
 

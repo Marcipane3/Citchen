@@ -12,7 +12,7 @@ has been answered. Tick as you go; write the answer next to the question.
 > **2026-10-04:** L1, A10, C7 (name), D9, A11, E6, G7 are answered, see Part 3 · Round 3. Their old text
 > is kept below for the record. C7 domain: `citchen.de` bought 2026-11-16.
 > **2026-11-18:** D10 and D11 answered, dates replanned (Part 3 · Round 4; plan view in `ROADMAP-V3.md`).
-> **Still open:** V1-R (keep v1 at `/v1/` for 30 days?), D11 timing (May 2027), nutrition model confirmed with v2.19a.
+> **Still open:** D11 timing (May 2027), nutrition model confirmed with v2.19a.
 
 ### Blocking — needed before the V3 plan can be written
 
@@ -199,6 +199,7 @@ Play developer account and `citchen.de`. Full decision table with effects: `ROAD
 | H-6 | Small wins before the freeze | M1–M3 nutrition goal + macro chips |
 | H-7 | When Marcel's own data moves | Right away in December |
 | H-8 | Partner + iPhone | Partner as tester, iPhone best-effort |
+| V1-R | Legacy v1 app at the repo root (asked 19 Nov) | Archive it at the domain switch — nobody uses it |
 
 ### Round 3b (2026-10-05) — recipe architecture
 
