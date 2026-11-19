@@ -204,7 +204,7 @@ function renderAnswer(text) {
   if (json && json.type === "recipe") {
     const { recipe, errors } = coerceRecipe(json.recipe);
     if (recipe) {
-      const payload = esc(JSON.stringify(makeUpdatePatch(before, recipe)));
+      const payload = esc(JSON.stringify(recipe));
       return `${json.intro ? `<p>${esc(json.intro)}</p>` : ""}
         <div class="ai-recipe">
           <div class="cat-label">${esc(recipe.category)}</div>

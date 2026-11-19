@@ -162,3 +162,22 @@ test("#73 B1: übernommene Karte bleibt nach Tab-Wechsel deaktiviert", async ({ 
   await expect(page.locator(".ai-update [data-apply-update]")).toBeDisabled();
   await expect(page.locator(".ai-update [data-apply-update]")).toHaveText("✓ Übernommen");
 });
+
+test("#73 B4: neues Rezept aus dem Assistenten → Karte → „In Kochbuch speichern“ legt es an", async ({ page, ai }) => {
+  await openApp(page);
+  await saveKey(page);
+  await page.locator('nav.tabbar .tab[data-go="assistant"]').click();
+  const count = snapshot().recipes.length;
+  const recipe = {
+    name: "Testsuppe B4", category: BASE.category, servings: "2", time: "20 Min",
+    ingredients: ["1 Zwiebel", "500 ml Brühe"], steps: ["Zwiebel anbraten.", "Brühe zugeben und kochen."],
+  };
+  ai.reply(JSON.stringify({ type: "recipe", intro: "Hier ein Vorschlag.", recipe }));
+  await page.locator("#ai-input").fill("eine einfache Suppe");
+  await page.locator("#ai-send").click();
+  const save = page.locator(".ai-recipe [data-save-recipe]");
+  await expect(save).toBeVisible();
+  await save.click();
+  await expect.poll(async () => (await idb(page, "recipes")).length).toBe(count + 1);
+  expect((await idb(page, "recipes")).some((r) => r.name === "Testsuppe B4")).toBe(true);
+});

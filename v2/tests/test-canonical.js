@@ -202,3 +202,9 @@ test("#73: assistant.js baut Änderungen nur aus getRecipeDe, nie aus der Anzeig
   assert(/changeUserPrompt\(de, v\)/.test(src) && /const de = attachedId && getRecipeDe\(attachedId\)/.test(src), "angehängtes Rezept nicht deutsch");
   assert(!/\bgetRecipe\(/.test(src), "assistant.js nutzt die Anzeige-Sicht getRecipe()");
 });
+
+test("#73 B4: der Recipe-Zweig von renderAnswer speichert das ganze Rezept, keinen Patch (Verdrahtungs-Wächter)", () => {
+  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "src", "features", "assistant", "assistant.js"), "utf8");
+  const branch = src.slice(src.indexOf('json.type === "recipe"'), src.indexOf("function renderUpdate"));
+  assert(branch.length > 50 && !/makeUpdatePatch/.test(branch), "recipe-Zweig nutzt makeUpdatePatch");
+});
