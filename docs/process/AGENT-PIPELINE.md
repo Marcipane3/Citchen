@@ -36,7 +36,7 @@ Their first runs produced sensible output.
    which order). **GitHub Issues** become the *work queue*: one issue per buildable item, state in
    labels, versions as milestones. Machines read labels, humans read the roadmap.
 2. **Separate integration from release.** Agents integrate into a branch called `next` as often as
-   they like. Production (`main` → Pages) changes only through a weekly **release PR** that you
+   they like. Production (`main` → Pages) changes only through a **release PR** (twice a week since 2026-11-19) that you
    merge after the release-captain says GO. This is a classic release train, sized to one device test.
 3. **Enforce policy in CI, not in prose.** Prompts can be ignored; a required status check can't.
    Agent PRs that touch `supabase/`, `.github/`, `.claude/` or `CLAUDE.md` fail a `policy` job.
@@ -64,7 +64,7 @@ Their first runs produced sensible output.
  Marcel approves ─► status:planned ─► status:ready (DoR met, buffer of 3)
  (label)              ▲   │
                       │   └► status:needs-input ─► Marcel answers in a comment ─┘
- QA finding ─► status:proposed   (guard pass weekly · /propose digest monthly)
+ QA finding ─► status:proposed   (guard pass Wed + Sat · /propose digest monthly)
                                  │ /build-next (nightly) — 1 issue, WIP 2
                                  ▼
                  PR build/<N>-slug → next   [CI: unit · e2e · supabase · policy]
@@ -73,7 +73,7 @@ Their first runs produced sensible output.
               squash-merge   changes-requested   needs-human
               into next      (builder fixes      (Marcel)
               issue: status:merged   next night)
-                                 │ /release-prep (Saturday) — reviews freeze while the release PR is open
+                                 │ /release-prep (Wed + Sat) — reviews freeze while the release PR is open
                                  ▼
           guard pass (bug-hunter + test-warden [+ data-guardian], DELTA) → version bump + roadmap ✅
           → release-captain GO → PR next → main with device-test checklist
@@ -130,7 +130,7 @@ new modules in the SW `SHELL` · **no** BUILD/CACHE/CHANGELOG/roadmap edits (rel
 | `release-bump/v2.N` | Version bump + roadmap update | Release-prep | — |
 | `hotfix/<slug>` | Urgent fix on live (you + Claude, interactive) | You | Afterwards open a PR `main → next` |
 
-**Release** (weekly, sized to one 2–3 h device test): release-prep merges the bump into `next`, then
+**Release** (Wednesday + Saturday, each sized to one ~1 h device test): release-prep merges the bump into `next`, then
 opens a PR `next → main`. Merge it with **"Create a merge commit"** (not squash), so `next` stays an
 ancestor of `main` and never needs a sync. Rollback = "Revert" on that PR; Pages redeploys in about
 a minute.
@@ -144,7 +144,7 @@ a minute.
 | **Refiner** `/refine` | Mon + Thu morning | Keeps 3 issues `status:ready`; splits big items; asks you 1–3 questions with a suggested default on needs-input issues | Promote proposed items, write code, change your priorities |
 | **Builder** `/build-next` | Nightly | Fixes a `changes-requested` PR first, otherwise builds 1 ready issue test-first → PR into `next` | Merge, touch protected paths, build needs-human issues |
 | **Reviewer** `/review-pr` | Every morning | Independent review of up to 2 agent PRs: CI, AC, mutation spot check, scope; bug-hunter subagent if the data/sync path is touched → merge into `next` / changes / needs-human | Write code, merge to `main`, merge red or pending CI |
-| **Release-prep** `/release-prep` | Saturday morning | Guard pass (bug-hunter + test-warden; data-guardian when the data layer changed), version bump, roadmap update rule, release-captain GO, release PR with device checklist | Merge to `main` |
+| **Release-prep** `/release-prep` | Wednesday + Saturday morning | Guard pass (bug-hunter + test-warden; data-guardian when the data layer changed), version bump, roadmap update rule, release-captain GO, release PR with device checklist | Merge to `main` |
 | **Proposer digest** `/propose` | 1st of the month | Architect + simplifier + ux-curator in DELTA mode over the month → at most 5 `status:proposed` issues; stops if more than 8 proposals are already waiting | Write files, set any status but proposed |
 | **Marcel** | When you like | **(1)** label `status:planned` on proposals you want · **(2)** answer needs-input questions in the issue (reply `ok` = accept the defaults) · **(3)** merge the release PR and do the device test | — |
 
@@ -182,11 +182,11 @@ cost on the API, a yardstick for comparing runs, not a bill):
 | Builder, one small issue incl. local e2e | Sonnet 5.5 | ≈ $0.29, 3 min | 7 × ≈ $0.3 |
 | Refiner, buffer refill | Sonnet 5.5 | ≈ $0.33, 1.5 min | 2–3 × ≈ $0.3 |
 | Reviewer | Sonnet 5.5 (+ Opus bug-hunter on data/sync diffs) | not measured, est. $0.3–1 | 7 × |
-| Release prep with guard pass | Sonnet 5.5 + **Opus 5.5 subagents** | ≈ $3.20, of which $2.48 Opus | 1 × (2 × after a NO-GO) |
+| Release prep with guard pass | Sonnet 5.5 + **Opus 5.5 subagents** | ≈ $3.20, of which $2.48 Opus | 2 × (since 19 Nov; smaller deltas, so likely less per run) |
 | Any run that stops in preflight | Sonnet 5.5 | ≈ $0.1 (the ~54k-token session start) | — |
 
-So a normal week is about **$9–10 of API-equivalent usage**, and one third of it is the Saturday
-guard pass. Nothing here needs tuning for cost; what the Pro plan is sensitive to is *when* it runs:
+So a normal week was about **$9–10 of API-equivalent usage**, one third of it the Saturday guard
+pass; with two release runs a week (19 Nov) expect up to **≈ $13**, less if each run's delta is half as big. Nothing here needs tuning for cost; what the Pro plan is sensitive to is *when* it runs:
 
 - **Scheduled runs draw from the same usage windows as your own sessions** (the 5-hour window and the
   weekly allowance). A run at 06:58 opens a 5-hour window that lasts until noon and has the reviewer's
@@ -200,9 +200,9 @@ guard pass. Nothing here needs tuning for cost; what the Pro plan is sensitive t
 - **Models:** Sonnet 5.5 for all roles (the default). Opus only inside the `koch-*` agents pinned to it
   (bug-hunter, data-guardian, architect).
 - **Context diet:** agents read CLAUDE.md (short) + the one issue + the files it names. Only
-  release-prep reads the big roadmaps, once a week.
+  release-prep reads the big roadmaps, twice a week.
 - **Throttle if needed** (in this order): builder to weekdays (`1-5`) · guard-pass agents on Sonnet for
-  patch releases · refiner back to twice a week.
+  patch releases and the Wednesday run · refiner back to twice a week · release prep back to Saturday only.
 
 ---
 
@@ -255,6 +255,15 @@ complete), 1 release attempt (NO-GO on a real data bug, BH-12 — the gate worke
 | 6 | **A delivered issue stayed open.** #37 was covered by #48; nobody may close issues. | refiner run 9 Nov | Refiner asks "delivered by #N — close?" as a normal question |
 | 7 | **Runs sat in Marcel's morning usage window.** | schedule 06:58 / 07:39 / Sat 08:17 | Night schedule, §8 |
 | 8 | **Lead time from an answer to a build was up to 4 days** (answer Mon → refiner Thu → builder Fri). | schedule | Refiner three nights a week, *before* the builder: answer by evening → merged into `next` next morning |
+
+## 12. Twice-weekly releases (2026-11-19)
+
+Marcel's replan (`ROADMAP-V3.md` §6, T-1/T-8): 4–6 h/week, launch 26 Feb 2027, so releases go out
+**Wednesday + Saturday**, each sized to a ~1 h device check. `/release-prep` runs the same full flow on
+both days; the mid-week **retry mode is gone** (amendment 11.2 is covered by the Wednesday run: a NO-GO
+on Saturday is retried on Wednesday, and vice versa). Task setup: one *Release prep* task on both days,
+the old *Release retry* task deleted (`SCHEDULED-TASKS.md`). The release freeze is unchanged, so a
+release PR has to be merged (or closed) before the next run, or that run stops at step 0.
 
 Still open, for Marcel to decide (see `docs/questions/2026-11-10/`): release from a frozen
 `release/v2.x` branch so the freeze no longer idles the Reviewer while a release waits for the device test.

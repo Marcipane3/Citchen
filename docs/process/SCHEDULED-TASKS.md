@@ -19,10 +19,10 @@ can't run). WebFetch/WebSearch are not needed.
 >   created by an agent session cannot work. It was deleted; **Marcel creates it** at
 >   claude.ai/code/routines with the repo attached, `Task` allowed and the prompt below.
 >
-> - **Planned change (Marcel, 18 Nov): two releases a week.** The Wednesday 07:50 run becomes a full release
->   prep (not retry-only), so releases go out Wednesday + Saturday. Marcel edits the task at
->   claude.ai/code/routines; the `/release-prep` skill's retry-mode wording is updated in the same interactive
->   session. Until then releases stay weekly. Watch the weekly allowance: release prep is the heavy run.
+> - **Two releases a week (Marcel, 18/19 Nov).** `/release-prep` now runs the full flow on Wednesday and
+>   Saturday (no retry mode). **Marcel's to-do:** set the *Release prep* task's schedule to Wed + Sat (cron
+>   below) and paste its new prompt; the *Release retry* task is not needed any more (it was already deleted
+>   on 18 Nov — don't re-create it). Watch the weekly allowance: release prep is the heavy run.
 >
 > Every task: repository `Marcipane3/Citchen`, no connectors, model Sonnet 5.5, push notification on.
 > Reasons for every change: `AGENT-PIPELINE.md` §8 and §11.
@@ -32,8 +32,7 @@ can't run). WebFetch/WebSearch are not needed.
 | Citchen · Refiner | every night 01:30 | `CRON_TZ=Europe/Berlin 30 1 * * *` | no |
 | Citchen · Builder | 02:10, 04:10, 06:10 | `CRON_TZ=Europe/Berlin 10 2,4,6 * * *` | no |
 | Citchen · Reviewer | 03:10, 05:10, 07:10 | `CRON_TZ=Europe/Berlin 10 3,5,7 * * *` | **yes** |
-| Citchen · Release prep | Saturday 09:23 | `CRON_TZ=Europe/Berlin 23 9 * * 6` | **yes** |
-| Citchen · Release retry | Wednesday 07:50 | `CRON_TZ=Europe/Berlin 50 7 * * 3` | **yes** |
+| Citchen · Release prep | **Wednesday + Saturday 09:23** | `CRON_TZ=Europe/Berlin 23 9 * * 3,6` | **yes** |
 | Citchen · Proposer digest | 1st of the month 10:17 | `CRON_TZ=Europe/Berlin 17 10 1 * *` | **yes** |
 
 The Refiner prompt below already says "Target: 5": three builder runs a night empty a buffer of three.
@@ -93,29 +92,21 @@ Final message: ready issues, open questions for Marcel (with issue links), buffe
 
 ## Citchen · Release prep
 ```text
-Unattended weekly run in the Citchen repo (Marcipane3/Citchen). Nobody is watching, so never stop to ask.
+Unattended release run (Wednesday + Saturday) in the Citchen repo (Marcipane3/Citchen). Nobody is
+watching, so never stop to ask.
 
 First: git fetch origin && git switch --detach origin/next
 Then run the project skill /release-prep: read .claude/skills/release-prep/SKILL.md from this checkout
 and follow it exactly. You prepare the release; you never merge into main. Marcel merges the release
 PR, which deploys. If the skill file is missing, stop and report "pipeline skills missing".
 
-Final message: "Release PR #N v2.x ready: k issues, ~X min device test", or the NO-GO reasons
-with issue links, or "Nothing to release".
+Final message: "Release PR #N v<version> ready: k issues, ~X min device test", or the NO-GO reasons
+with issue links, "Release waits for #N", or "Nothing to release".
 ```
 
-## Citchen · Release retry
-Same task settings as Release prep (it needs `Task`).
-```text
-Unattended mid-week run in the Citchen repo (Marcipane3/Citchen). Nobody is watching, so never stop to ask.
-
-First: git fetch origin && git switch --detach origin/next
-Then run the project skill /release-prep in retry mode: read .claude/skills/release-prep/SKILL.md from
-this checkout and follow it exactly, including the "Retry mode" gate in step 0. You never merge into main.
-If the skill file is missing, stop and report "pipeline skills missing".
-
-Final message: "No retry needed", "Retry waits for #N", or the normal release-prep result.
-```
+## ~~Citchen · Release retry~~ (retired 2026-11-19)
+Not needed any more: the Wednesday run of *Release prep* is a full release and retries any NO-GO by
+itself. Don't re-create this task.
 
 ## Citchen · Proposer digest
 ```text

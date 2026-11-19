@@ -50,7 +50,7 @@ below every time an item is crossed off.
 | 5 | **P5 move helper** + spikes **C-1** (TWA on `citchen.de/app`), **C-8** (Google sign-in production), **C-20** (`/app` layout + github.io redirect) + ADRs D10 / D11 / hosting | V2 + V3 | Claude (+ Marcel signs off ADRs) | The domain switch on Sat 5 Dec redirects the whole old address; P5 must be live on 2 Dec so people can export first | M + S | Slice 1 (5 Dec), slice 3 (12 Dec) |
 
 **Waiting on Marcel — 5-minute answers / actions:**
-- **Release prep twice a week:** edit the *Citchen · Release retry* task (Wednesday 07:50) so it runs a full release prep, not only a retry (`docs/process/SCHEDULED-TASKS.md`). Until then releases stay weekly and the December dates slip.
+- **Release prep twice a week:** the skill is updated (19 Nov); set the *Citchen · Release prep* task to `CRON_TZ=Europe/Berlin 23 9 * * 3,6` and paste its new prompt from `docs/process/SCHEDULED-TASKS.md`. Don't re-create *Release retry*. Until then releases stay weekly and the December dates slip.
 - **Export window 2–5 Dec:** you, your partner and friends who use the app run „Umzug“ export on the old address before the switch.
 - **G1:** your partner joins the closed test on iPhone; 15-min feedback chat in January.
 

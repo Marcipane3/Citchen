@@ -216,7 +216,7 @@ Sonnet 5.5 (Q1).
 | **T-5** | What may move to v3.1 | **Gesund hub + default photos** (structured editor and calories stay before launch) | Slices 7 + 9 → v3.1 |
 | **T-6** | Format 4 / English stored data | **v3.1** | V2 P6 dropped, slice 2 dissolved, no migration at launch |
 | **T-7** | P3 / P4 phone tests | **Marcel, week of 18 Nov** | Last V2 gate items |
-| **T-8** | Release rhythm | **Twice a week** | Release-prep task: Wed run becomes a full release (Marcel edits the task) |
+| **T-8** | Release rhythm | **Twice a week** | `/release-prep` runs Wed + Sat, retry mode retired (skill + `CLAUDE.md` updated 19 Nov); Marcel sets the task schedule |
 | **D10** | Accounts + recipe sharing: when? | **First release after the cut items = v3.2 (May–Jun 2027)**; v3.0 only writes the schema down | Slice 1b reduced; Supabase Pro from v3.2 |
 | **D11** | Sharing model | **Public browsing too**, **with ratings/likes**; timing **decided after launch** (review May 2027). Send/invite comes first (v3.2) | Overrides E4 / A6 "no public links"; US-08e added; comments/feed still not wanted |
 | **H-1** | URL layout | **`citchen.de` = landing, app at `/app`** | One origin for TWA + sign-in; redirect pages for old paths |

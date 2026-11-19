@@ -59,7 +59,8 @@ python -m http.server 8011 --directory v2    # run the app locally
 ## How work flows (details: `docs/process/AGENT-PIPELINE.md`)
 - Work queue = GitHub Issues with `status:*` labels; versions = milestones. Roadmaps are the plan, not the queue.
 - Branches: `build/<issue>-<slug>` → PR into **`next`** (integration). `next` → **`main`** only through a
-  weekly release PR that Marcel merges. `main` = production (GitHub Pages). Never push to `main` or `next`.
+  release PR that Marcel merges — **twice a week** (release prep Wed + Sat, ~1 h device check each).
+  `main` = production (GitHub Pages). Never push to `main` or `next`.
 - Pipeline roles are skills: `/refine`, `/build-next`, `/review-pr`, `/release-prep`, `/propose` (monthly).
   While a `release` PR into `main` is open, nothing is merged into `next` (release freeze).
 - **GitHub from Claude Code: REST only.** `gh api repos/Marcipane3/Citchen/...`. `gh pr list`,
@@ -70,4 +71,5 @@ python -m http.server 8011 --directory v2    # run the app locally
 ## Working with Marcel
 - Marcel is an industrial engineer, not a full-time developer. Explain trade-offs in plain words and recommend one option.
 - He writes German or English; answer in his language. Code comments may be German; docs are English.
-- Device checks are his scarce resource. Bundle them into the release checklist, 2–3 h max per release.
+- Device checks are his scarce resource. Bundle them into the release checklist, ~1 h max per release
+  (two releases a week, 4–6 h/week in total).
