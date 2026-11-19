@@ -150,6 +150,8 @@ test("DG-17: Marker erscheint nie in JSON/structuredClone; deutsche Rezepte expo
   assertEqual(Object.getOwnPropertySymbols(structuredClone(view)).length, 0);
   assertEqual(Object.getOwnPropertySymbols(JSON.parse(json)).length, 0);
   const de = [full(), { ...full(), id: "r2" }];
-  assertEqual(JSON.stringify(buildExportFile(de)), JSON.stringify(buildExportFile(JSON.parse(JSON.stringify(de)))));
-  assertEqual(JSON.stringify(buildExportFile(de)).includes("localized"), false);
+  // Feste Uhr: sonst kann `updated` zwischen den beiden Aufrufen um 1 ms springen (#95).
+  const now = new Date("2026-01-01T00:00:00Z");
+  assertEqual(JSON.stringify(buildExportFile(de, now)), JSON.stringify(buildExportFile(JSON.parse(JSON.stringify(de)), now)));
+  assertEqual(JSON.stringify(buildExportFile(de, now)).includes("localized"), false);
 });
