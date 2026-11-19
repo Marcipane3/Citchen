@@ -5,7 +5,7 @@ import * as gate from "../src/ai/gate.js";
 import { CHAT_MODELS, DEFAULT_CHAT_MODEL } from "../src/ai/models.js";
 import {
   extractJson, coerceRecipe, coerceSuggestions, coercePlanDays, tippsToString,
-  coerceUpdate, recipeChanges, coerceChange, applyContentFields, CONTENT_FIELDS,
+  coerceUpdate, recipeChanges, coerceChange, applyContentFields, CONTENT_FIELDS, makeUpdatePatch, applyUpdatePatch,
 } from "../src/ai/parse.js";
 import {
   buildSystemPrompt, buildCollectionContext, suggestUserPrompt, fromStockUserPrompt, planUserPrompt,
@@ -692,4 +692,47 @@ test("#73: coerceChange — nur bekannte ids; sonst null (→ Klartext)", () => 
   assertDeepEqual(coerceChange({ type: "change", id: "r07", intro: " Gern! " }, known), { id: "r07", intro: "Gern!" });
   assertEqual(coerceChange({ type: "change", id: "r99", intro: "x" }, known), null);
   assertEqual(coerceChange({ type: "change", intro: "x" }, known), null);
+});
+
+test("#73 B1: Karte gegen R gerechnet, R.name danach bearbeitet → Übernehmen ändert nur Zutaten, Name bleibt", () => {
+  const { recipe } = coerceUpdate(upd73({ ...VEGAN73, name: STORED73.name }), STORED73);
+  const patch = JSON.parse(JSON.stringify(makeUpdatePatch(STORED73, recipe)));
+  assertDeepEqual(Object.keys(patch.set).sort(), ["ingredients", "steps", "tags", "tips"]);
+  assert(!("name" in patch.set), "Name steht nicht im Patch, wenn er sich nicht ändert");
+  const edited = { ...STORED73, name: "Meine Bolognese", steps: STORED73.steps.slice(), ingredients: STORED73.ingredients.slice(), tips: STORED73.tips, tags: STORED73.tags.slice() };
+  const r = applyUpdatePatch(edited, patch);
+  assert(r.applied, "keine Konflikte, weil die Karte nur andere Felder anfasst");
+  assertEqual(edited.name, "Meine Bolognese");
+  assertEqual(edited.ingredients[1], "200g rote Linsen 🛒");
+});
+
+test("#73 B1: Feld seit der Karte geändert (oder schon angewendet) → Patch verweigert, nichts verändert", () => {
+  const { recipe } = coerceUpdate(upd73(VEGAN73), STORED73);
+  const patch = JSON.parse(JSON.stringify(makeUpdatePatch(STORED73, recipe)));
+  const edited = { ...STORED73, ingredients: ["etwas ganz anderes"] };
+  const r = applyUpdatePatch(edited, patch);
+  assert(!r.applied && r.conflicts.includes("ingredients"));
+  assertDeepEqual(edited.ingredients, ["etwas ganz anderes"]);
+  const once = { ...STORED73 };
+  assert(applyUpdatePatch(once, patch).applied);
+  assert(!applyUpdatePatch(once, patch).applied, "zweites Anwenden desselben Patches wird verweigert");
+});
+
+test("#73 B2: toTry — gespeichert false, Modell schickt true oder null → bleibt false", () => {
+  assertEqual(coerceUpdate(upd73({ ...VEGAN73, toTry: true }), STORED73).recipe.toTry, false);
+  assertEqual(coerceUpdate(upd73({ ...VEGAN73, toTry: null }), STORED73).recipe.toTry, false);
+});
+
+test("#73 B3: nur prepTime/cookTime geschickt → totalTime und time werden neu abgeleitet", () => {
+  const stored = { ...STORED73, prepTime: 10, cookTime: 15, totalTime: 25, time: "25 Min" };
+  const { recipe } = coerceUpdate(upd73({ ...VEGAN73, time: "", prepTime: 20, cookTime: 30 }), stored);
+  assertEqual(recipe.totalTime, 50);
+  assertEqual(recipe.time, "50 Min");
+});
+
+test("#73 Nit: falsch getypte Werte lassen das Gespeicherte stehen", () => {
+  const { recipe } = coerceUpdate(upd73({ ...VEGAN73, tipps: undefined, tips: 5, tags: "scharf", effort: "hoch" }), STORED73);
+  assertEqual(recipe.tips, STORED73.tips);
+  assertDeepEqual(recipe.tags, STORED73.tags);
+  assertEqual(recipe.effort, STORED73.effort);
 });

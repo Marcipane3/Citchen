@@ -8,7 +8,7 @@ import { state, addRecipe, getRecipeDe, updateRecipe } from "../../store.js";
 import * as gate from "../../ai/gate.js";
 import { complete, AiError } from "../../ai/client.js";
 import { buildSystemPrompt, suggestUserPrompt, leftoverUserPrompt, fromStockUserPrompt, generateUserPrompt, elaborateUserPrompt, changeUserPrompt } from "../../ai/prompts.js";
-import { extractJson, coerceRecipe, coerceSuggestions, coerceUpdate, coerceChange, recipeChanges, applyContentFields } from "../../ai/parse.js";
+import { extractJson, coerceRecipe, coerceSuggestions, coerceUpdate, coerceChange, recipeChanges, makeUpdatePatch, applyUpdatePatch } from "../../ai/parse.js";
 import { getStaples, getProfile, getInstructions } from "../../data/settings.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { openSheet, closeAllSheets } from "../../ui/sheet.js";
@@ -141,9 +141,12 @@ function attachedHTML() {
 function paintChat(container) {
   const el = container.querySelector("#chat");
   if (!el) return;
-  el.innerHTML = chatLog.length ? chatLog.map((m) => `<div class="ai-msg ${m.who}">${m.html}</div>`).join("")
+  el.innerHTML = chatLog.length ? chatLog.map((m, i) => `<div class="ai-msg ${m.who}" data-i="${i}">${m.html}</div>`).join("")
     : `<p class="empty" style="margin-top:30px">${t("assistant.empty")}</p>`;
   wireChat(container);
+  el.querySelectorAll(".ai-msg").forEach((d) => {
+    if (chatLog[Number(d.dataset.i)]?.applied) d.querySelectorAll("[data-apply-update]").forEach((b) => { b.disabled = true; b.textContent = t("assistant.changeApplied"); });
+  });
   el.scrollTop = el.scrollHeight;
   window.scrollTo(0, document.body.scrollHeight);
 }
@@ -201,7 +204,7 @@ function renderAnswer(text) {
   if (json && json.type === "recipe") {
     const { recipe, errors } = coerceRecipe(json.recipe);
     if (recipe) {
-      const payload = esc(JSON.stringify(recipe));
+      const payload = esc(JSON.stringify(makeUpdatePatch(before, recipe)));
       return `${json.intro ? `<p>${esc(json.intro)}</p>` : ""}
         <div class="ai-recipe">
           <div class="cat-label">${esc(recipe.category)}</div>
@@ -266,7 +269,7 @@ function renderUpdate(json) {
     return `<li class="upd-field" data-field="${c.field}"><b>${fieldLabel(c.field)}</b>
       <div><span class="upd-old">${esc(fieldValue(c.before))}</span> → <span class="upd-new">${esc(fieldValue(c.after))}</span></div></li>`;
   }).join("");
-  const payload = esc(JSON.stringify(recipe));
+  const payload = esc(JSON.stringify(makeUpdatePatch(before, recipe)));
   return `${json.intro ? `<p>${esc(json.intro)}</p>` : ""}
     <div class="ai-recipe ai-update">
       <div class="sug-name" style="font-size:19px">${esc(before.name)}</div>
@@ -276,9 +279,20 @@ function renderUpdate(json) {
     </div>`;
 }
 
-/** „Änderung übernehmen“: nur Inhaltsfelder; Herz, Bewertung, Notiz, Fotos, Koch-Daten, origin bleiben. */
-async function applyUpdate(recipe) {
-  await updateRecipe(recipe.id, (x) => applyContentFields(x, recipe));
+/** „Änderung übernehmen“: nur die Felder der Karte, auf das aktuell gespeicherte Rezept; Rest bleibt. */
+async function applyUpdate(patch) {
+  let result;
+  await updateRecipe(patch.id, (x) => { result = applyUpdatePatch(x, patch); });
+  if (!result.applied) throw new Error(t("assistant.changeStale"));
+  return getRecipeDe(patch.id);
+}
+
+/** Karte als übernommen merken, damit sie nach einem Neuzeichnen deaktiviert bleibt. */
+function markApplied(btn) {
+  const m = chatLog[Number(btn.closest(".ai-msg")?.dataset.i)];
+  if (m) m.applied = true;
+  btn.textContent = t("assistant.changeApplied");
+  btn.disabled = true;
 }
 
 function wireChat(container) {
@@ -291,7 +305,7 @@ function wireChat(container) {
       b.disabled = true;
       try {
         await applyUpdate(JSON.parse(b.dataset.applyUpdate));
-        b.textContent = t("assistant.changeApplied");
+        markApplied(b);
       } catch (e) {
         b.disabled = false;
         alert(t("form.saveFailed", { e: e.message }));
@@ -300,9 +314,13 @@ function wireChat(container) {
   });
   container.querySelectorAll("[data-preview-update]").forEach((b) => {
     b.onclick = () => {
-      const recipe = JSON.parse(b.dataset.previewUpdate);
+      const patch = JSON.parse(b.dataset.previewUpdate);
       const applyBtn = b.parentElement.querySelector("[data-apply-update]");
-      previewRecipe(recipe, applyBtn, { label: t("assistant.applyChange"), done: t("assistant.changeApplied"), save: async () => { await applyUpdate(recipe); return recipe; } });
+      const current = getRecipeDe(patch.id);
+      if (!current) return;
+      const merged = { ...current };
+      if (!applyUpdatePatch(merged, patch).applied) { alert(t("assistant.changeStale")); return; }
+      previewRecipe(merged, applyBtn, { label: t("assistant.applyChange"), done: t("assistant.changeApplied"), save: async () => { const r = await applyUpdate(patch); markApplied(applyBtn); return r; } });
     };
   });
   container.querySelectorAll("[data-open-recipe]").forEach((b) => {

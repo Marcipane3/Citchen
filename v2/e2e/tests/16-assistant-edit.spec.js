@@ -141,3 +141,24 @@ test("#73: ohne Schlüssel — kein Assistenten-Knopf, „✎ Bearbeiten“ änd
   await expect.poll(async () => (await idb(page, "recipes", "r01")).ingredients).toEqual(ingredients);
   expect(ai.requests.length).toBe(0);
 });
+
+test("#73 B1: übernommene Karte bleibt nach Tab-Wechsel deaktiviert", async ({ page, ai }) => {
+  await openApp(page);
+  await saveKey(page);
+  await page.locator('nav.tabbar .tab[data-go="cookbook"]').click();
+  const detail = await openRecipe(page, BASE.name);
+  await detail.locator(".act-ai-change").click();
+  ai.reply(JSON.stringify(veganUpdate()));
+  await page.locator("#ai-input").fill("mach es vegan");
+  await page.locator("#ai-send").click();
+  const apply = page.locator(".ai-update [data-apply-update]");
+  await expect(apply).toBeVisible();
+  await apply.click();
+  await expect(apply).toHaveText("✓ Übernommen");
+  await expect.poll(async () => (await idb(page, "recipes", "r01")).ingredients).toContain("Quinoa als Beilage <b>bio</b>");
+
+  await page.locator('nav.tabbar .tab[data-go="cookbook"]').click();
+  await page.locator('nav.tabbar .tab[data-go="assistant"]').click();
+  await expect(page.locator(".ai-update [data-apply-update]")).toBeDisabled();
+  await expect(page.locator(".ai-update [data-apply-update]")).toHaveText("✓ Übernommen");
+});
