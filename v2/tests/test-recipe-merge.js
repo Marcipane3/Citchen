@@ -1,7 +1,7 @@
 // Tests: data/recipeMerge.js (v2.15.1, Epic T1/T2) — reine Funktionen, die Spezifikation der
 // sicheren Rezept-Synchronisation: Drei-Wege-Merge pro Rezept + Prüfung eingehender Drive-Dateien.
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
-import { mergeRecipes, inspectRemote, sameRecipe, sameContent, suspiciousDrop, RemoteRejected } from "../src/data/recipeMerge.js";
+import { mergeRecipes, inspectRemote, sameRecipe, sameCollection, sameContent, suspiciousDrop, RemoteRejected } from "../src/data/recipeMerge.js";
 import { planImport } from "../src/data/recipeImport.js";
 
 const r = (id, name, extra = {}) => ({ id, name, category: "Vegetarische Hauptgerichte", ...extra });
@@ -217,4 +217,48 @@ test("suspiciousDrop: ab 5 Rezepten oder ab 20 % fragen (Marcel 2026-10-26)", ()
   assert(suspiciousDrop(2, 10));            // 20 %
   assert(suspiciousDrop(3, 10));
   assert(!suspiciousDrop(0, 0));
+});
+
+/* ---------- sameCollection: Wahrheitstabelle (entscheidet, ob Sync schreibt; TW-22) ---------- */
+// Charakterisierung des heutigen Verhaltens: reihenfolge-sensitiv, vergleicht ALLE Felder inkl. persönlicher.
+
+test("sameCollection: gleiche Listen → true (fängt: Vergleich komplett auf false)", () => {
+  assert(sameCollection([r("a", "A"), r("b", "B")], [r("a", "A"), r("b", "B")]));
+});
+
+test("sameCollection: beide leer → true", () => {
+  assert(sameCollection([], []));
+});
+
+test("sameCollection: unterschiedliche Länge → false (fängt: Längenprüfung entfernt, a ⊂ b)", () => {
+  assert(!sameCollection([r("a", "A")], [r("a", "A"), r("b", "B")]));
+  assert(!sameCollection([r("a", "A"), r("b", "B")], [r("a", "A")]));
+});
+
+test("sameCollection: gleiche ids in anderer Reihenfolge → false (dokumentiert: reihenfolge-sensitiv)", () => {
+  assert(!sameCollection([r("a", "A"), r("b", "B")], [r("b", "B"), r("a", "A")]));
+});
+
+test("sameCollection: gleiche id, anderer Inhalt → false (fängt: sameRecipe-Prüfung entfernt)", () => {
+  assert(!sameCollection([r("a", "A")], [r("a", "Anders")]));
+});
+
+test("sameCollection: gleiche id, nur persönliches Feld anders → false (sameRecipe vergleicht alles)", () => {
+  assert(!sameCollection([{ ...r("a", "A"), favorite: false }], [{ ...r("a", "A"), favorite: true }]));
+});
+
+test("sameCollection: gleicher Inhalt, andere Schlüsselreihenfolge → true", () => {
+  const x = r("a", "A");
+  const y = Object.fromEntries(Object.entries(x).reverse());
+  assert(sameCollection([x], [y]));
+});
+
+test("sameCollection: andere id bei gleichem Inhalt → false (id-Prüfung ist redundant: sameRecipe vergleicht die id mit)", () => {
+  assert(!sameCollection([{ ...r("a", "A") }], [{ ...r("a", "A"), id: "z" }]));
+});
+
+test("sameCollection: undefined-Slot / kürzere zweite Liste → false", () => {
+  assert(!sameCollection([r("a", "A")], [undefined]));
+  assert(!sameCollection([r("a", "A"), r("b", "B")], [r("a", "A")]));
+  assert(!sameCollection([r("a", "A")], []));
 });
