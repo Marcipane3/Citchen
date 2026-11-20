@@ -189,6 +189,7 @@ const MINE = {
 };
 
 async function createOwn(page) {
+  await page.locator('nav.tabbar .tab[data-go="cookbook"]').click();
   await page.locator("#addBtn").click();
   const form = await sheet(page);
   await fillForm(form, MINE);
@@ -251,12 +252,11 @@ test("#74: alte Karte löscht nichts, wenn das Rezept inzwischen kein Eigenes me
   const btn = page.locator("[data-delete-recipe]");
   await expect(btn).toBeVisible();
 
-  // Rezept wechselt die Herkunft (gespeichert ohne origin) — Karte ist veraltet.
+  // Gespeicherter Stand hat jetzt kein origin mehr (z. B. von woanders synchronisiert) — Karte ist veraltet.
   await page.evaluate(async (id) => {
-    const { updateRecipe } = await import("/v2/src/store.js");
-    await updateRecipe(id, (x) => { delete x.origin; });
+    const { setRecipes, getRecipeDe, state } = await import("/v2/src/store.js");
+    setRecipes(state.recipes.map((r) => { const c = { ...getRecipeDe(r.id) }; if (c.id === id) delete c.origin; return c; }), state.meta);
   }, mine.id);
-  expect("origin" in (await idb(page, "recipes", mine.id))).toBe(false);
 
   const dialogs = [];
   page.removeAllListeners("dialog");
