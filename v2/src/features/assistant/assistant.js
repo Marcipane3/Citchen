@@ -8,11 +8,11 @@ import { state, addRecipe, getRecipeDe, updateRecipe } from "../../store.js";
 import * as gate from "../../ai/gate.js";
 import { complete, AiError } from "../../ai/client.js";
 import { buildSystemPrompt, suggestUserPrompt, leftoverUserPrompt, fromStockUserPrompt, generateUserPrompt, elaborateUserPrompt, changeUserPrompt } from "../../ai/prompts.js";
-import { extractJson, coerceRecipe, coerceSuggestions, coerceUpdate, coerceChange, recipeChanges, makeUpdatePatch, applyUpdatePatch } from "../../ai/parse.js";
+import { extractJson, coerceRecipe, coerceSuggestions, coerceUpdate, coerceChange, coerceDelete, recipeChanges, makeUpdatePatch, applyUpdatePatch } from "../../ai/parse.js";
 import { getStaples, getProfile, getInstructions } from "../../data/settings.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { openSheet, closeAllSheets } from "../../ui/sheet.js";
-import { openDetail } from "../cookbook/detail.js";
+import { openDetail, removeRecipe } from "../cookbook/detail.js";
 import { navigate } from "../../router.js";
 import { BUILD } from "../../version.js";
 import { t, getLang } from "../../i18n.js";
@@ -146,6 +146,7 @@ function paintChat(container) {
   wireChat(container);
   el.querySelectorAll(".ai-msg").forEach((d) => {
     if (chatLog[Number(d.dataset.i)]?.applied) d.querySelectorAll("[data-apply-update]").forEach((b) => { b.disabled = true; b.textContent = t("assistant.changeApplied"); });
+    if (chatLog[Number(d.dataset.i)]?.deleted) d.querySelectorAll("[data-delete-recipe]").forEach((b) => { b.disabled = true; b.textContent = t("assistant.deleted"); });
   });
   el.scrollTop = el.scrollHeight;
   window.scrollTo(0, document.body.scrollHeight);
@@ -220,6 +221,8 @@ function renderAnswer(text) {
 
   if (json && json.type === "update") return renderUpdate(json);
 
+  if (json && json.type === "delete") return renderDelete(json);
+
   if (json && json.type === "change") {
     const c = coerceChange(json, knownIds);
     const de = c && getRecipeDe(c.id);
@@ -279,6 +282,28 @@ function renderUpdate(json) {
     </div>`;
 }
 
+/** G3.3 (#74): Löschen-Antwort → Karte mit Knopf, nur für selbst angelegte Rezepte; sonst Hinweis ohne Knopf. */
+function renderDelete(json) {
+  const stored = typeof json.id === "string" ? getRecipeDe(json.id.trim()) : null;
+  const d = coerceDelete(json, stored ? [stored] : []);
+  if (!d.recipe) return `<p>${esc(t("assistant.deleteRefused." + d.reason))}</p>`;
+  return `${d.intro ? `<p>${esc(d.intro)}</p>` : ""}
+    <div class="ai-recipe ai-delete">
+      <div class="sug-name" style="font-size:19px">${esc(d.recipe.name)}</div>
+      <button class="btn-sec btn-del" data-delete-recipe="${esc(d.recipe.id)}">🗑 ${t("assistant.deleteRecipe")}</button>
+    </div>`;
+}
+
+/** „Rezept löschen“: Guard erneut gegen das aktuell gespeicherte Rezept, dann dieselbe Bestätigung wie in der Detailansicht. */
+export async function deleteFromCard(id) {
+  const stored = getRecipeDe(id);
+  const d = coerceDelete({ id }, stored ? [stored] : []);
+  if (!d.recipe) throw new Error(t("assistant.deleteRefused." + d.reason));
+  if (!confirm(t("detail.confirmDelete"))) return false;
+  await removeRecipe(d.recipe);
+  return true;
+}
+
 /** „Änderung übernehmen“: nur die Felder der Karte, auf das aktuell gespeicherte Rezept; Rest bleibt. */
 async function applyUpdate(patch) {
   let result;
@@ -298,6 +323,22 @@ function markApplied(btn) {
 function wireChat(container) {
   container.querySelectorAll("[data-change-recipe]").forEach((b) => {
     b.onclick = () => startChange(b.dataset.changeRecipe);
+  });
+  container.querySelectorAll("[data-delete-recipe]").forEach((b) => {
+    b.onclick = async () => {
+      if (b.disabled) return;
+      b.disabled = true;
+      try {
+        if (await deleteFromCard(b.dataset.deleteRecipe)) {
+          const m = chatLog[Number(b.closest(".ai-msg")?.dataset.i)];
+          if (m) m.deleted = true;
+          b.textContent = t("assistant.deleted");
+        } else b.disabled = false;
+      } catch (e) {
+        b.disabled = false;
+        alert(e.message);
+      }
+    };
   });
   container.querySelectorAll("[data-apply-update]").forEach((b) => {
     b.onclick = async () => {
