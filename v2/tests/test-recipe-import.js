@@ -421,3 +421,45 @@ test("origin: importRecipes speichert die Rezepte mit origin \"user\", der Besta
     assertEqual(state.recipes.find((x) => x.id === "n1").origin, "user", "Anzeige zeigt denselben Stand");
   } finally { setSaveChangeForTest(null); }
 });
+
+/* ---------- #89 (DG-19): Bestand wird für den Vergleich genauso bereinigt wie der Import ---------- */
+
+test("#89: Bestand mit unbekanntem Zusatzfeld + bereinigte Import-Kopie → Duplikat, nicht neu", () => {
+  const existing = [r("a", "A", { ingredients: ["1 x"], nutrition: { kcal: 100 } })];
+  const plan = planImport(parseImportFile(file(existing)).recipes, existing);
+  assertEqual(plan.toAdd.length, 0);
+  assertEqual(plan.skipped.length, 1);
+});
+
+test("#89: Bestand mit http-Bild + bereinigte Import-Kopie → Duplikat, nicht neu", () => {
+  const existing = [r("a", "A", { image: "http://example.org/a.jpg" })];
+  const plan = planImport(parseImportFile(file(existing)).recipes, existing);
+  assertEqual(plan.toAdd.length, 0);
+  assertEqual(plan.skipped.length, 1);
+});
+
+test("#89: Rundreise mit beiden Fällen → toAdd leer, duplicates = Bestandsgröße", () => {
+  const existing = [
+    r("a", "A", { nutrition: { kcal: 1 } }),
+    r("b", "B", { image: "http://example.org/b.jpg" }),
+    r("c", "C", { image: "https://example.org/c.jpg", steps: ["x"] }),
+  ];
+  const res = parseImportFile(JSON.stringify(buildExportFile(existing)));
+  const plan = planImport(res.recipes, existing);
+  assertEqual(plan.toAdd.length, 0);
+  assertEqual(summarizeImport(plan).duplicates, existing.length);
+});
+
+test("#89: echt anderer Inhalt (andere steps) bekommt weiter eine neue ID", () => {
+  const existing = [r("a", "A", { steps: ["eins"], nutrition: 1 })];
+  const plan = planImport(parseImportFile(file([r("a", "A", { steps: ["zwei"] })])).recipes, existing);
+  assertEqual(plan.toAdd.length, 1);
+  assertEqual(plan.renamed.length, 1);
+});
+
+test("#89: der Bestand wird beim Planen nicht verändert", () => {
+  const existing = [r("a", "A", { nutrition: 1, image: "http://x.org/a.jpg" })];
+  const before = JSON.stringify(existing);
+  planImport(parseImportFile(file(existing)).recipes, existing);
+  assertEqual(JSON.stringify(existing), before);
+});
