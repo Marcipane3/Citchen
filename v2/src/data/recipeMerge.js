@@ -72,7 +72,7 @@ function stable(v) {
  * zählen nicht. `origin` (#72) ist kein persönliches Feld (der Export behält es), aber auch kein Inhalt:
  * ein importiertes Rezept mit "user" ist dasselbe wie sein Zwilling ohne Feld auf Drive.
  */
-const NOT_CONTENT = new Set([...PERSONAL_FIELDS, "origin"]);
+const NOT_CONTENT = new Set([...PERSONAL_FIELDS, "origin", "items"]); // items: abgeleitet (R3.2)
 function contentOnly(r) {
   const full = withDefaults(r), out = {};
   for (const k of Object.keys(full)) if (!NOT_CONTENT.has(k)) out[k] = full[k];

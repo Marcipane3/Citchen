@@ -1,6 +1,7 @@
 // Tests: schema.js — Kategorien, Validierung, ID-Vergabe, Defaults.
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import { CATEGORIES, validateRecipe, validateCollection, makeIdFactory, withDefaults, isUserRecipe, RECIPE_FIELDS, PERSONAL_FIELDS } from "../src/data/schema.js";
+import { readFileSync } from "node:fs";
 
 test("CATEGORIES: exakt 16, exakte Strings (SCHEMA.md)", () => {
   assertEqual(CATEGORIES.length, 16);
@@ -117,4 +118,35 @@ test("origin: steht in RECIPE_FIELDS und ist kein persönliches Feld", () => {
 
 test("origin: withDefaults ergänzt das Feld nie (bestehende Rezepte bleiben unberührt)", () => {
   assert(!("origin" in withDefaults(base72())));
+});
+
+/* ---------- items (R3.2, #107) ---------- */
+const withItemsField = (items) => ({ ...base72(), items });
+
+test("items: steht in RECIPE_FIELDS, ist kein persönliches Feld", () => {
+  assert(RECIPE_FIELDS.includes("items"), "items fehlt in RECIPE_FIELDS");
+  assert(!PERSONAL_FIELDS.includes("items"), "items darf kein persönliches Feld sein");
+});
+
+test("items: validateRecipe akzeptiert fehlend und wohlgeformtes Array, lehnt Nicht-Arrays und Items ohne text ab", () => {
+  assert(validateRecipe(base72()).valid, "ohne items");
+  assert(validateRecipe(withItemsField([])).valid, "leeres Array");
+  assert(validateRecipe(withItemsField([{ text: "Salz", buy: false, optional: false }])).valid, "mit Item");
+  for (const bad of ["x", {}, 3, null, [{}], [{ text: 5 }], [null], ["Salz"], [[]]]) {
+    assert(!validateRecipe(withItemsField(bad)).valid, "muss ungültig sein: " + JSON.stringify(bad));
+  }
+});
+
+test("items: withDefaults ergänzt items nie, ingredients bleibt unverändert", () => {
+  const r = { ...base72(), ingredients: ["Salz"] };
+  const out = withDefaults(r);
+  assert(!("items" in out));
+  assertDeepEqual(out.ingredients, ["Salz"]);
+});
+
+test("items: SCHEMA.md dokumentiert items als optional und abgeleitet", () => {
+  const md = readFileSync(new URL("../../SCHEMA.md", import.meta.url), "utf8");
+  const row = md.split("\n").find((l) => l.startsWith("| `items` |"));
+  assert(row, "Zeile für items fehlt in SCHEMA.md");
+  assert(/optional/.test(row) && /abgeleitet/.test(row) && /ingredients/.test(row), "optional/abgeleitet/ingredients");
 });

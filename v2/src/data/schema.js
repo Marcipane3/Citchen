@@ -31,7 +31,7 @@ export const DIFFICULTY_VALUES = Object.freeze(["", "einfach", "mittel", "aufwä
 export const RECIPE_FIELDS = Object.freeze([
   "id", "name", "category", "time", "servings", "lastCooked", "rating", "favorite", "cookedCount",
   "image", "photos", "feedback", "ingredients", "steps", "tips", "effort", "difficulty", "cuisine",
-  "prepTime", "cookTime", "totalTime", "mealPrep", "toTry", "season", "tags", "origin",
+  "prepTime", "cookTime", "totalTime", "mealPrep", "toTry", "season", "tags", "origin", "items",
 ]);
 
 /**
@@ -98,6 +98,11 @@ export function validateRecipe(r) {
   }
   for (const f of ["mealPrep", "toTry"]) {
     if (r[f] !== undefined && !isBool(r[f])) errors.push(`${f} muss Boolean sein`);
+  }
+  // items (R3.2): optional, abgeleitet — nur die Form prüfen: Array von Objekten mit String-`text`.
+  if (r.items !== undefined) {
+    const ok = Array.isArray(r.items) && r.items.every((it) => it && typeof it === "object" && !Array.isArray(it) && isStr(it.text));
+    if (!ok) errors.push("items muss Array von {text, …} sein");
   }
   if (r.photos !== undefined) {
     const ok = Array.isArray(r.photos) &&
