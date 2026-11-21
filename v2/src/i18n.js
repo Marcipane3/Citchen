@@ -292,6 +292,7 @@ export const DICT = {
       changePlaceholder: "Was soll sich ändern? z.B. „mach es vegan“", attached: "Angehängt: „{name}“",
       changeThis: "✨ „{name}“ mit Assistent ändern", applyChange: "✅ Änderung übernehmen", changeApplied: "✓ Übernommen", changeStale: "Das Rezept hat sich inzwischen geändert — bitte den Vorschlag neu anfragen.",
       updateNoChange: "Der Vorschlag ändert nichts am Rezept — es bleibt, wie es ist.", updateOrder: "Reihenfolge geändert",
+      deleteRefused: { notUser: "Der Assistent löscht nur Rezepte, die du selbst angelegt hast. Grundrezepte kannst du im Rezept selbst löschen.", unknown: "Dieses Rezept gibt es nicht (mehr) — es wurde nichts gelöscht.", invalid: "Das war keine gültige Löschanfrage — es wurde nichts gelöscht." }, deleteRecipe: "Rezept löschen", deleted: "✓ Gelöscht",
       field: { prepTime: "Vorbereitung (Min)", cookTime: "Kochzeit (Min)", totalTime: "Gesamtzeit (Min)", tags: "Tags", mealPrep: "Meal-Prep", toTry: "Zu probieren" },
     },
     capture: {
@@ -573,6 +574,7 @@ export const DICT = {
       changePlaceholder: "What should change? e.g. “make it vegan”", attached: "Attached: “{name}”",
       changeThis: "✨ Change “{name}” with assistant", applyChange: "✅ Apply change", changeApplied: "✓ Applied", changeStale: "The recipe has changed in the meantime — please ask for the change again.",
       updateNoChange: "The suggestion changes nothing in the recipe — it stays as it is.", updateOrder: "Order changed",
+      deleteRefused: { notUser: "The assistant only deletes recipes you created yourself. You can delete base recipes in the recipe itself.", unknown: "That recipe doesn’t exist (any more) — nothing was deleted.", invalid: "That was not a valid delete request — nothing was deleted." }, deleteRecipe: "Delete recipe", deleted: "✓ Deleted",
       field: { prepTime: "Prep (min)", cookTime: "Cook time (min)", totalTime: "Total time (min)", tags: "Tags", mealPrep: "Meal prep", toTry: "To try" },
     },
     capture: {
@@ -854,6 +856,7 @@ export const DICT = {
       changePlaceholder: "¿Qué debe cambiar? p. ej. “hazla vegana”", attached: "Adjunta: “{name}”",
       changeThis: "✨ Cambiar “{name}” con el asistente", applyChange: "✅ Aplicar cambio", changeApplied: "✓ Aplicado", changeStale: "La receta ha cambiado mientras tanto — pide el cambio de nuevo.",
       updateNoChange: "La propuesta no cambia nada de la receta — se queda como está.", updateOrder: "Orden cambiado",
+      deleteRefused: { notUser: "El asistente solo elimina recetas que has creado tú. Las recetas base puedes eliminarlas en la propia receta.", unknown: "Esa receta no existe (ya) — no se ha eliminado nada.", invalid: "Eso no era una solicitud de eliminación válida — no se ha eliminado nada." }, deleteRecipe: "Eliminar receta", deleted: "✓ Eliminada",
       field: { prepTime: "Preparación (min)", cookTime: "Cocción (min)", totalTime: "Tiempo total (min)", tags: "Etiquetas", mealPrep: "Meal prep", toTry: "Por probar" },
     },
     capture: {
@@ -1135,6 +1138,7 @@ export const DICT = {
       changePlaceholder: "Hvad skal ændres? fx „gør den vegansk“", attached: "Vedhæftet: „{name}“",
       changeThis: "✨ Ændr „{name}“ med assistenten", applyChange: "✅ Anvend ændring", changeApplied: "✓ Anvendt", changeStale: "Opskriften er ændret i mellemtiden — bed om ændringen igen.",
       updateNoChange: "Forslaget ændrer intet i opskriften — den forbliver som den er.", updateOrder: "Rækkefølge ændret",
+      deleteRefused: { notUser: "Assistenten sletter kun opskrifter, du selv har oprettet. Grundopskrifter kan du slette i selve opskriften.", unknown: "Den opskrift findes ikke (længere) — intet blev slettet.", invalid: "Det var ikke en gyldig sletteanmodning — intet blev slettet." }, deleteRecipe: "Slet opskrift", deleted: "✓ Slettet",
       field: { prepTime: "Forberedelse (min)", cookTime: "Tilberedning (min)", totalTime: "Samlet tid (min)", tags: "Tags", mealPrep: "Meal prep", toTry: "Skal prøves" },
     },
     capture: {

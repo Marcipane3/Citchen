@@ -2,7 +2,7 @@
 // Modelle halten sich meist, aber nicht immer an "nur JSON" — wir extrahieren
 // das erste JSON-Objekt und koerzieren das Rezept ins flache v3-Schema.
 
-import { CATEGORIES, validateRecipe, EFFORT_VALUES, DIFFICULTY_VALUES, RECIPE_FIELDS, PERSONAL_FIELDS } from "../data/schema.js";
+import { CATEGORIES, validateRecipe, isUserRecipe, EFFORT_VALUES, DIFFICULTY_VALUES, RECIPE_FIELDS, PERSONAL_FIELDS } from "../data/schema.js";
 
 /** Erstes vollständiges JSON-Objekt aus Text ziehen (auch in ```-Zäunen). */
 export function extractJson(text) {
@@ -236,4 +236,18 @@ export function applyUpdatePatch(target, patch) {
 export function coerceChange(json, knownIds) {
   if (!json || !json.id || !knownIds.has(json.id)) return null;
   return { id: json.id, intro: toStr(json.intro) };
+}
+
+/**
+ * G3.3 (#74): Löschen-Antwort {"type":"delete","id","intro"} → {recipe, intro} oder {recipe:null, reason}.
+ * `recipesDe` = gespeicherte deutsche Rezepte. Nur ein EXISTIERENDES Rezept mit origin "user" (isUserRecipe)
+ * darf gelöscht werden; Grundrezepte (kein origin) und jeder andere origin-Wert werden verweigert.
+ * Genau EINE id als String — eine Liste ist ungültig. reason: "invalid" | "unknown" | "notUser".
+ */
+export function coerceDelete(json, recipesDe) {
+  if (!json || typeof json !== "object" || typeof json.id !== "string" || !json.id.trim()) return { recipe: null, reason: "invalid" };
+  const recipe = (recipesDe || []).find((r) => r && r.id === json.id.trim());
+  if (!recipe) return { recipe: null, reason: "unknown" };
+  if (!isUserRecipe(recipe)) return { recipe: null, reason: "notUser" };
+  return { recipe, intro: toStr(json.intro) };
 }

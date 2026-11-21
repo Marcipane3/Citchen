@@ -181,3 +181,87 @@ test("#73 B4: neues Rezept aus dem Assistenten → Karte → „In Kochbuch spei
   await expect.poll(async () => (await idb(page, "recipes")).length).toBe(count + 1);
   expect((await idb(page, "recipes")).some((r) => r.name === "Testsuppe B4")).toBe(true);
 });
+
+// ---- #74 (G3.3): Assistent löscht nur selbst angelegte Rezepte ----
+const MINE = {
+  name: "E2E Eigene Suppe", category: "Suppen & Eintöpfe", time: "20 Min",
+  ingredients: ["1 Zwiebel", "500 ml Brühe"], steps: ["Zwiebel anbraten.", "Brühe zugeben."],
+};
+
+async function createOwn(page) {
+  await page.locator('nav.tabbar .tab[data-go="cookbook"]').click();
+  await page.locator("#addBtn").click();
+  const form = await sheet(page);
+  await fillForm(form, MINE);
+  await form.locator(".save-btn").click();
+  await expect(page.locator(".overlay")).toHaveCount(0);
+  await expect.poll(async () => (await idb(page, "recipes")).find((r) => r.name === MINE.name)?.origin).toBe("user");
+  return (await idb(page, "recipes")).find((r) => r.name === MINE.name);
+}
+
+async function ask(page, ai, reply, text) {
+  ai.reply(JSON.stringify(reply));
+  await page.locator("#ai-input").fill(text);
+  await page.locator("#ai-send").click();
+}
+
+test("#74: Grundrezept löschen → Hinweis, kein Knopf, Rezept bleibt; im Rezept selbst weiter löschbar", async ({ page, ai }) => {
+  await openApp(page);
+  await saveKey(page);
+  await page.locator('nav.tabbar .tab[data-go="assistant"]').click();
+  await ask(page, ai, { type: "delete", id: "r01", intro: "Okay, weg damit." }, "lösche das Curry");
+  await expect(page.locator(".ai-msg.ai").last()).toContainText("löscht nur Rezepte, die du selbst angelegt hast");
+  await expect(page.locator("[data-delete-recipe]")).toHaveCount(0);
+  expect(await idb(page, "recipes", "r01")).toBeDefined();
+  // manuell weiterhin möglich
+  await page.locator('nav.tabbar .tab[data-go="cookbook"]').click();
+  const detail = await openRecipe(page, BASE.name);
+  await expect(detail.locator(".del")).toBeVisible();
+});
+
+test("#74: eigenes Rezept → Karte → Abbrechen: bleibt; Bestätigen: gelöscht, Karte zeigt „Gelöscht“", async ({ page, ai }) => {
+  await openApp(page);
+  await saveKey(page);
+  const mine = await createOwn(page);
+  await page.locator('nav.tabbar .tab[data-go="assistant"]').click();
+  await ask(page, ai, { type: "delete", id: mine.id, intro: "Verstanden." }, "lösche meine Suppe");
+  const card = page.locator(".ai-delete");
+  await expect(card.locator(".sug-name")).toHaveText(MINE.name);
+  const btn = card.locator("[data-delete-recipe]");
+  await expect(btn).toHaveText("🗑 Rezept löschen");
+  expect(await idb(page, "recipes", mine.id)).toBeDefined(); // Karte allein löscht nichts
+
+  page.removeAllListeners("dialog");
+  page.once("dialog", (d) => { expect(d.message()).toBe("Rezept wirklich löschen?"); d.dismiss(); });
+  await btn.click();
+  await expect(btn).toBeEnabled();
+  expect(await idb(page, "recipes", mine.id)).toBeDefined();
+
+  page.once("dialog", (d) => d.accept());
+  await btn.click();
+  await expect(btn).toHaveText("✓ Gelöscht");
+  await expect.poll(async () => await idb(page, "recipes", mine.id)).toBeUndefined();
+});
+
+test("#74: alte Karte löscht nichts, wenn das Rezept inzwischen kein Eigenes mehr ist", async ({ page, ai }) => {
+  await openApp(page);
+  await saveKey(page);
+  const mine = await createOwn(page);
+  await page.locator('nav.tabbar .tab[data-go="assistant"]').click();
+  await ask(page, ai, { type: "delete", id: mine.id, intro: "Okay." }, "lösche meine Suppe");
+  const btn = page.locator("[data-delete-recipe]");
+  await expect(btn).toBeVisible();
+
+  // Gespeicherter Stand hat jetzt kein origin mehr (z. B. von woanders synchronisiert) — Karte ist veraltet.
+  await page.evaluate(async (id) => {
+    const { setRecipes, getRecipeDe, state } = await import("/v2/src/store.js");
+    setRecipes(state.recipes.map((r) => { const c = { ...getRecipeDe(r.id) }; if (c.id === id) delete c.origin; return c; }), state.meta);
+  }, mine.id);
+
+  const dialogs = [];
+  page.removeAllListeners("dialog");
+  page.on("dialog", (d) => { dialogs.push(d.type()); d.accept(); });
+  await btn.click();
+  await expect.poll(() => dialogs).toEqual(["alert"]); // Hinweis, keine Löschbestätigung
+  expect(await idb(page, "recipes", mine.id)).toBeDefined();
+});
