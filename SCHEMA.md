@@ -262,6 +262,30 @@ Installation einlesen — ohne Drive auf beiden Seiten. Die Datei hat **dieselbe
   anderer Inhalt → das importierte Rezept bekommt eine neue `id`. Ist die `id` frei, bleibt sie
   erhalten (wichtig für Sicherung + Wiederherstellen: Übersetzungen und Wochenplan hängen an der `id`).
 
+## Nebenbei: Umzugs-Datei (`citchen-umzug-JJJJ-MM-TT.json`, P5 #108)
+
+Eine **eigene Datei, nicht `rezepte.json`** und kein Rezept-Export. Sie trägt beim Wechsel auf die
+neue Adresse (Dez. 2026) mit, was nur im Browser liegt (IndexedDB/localStorage gehören zur Adresse).
+Einstellungen → „Umzug auf die neue Adresse“; Code: `v2/src/data/moveFile.js` (Erlaubnisliste `ENTRIES`).
+
+```json
+{ "kind": "citchen-move", "version": 1, "created": "2026-12-03T12:00:00.000Z", "from": "https://…/v2/",
+  "data": { "pantry": [ … ], "fridge": [ … ], "profile": { … }, "friendsLink": { "ownerToken": "…", … } } }
+```
+
+- **Dabei:** Vorrat, Kühlschrank, Koch-Profil, Assistenten-Anweisungen, Wochenplan (+ Rotation, Reste),
+  Einkaufsliste, Verbindung der Einkaufsliste mit dem Partner (nur Drive-Datei-IDs), Freunde-Link
+  **mit Besitzer-Token** (die Datei ist deshalb privat), Rezept-Matches, Theme, Sprache, Modellwahl,
+  Sortierungen, Portions-Faktoren, KI-Verbrauchsprotokoll.
+- **Nie dabei:** Anthropic-Schlüssel, Google-Token, Entwickler-Weiche `koch.supabase`, Rezepte und
+  ihr Sync-Zustand (die trägt Drive — vor dem Export synchronisieren; die App fragt).
+- **Import = fremder Kanal:** größer als 2 MB, kein JSON, falsches `kind`, `version` keine Zahl → abgelehnt;
+  `version` > 1 → abgelehnt (neuere App). Jeder Wert wird nach seiner Regel geprüft; Unbekanntes und
+  Kaputtes fällt weg, der Rest wird übernommen.
+- **Nichts wird ungefragt überschrieben:** leere Speicher werden gefüllt; ein Bereich, der auf der neuen
+  Adresse schon andere Daten hat, wird nur nach Rückfrage ersetzt („Behalten“ lässt ihn). Einkaufsliste
+  (neuestes `updated` je Artikel) und KI-Verbrauch werden ohne Rückfrage verlustfrei zusammengeführt.
+
 ## Nebenbei: `einkaufsliste.json` (geteilte Einkaufsliste, seit v2.15.2 geprüft)
 
 Nicht Teil des Rezept-Vertrags, aber dieselbe Drive-Logik: die Einkaufsliste liegt als eigene

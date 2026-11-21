@@ -10,6 +10,7 @@ import * as sync from "../../data/sync.js";
 import { getTheme, setTheme, getProfile, setProfile, resetProfile, getInstructions, setInstructions, resetInstructions } from "../../data/settings.js";
 import { TEMPLATE_VARIABLES, missingVariables, addBackVariables, appendedFixedPart } from "../../ai/prompts.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
+import { moveCardHtml, wireMove } from "./move.js";
 import { navigate } from "../../router.js";
 import { BUILD } from "../../version.js";
 import { t, LANGS, getLang, setLang } from "../../i18n.js";
@@ -109,6 +110,7 @@ export function renderSettings(container) {
           <button class="btn-sec btn-del" id="drive-disconnect">${t("settings.driveDisconnect")}</button>
         </div>
       </div>
+${moveCardHtml()}
 
       <div class="card set-card">
         <h3>${t("settings.langHeading")}</h3>
@@ -253,6 +255,9 @@ export function renderSettings(container) {
   // Speichern ab („Speichern fehlgeschlagen“, Drive-Push nie ausgeführt). Gefunden von der E2E-Suite.
   const offAuth = drive.onAuthChange(paintDrive);
   const offStatus = sync.onStatus(paintDrive);
+
+  /* ---------- Umzug auf die neue Adresse (P5, #108) ---------- */
+  wireMove(container);
 
   /* ---------- Sprache ---------- */
   container.querySelectorAll("[data-setlang]").forEach((b) => {
