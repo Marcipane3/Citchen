@@ -328,10 +328,11 @@ test("ausgelieferter Stamm: 3 Knoblauchzehen → clove, 9 g (Alias „Knoblauchz
 
 /* ---------- Abdeckung: Basis-Kochbuch × ausgelieferter Stamm ---------- */
 
-// Gemessen am 2026-11-13 (105 Rezepte, 70 Zutaten): 839 Zeilen → 1010 Teile, 965 mit Zutat. Der Boden liegt 3 Punkte unter dem Messwert:
-// neue Stamm-Daten dürfen den Anteil nur heben.
-const MEASURED_PCT = 95.5;
-const FLOOR_PCT = MEASURED_PCT - 3;
+// Gemessen am 2026-11-13 (105 Rezepte, 70 Zutaten): 839 Zeilen → 1010 Teile, 965 mit Zutat (95,5 %).
+// R2.2 (113 Zutaten): 1013 Teile, 1002 mit Zutat (98,9 %). Neue Stamm-Daten dürfen den Anteil nur heben.
+const BASE_70_PCT = 95.5;
+const MEASURED_PCT = 98.9;
+const FLOOR_PCT = MEASURED_PCT - 1;
 
 test("Abdeckung: Anteil der Teile mit Zutat liegt über dem Boden", () => {
   const master = read("../data/ingredients.json");
@@ -352,4 +353,13 @@ test("Abdeckung: Anteil der Teile mit Zutat liegt über dem Boden", () => {
   const pct = (matched / parts) * 100;
   console.log(`    Abdeckung: ${lines} Zeilen → ${parts} Teile, ${matched} mit Zutat (${pct.toFixed(1)} %), ${weighed} mit Gewicht (${((weighed / parts) * 100).toFixed(1)} %)`);
   assert(pct >= FLOOR_PCT, `Abdeckung ${pct.toFixed(1)} % liegt unter dem Boden ${FLOOR_PCT} %`);
+});
+
+test("master covers more base-recipe lines than before", () => {
+  const master = read("../data/ingredients.json");
+  const snapshot = read("../data/rezepte.snapshot.json");
+  const idx = buildIndex(master);
+  let parts = 0, matched = 0;
+  for (const r of snapshot.recipes) for (const line of r.ingredients || []) for (const it of matchLine(line, idx)) { parts++; if (it.ing) matched++; }
+  assert((matched / parts) * 100 > BASE_70_PCT + 3, `Abdeckung ${((matched / parts) * 100).toFixed(1)} % hebt sich nicht über die 70er Datei (${BASE_70_PCT} %)`);
 });

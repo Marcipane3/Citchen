@@ -147,6 +147,21 @@ test("ingredients.json: Kopf — version 1, sources mit Lizenzhinweisen, mindest
   assert(master.ingredients.length >= 60, `nur ${master.ingredients.length} Einträge`);
 });
 
+test("ingredients.json: zweite Charge — mindestens 110 Einträge, dünne Gänge gefüllt, 70 Ur-Ids erhalten", () => {
+  assert(master.ingredients.length >= 110, `nur ${master.ingredients.length} Einträge`);
+  const per = (a) => master.ingredients.filter((r) => r.aisle === a).length;
+  assert(per("meat-fish") >= 5, "meat-fish zu dünn");
+  for (const a of ["drinks", "dairy", "frozen", "bakery"]) assert(per(a) >= 3, `${a} zu dünn`);
+  const BATCH1 = ["salt", "pepper", "onion", "oil", "flour", "garlic", "sugar", "egg", "butter", "cumin", "tomatoes-canned", "cinnamon", "milk", "olive-oil",
+    "chili-flakes", "paprika-powder", "baking-powder", "zucchini", "bell-pepper", "cheese", "soy-sauce", "parsley", "lemon", "chickpeas-canned", "honey", "rice",
+    "cream", "water", "parmesan", "vegetable-stock", "vegetable-mix-frozen", "cucumber", "tomato", "ginger", "potato", "carrot", "coconut-milk", "curry-powder",
+    "apple", "almonds", "pasta", "feta", "nutmeg", "yeast-dry", "peanut-butter", "bulgur", "basil", "tahini", "oats", "couscous", "noodles-asian",
+    "kidney-beans-canned", "spinach-frozen", "peas-carrots-canned", "vinegar", "mushrooms", "rosemary", "quark", "cocoa", "sourdough-starter", "banana",
+    "bread", "chives", "tuna-canned", "lentils-brown", "lentils-red", "buttermilk", "corn-canned", "lime", "eggplant"];
+  assertEqual(BATCH1.length, 70);
+  assertDeepEqual(BATCH1.filter((id) => !byId.has(id)), []);
+});
+
 test("ingredients.json: jeder Eintrag hat die Felder aus ADR §3", () => {
   for (const r of master.ingredients) {
     assert(AISLES[r.aisle], `${r.id}: aisle „${r.aisle}“ unbekannt`);
@@ -242,6 +257,9 @@ const KCAL_EXCEPTIONS = {
   "chili-flakes": "Kohlenhydrate sind zu etwa der Hälfte Ballaststoffe",
   "cocoa": "Kohlenhydrate sind zu über der Hälfte Ballaststoffe",
   "baking-powder": "„Kohlenhydrate“ sind größtenteils Carbonate ohne Brennwert",
+  "white-wine": "Alkohol (7 kcal/g) steht nicht in den Makros",
+  "red-wine": "Alkohol (7 kcal/g) steht nicht in den Makros",
+  "coriander-ground": "Kohlenhydrate sind zu etwa drei Vierteln Ballaststoffe",
 };
 
 test("ingredients.json: kcal ist plausibel zu den Makros (25 % oder 20 kcal), Ausnahmen dokumentiert", () => {
