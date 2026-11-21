@@ -1,7 +1,8 @@
 # Koch V3 — Preparation package
 
-> Status: **intent, dates and no-go list confirmed (2026-10-02, two answer rounds)** · 3 blocking questions left ·
-> prepared 2026-10-01 against v2.13 (live)
+> Status: **intent, dates and no-go list confirmed (2026-10-02, two answer rounds)** · prepared 2026-10-01 against v2.13 (live)
+> **2026-11-18: dates replanned** (launch 26 Feb 2027, closed test from 12 Dec, freeze 15 Dec, cutoff 31 Mar) and
+> D10/D11 decided. The dates and scope below are the October state; **`ROADMAP-V3.md` is current** and wins.
 > Owner: Marcel · Working docs for Marcel + Claude Code
 
 V3 is the next major version of the Koch app. This folder does **not** start V3. It prepares

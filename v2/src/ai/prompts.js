@@ -4,6 +4,7 @@
 
 import { CATEGORIES } from "../data/schema.js";
 import { getTotalMinutes } from "../data/derive.js";
+import { CONTENT_FIELDS } from "./parse.js";
 
 // A3: Koch-Profil — früher im System-Prompt hartkodiert, jetzt nutzereditierbar
 // (Settings → data/settings.js). Diese Defaults sind Marcels Ausgangswerte; sie
@@ -81,6 +82,8 @@ const OUTPUT_CONTRACT = `
 2. Antworte mit GENAU EINEM JSON-Objekt (ohne Markdown-Zaun, ohne Text davor/danach):
    - Vorschläge: {"type":"suggestions","intro":"1 Satz","items":[{"id":"r… oder null","name":"…","reason":"1 Satz"}]} — 3 bis 5 Stück. "id" nur, wenn das Rezept WIRKLICH im Kochbuch steht (exakte id aus der Liste). Neue Ideen: id=null.
    - Vollrezept: {"type":"recipe","intro":"1 Satz","recipe":{…}} — Schema unten.
+   - Rezept ändern (nur, wenn ein ANGEHÄNGTES REZEPT in der Nachricht steht): {"type":"update","id":"r…","intro":"1 Satz","recipe":{…}} — "id" = die id des angehängten Rezepts; "recipe" = das KOMPLETTE geänderte Rezept im Schema unten, auf Deutsch. Herz, Bewertung, Notizen, Fotos und Koch-Daten gibt es hier nicht; die bleiben.
+   - Änderungswunsch OHNE angehängtes Rezept: nicht raten, sondern {"type":"change","id":"r…","intro":"1 Satz"} — exakte id aus der Kochbuch-Liste. Ist das Rezept nicht eindeutig, frag mit text nach.
    - Sonst: {"type":"text","text":"…"}
 3. Rezept-Schema (flach, Schema v3):
    {"name":str,"category":str (EXAKT eine von: ${CATEGORIES.join(" / ")}),"time":"25 Min","servings":"~4","effort":"alltag"|"besonders","difficulty":"einfach"|"mittel"|"aufwändig","cuisine":str,"prepTime":int,"cookTime":int,"totalTime":int,"mealPrep":bool,"toTry":true,"season":str|"","tags":[str],"ingredients":[str],"steps":[str],"tips":str}
@@ -181,4 +184,23 @@ ${current}
 Gesperrt (NICHT ändern): ${lockedDays.length ? lockedDays.join(", ") : "keine"}
 Regeln: Mo–Fr schnell/alltagstauglich, Sa/So darf aufwendig sein. Nur Rezept-IDs aus meinem Kochbuch verwenden, keine Wiederholung in der Woche, Hauptgerichte (keine Kuchen/Backen/Grundrezepte).
 Antworte als JSON: {"type":"plan","days":{"Mo":"r…","Di":"r…","Mi":"r…","Do":"r…","Fr":"r…","Sa":"r…","So":"r…"},"note":"1 Satz"}`;
+}
+
+/**
+ * G3.2 (#73): Das angehängte Rezept (deutsches Original, alle Inhaltsfelder, nichts Persönliches)
+ * als Block für die Nutzernachricht — die Kochbuch-Liste im System-Prompt hat nur eine Zeile pro Rezept.
+ */
+export function attachedRecipeBlock(recipeDe) {
+  const content = { id: recipeDe.id };
+  for (const f of CONTENT_FIELDS) if (recipeDe[f] !== undefined) content[f] = recipeDe[f];
+  return `ANGEHÄNGTES REZEPT (im Wortlaut, Schema v3):
+${JSON.stringify(content, null, 1)}`;
+}
+
+/** Änderungswunsch zum angehängten Rezept → update-JSON. */
+export function changeUserPrompt(recipeDe, wish) {
+  return `${attachedRecipeBlock(recipeDe)}
+
+Ändere dieses Rezept. Wunsch: ${wish}
+Gib update-JSON mit "id":"${recipeDe.id}" und dem kompletten geänderten Rezept.`;
 }

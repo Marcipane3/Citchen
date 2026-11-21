@@ -9,10 +9,11 @@
 // treffen das deutsche Objekt und überleben das Overlay sauber.
 
 import * as sync from "./data/sync.js";
-import { makeIdFactory, withDefaults, validateRecipe, ORIGIN_USER } from "./data/schema.js";
+import { makeIdFactory, withDefaults, validateRecipe, withoutBadItems, ORIGIN_USER } from "./data/schema.js";
 import { buildLangMap, localizeRecipes } from "./data/baseLang.js";
 import { sameCollection } from "./data/recipeMerge.js";
 import { planImport } from "./data/recipeImport.js";
+import { withItems } from "./data/items.js";
 
 export const state = {
   recipes: [],      // Anzeige-Sicht (lokalisiert) — Views lesen NUR das
@@ -22,12 +23,25 @@ export const state = {
 
 let recipesDe = [];        // kanonisch deutsch (Persistenz + Mutationen)
 let langMap = new Map();   // id → übersetzte Inhaltsfelder (leer = Deutsch)
+let itemIndex = null;      // Zutaten-Stamm-Index (buildIndex) — null, solange der Stamm nicht geladen ist
 
 const listeners = new Set();
 export function onState(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 export function emit() { for (const fn of listeners) fn(state); }
 
-function recomputeView() { state.recipes = localizeRecipes(recipesDe, langMap); }
+// items[] (R3.2) wird nur für die Anzeige-Sicht abgeleitet: recipesDe, Speicher und Drive bleiben unberührt,
+// ein Start macht die Sammlung also nie „dirty“ und löst keinen Drive-Schreibvorgang aus.
+function recomputeView() {
+  const base = itemIndex ? recipesDe.map((r) => withItems(r, itemIndex)) : recipesDe;
+  state.recipes = localizeRecipes(base, langMap);
+}
+
+/** Zutaten-Stamm-Index setzen (nach dem Laden der Stamm-Datei) und die Sicht neu ableiten. */
+export function setItemIndex(index) {
+  itemIndex = index || null;
+  recomputeView();
+  emit();
+}
 
 export function setRecipes(recipes, meta) {
   recipesDe = recipes;
@@ -111,12 +125,12 @@ export async function updateRecipe(id, fn) {
   // origin gehört dem Anlegen, nie dem Bearbeiten (#72): nach fn() gilt wieder der Wert von vorher.
   // Nur ein String wird wiederhergestellt; ein kaputter Wert (null, Zahl …) fällt weg, sonst scheiterte jede Bearbeitung.
   const edit = (r) => {
-    const c = { ...r };
+    const c = { ...withoutBadItems(r) };
     fn(c);
     if (typeof r.origin === "string") c.origin = r.origin; else delete c.origin;
     return c;
   };
-  const copy = edit(recipesDe[idx]);
+  const copy = withoutBadItems(edit(recipesDe[idx]));
   const v = validateRecipe(copy);
   if (!v.valid) throw new Error("Ungültiges Rezept:\n" + v.errors.join("\n"));
   recipesDe = recipesDe.map((r, i) => (i === idx ? copy : r));

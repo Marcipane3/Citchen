@@ -2,7 +2,7 @@
 // Bestand planen. Kein DOM, kein Store. Dateiform = rezepte.json ({version, updated, recipes[]}).
 // Eine Import-ID überschreibt NIE ein vorhandenes Rezept: Kollisionen bekommen eine frische ID.
 
-import { validateRecipe, withDefaults, makeIdFactory, envelopeProblem, RECIPE_FIELDS, PERSONAL_FIELDS, ORIGIN_USER } from "./schema.js";
+import { validateRecipe, withDefaults, makeIdFactory, envelopeProblem, withoutBadItems, RECIPE_FIELDS, PERSONAL_FIELDS, ORIGIN_USER } from "./schema.js";
 import { sameContent } from "./recipeMerge.js";
 
 // Eine Import-Datei ist ein FREMDER Kanal (#36): Grenzen weit über echten Rezepten (längster Name im
@@ -33,6 +33,16 @@ function isHttpsUrl(v) {
   try { return new URL(v).protocol === "https:"; } catch { return false; }
 }
 
+/** Die eine Bereinigung für Import UND Vergleich: nur Vertragsfelder, id getrimmt, nur https-Bild, Defaults. Mutiert nichts. */
+function cleanRecipe(r) {
+  const clean = {};
+  for (const f of KEPT_FIELDS) if (r[f] !== undefined) clean[f] = r[f];
+  clean.id = r.id.trim(); // „ r01 “ ist dasselbe Rezept wie „r01“ (#50)
+  const imageRemoved = !!clean.image && !isHttpsUrl(clean.image);
+  if (imageRemoved) clean.image = "";
+  return { clean: withDefaults(clean), imageRemoved };
+}
+
 /**
  * Text → {recipes, errors, notes}. Ungültige oder übergroße Rezepte werden mit Index + Grund gemeldet
  * (errors) und übersprungen; `notes` nennt, was an einem übernommenen Rezept entfernt wurde.
@@ -52,18 +62,14 @@ export function parseImportFile(text) {
   if (problem === "newerFormat") return none(`Datei stammt aus einer neueren App-Version (Format ${data.version})`);
 
   const recipes = [], errors = [], notes = [];
-  data.recipes.forEach((r, i) => {
+  data.recipes.forEach((raw, i) => {
+    const r = withoutBadItems(raw); // items ist abgeleitet: ein kaputter Wert verwirft nicht das Rezept
     const res = validateRecipe(r);
     const problems = res.valid ? limitProblems(r) : res.errors;
     if (problems.length) { errors.push(`Rezept[${i}]: ${problems.join("; ")}`); return; }
-    const clean = {};
-    for (const f of KEPT_FIELDS) if (r[f] !== undefined) clean[f] = r[f];
-    clean.id = r.id.trim(); // „ r01 “ ist dasselbe Rezept wie „r01“ (#50)
-    if (clean.image && !isHttpsUrl(clean.image)) {
-      clean.image = "";
-      notes.push(`Rezept[${i}] „${r.name}“: Bild-Adresse entfernt (nur https erlaubt)`);
-    }
-    recipes.push(withDefaults(clean));
+    const { clean, imageRemoved } = cleanRecipe(r);
+    if (imageRemoved) notes.push(`Rezept[${i}] „${r.name}“: Bild-Adresse entfernt (nur https erlaubt)`);
+    recipes.push(clean);
   });
   return { recipes, errors, notes };
 }
@@ -82,9 +88,14 @@ export function planImport(incoming, existing, now = Date.now) {
   const nextId = makeIdFactory([...existing, ...incoming].map((r) => r.id), now); // auch Import-IDs sperren
   const taken = new Set(existing.map((r) => r.id));
   const byId = new Map(existing.map((r) => [r.id, r]));
+  const cleanedById = new Map(); // nur für den Vergleich; der Bestand selbst bleibt unangetastet (#89)
   const toAdd = [], renamed = [], skipped = [];
+  const cleanedExisting = (id) => {
+    if (!cleanedById.has(id)) cleanedById.set(id, cleanRecipe(byId.get(id)).clean);
+    return cleanedById.get(id);
+  };
   for (const r of incoming) {
-    if (byId.has(r.id) && isSameRecipe(r, byId.get(r.id))) {
+    if (byId.has(r.id) && isSameRecipe(r, cleanedExisting(r.id))) {
       skipped.push({ id: r.id, name: r.name, reason: `${r.name}: bereits vorhanden` });
     } else if (taken.has(r.id)) {
       const id = nextId();

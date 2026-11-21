@@ -91,6 +91,7 @@
 | `toTry` | boolean | nein | `true` bei neuen, noch nie gekochten Ideen. Treibt einen App-Filter. |
 | `season` | string | nein | Saison, falls relevant, z.B. `"Herbst"`, `"Sommer"`. |
 | `tags` | string[] | nein | Freie Schlagworte (z.B. `["bowl","mealprep","scharf"]`). |
+| `items` | object[] | nein | Strukturierte Zutaten, **optional und abgeleitet**, **additives Feld** (`version` bleibt `3`). Jedes Item: `{ text, ing?, amount?, amountMax?, unit?, g?, group?, prep?, buy, optional }`; `text` ist die **unveränderte deutsche Zeile aus `ingredients`**, über die das Item zugeordnet wird. Die App leitet `items` aus `ingredients` ab; **`ingredients` bleibt der Vertrag** und wird nie davon verändert. **App-verwaltet — Claude NICHT schreiben**; fehlt das Feld oder ist eine Zeile geändert, ordnet die App neu zu (ein Item, dessen `text` nicht mehr in `ingredients` steht, fällt weg). |
 | `origin` | string | nein | Herkunft, **additives Feld** (`version` bleibt `3`). `"user"` = vom Nutzer in der App angelegt (Formular, Erfassung, Assistent, Datei-Import). **Fehlt das Feld = Grundrezept.** **App-verwaltet — Claude NICHT setzen oder ändern** (siehe unten). |
 
 ### Vorrat vs. „neu kaufen": die `🛒`-Konvention (wichtig für Claude)

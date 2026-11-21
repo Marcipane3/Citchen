@@ -3,14 +3,17 @@
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import * as gate from "../src/ai/gate.js";
 import { CHAT_MODELS, DEFAULT_CHAT_MODEL } from "../src/ai/models.js";
-import { extractJson, coerceRecipe, coerceSuggestions, coercePlanDays, tippsToString } from "../src/ai/parse.js";
+import {
+  extractJson, coerceRecipe, coerceSuggestions, coercePlanDays, tippsToString,
+  coerceUpdate, recipeChanges, coerceChange, applyContentFields, CONTENT_FIELDS, makeUpdatePatch, applyUpdatePatch,
+} from "../src/ai/parse.js";
 import {
   buildSystemPrompt, buildCollectionContext, suggestUserPrompt, fromStockUserPrompt, planUserPrompt,
   profileBlock, DEFAULT_PROFILE, DEFAULT_INSTRUCTIONS, TEMPLATE_VARIABLES, missingVariables,
-  appendedFixedPart, addBackVariables,
+  appendedFixedPart, addBackVariables, attachedRecipeBlock, changeUserPrompt,
 } from "../src/ai/prompts.js";
 import { getInstructions, setInstructions, resetInstructions } from "../src/data/settings.js";
-import { validateRecipe } from "../src/data/schema.js";
+import { validateRecipe, PERSONAL_FIELDS } from "../src/data/schema.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -252,13 +255,16 @@ const TPL_RX = [
 ];
 const TPL_FRIDGE = [{ name: "Zucchini", menge: "2 Stück" }, { name: "Feta" }];
 
-// Eingefrorene Kopie der Ausgabe von buildSystemPrompt VOR #69 (Stand next, 15.11.2026).
+// Eingefrorene Kopie der Ausgabe von buildSystemPrompt VOR #69 (Stand next, 15.11.2026);
+// #73 hat dem Vertrag bewusst die Antworten "update" und "change" hinzugefügt (sonst unverändert).
 // Nicht aus dem Code ableiten und nicht „mitziehen“: genau diese Bytes müssen ohne Vorlage herauskommen.
 // FROZEN_CONTRACT = der feste Ausgabe-Vertrag (Regeln 2–4), der an jede Vorlage angehängt wird.
 const FROZEN_CONTRACT = `
 2. Antworte mit GENAU EINEM JSON-Objekt (ohne Markdown-Zaun, ohne Text davor/danach):
    - Vorschläge: {"type":"suggestions","intro":"1 Satz","items":[{"id":"r… oder null","name":"…","reason":"1 Satz"}]} — 3 bis 5 Stück. "id" nur, wenn das Rezept WIRKLICH im Kochbuch steht (exakte id aus der Liste). Neue Ideen: id=null.
    - Vollrezept: {"type":"recipe","intro":"1 Satz","recipe":{…}} — Schema unten.
+   - Rezept ändern (nur, wenn ein ANGEHÄNGTES REZEPT in der Nachricht steht): {"type":"update","id":"r…","intro":"1 Satz","recipe":{…}} — "id" = die id des angehängten Rezepts; "recipe" = das KOMPLETTE geänderte Rezept im Schema unten, auf Deutsch. Herz, Bewertung, Notizen, Fotos und Koch-Daten gibt es hier nicht; die bleiben.
+   - Änderungswunsch OHNE angehängtes Rezept: nicht raten, sondern {"type":"change","id":"r…","intro":"1 Satz"} — exakte id aus der Kochbuch-Liste. Ist das Rezept nicht eindeutig, frag mit text nach.
    - Sonst: {"type":"text","text":"…"}
 3. Rezept-Schema (flach, Schema v3):
    {"name":str,"category":str (EXAKT eine von: Frühstück & Brunch / Schnelle Wochentags-Gerichte / Pasta & Nudeln / Reis & Getreide / Suppen & Eintöpfe / Salate & leichte Gerichte / Wochenend-Gerichte / Vegetarische Hauptgerichte / Deutsche Hausmannskost / Middle Eastern & Mediterran / Asiatisch inspiriert / Backen: Brot & Herzhaftes / Backen: Süßes & Kuchen / Muffins & Kleingebäck / Sourdough & Sauerteig / Grundrezepte & Basissoßen),"time":"25 Min","servings":"~4","effort":"alltag"|"besonders","difficulty":"einfach"|"mittel"|"aufwändig","cuisine":str,"prepTime":int,"cookTime":int,"totalTime":int,"mealPrep":bool,"toTry":true,"season":str|"","tags":[str],"ingredients":[str],"steps":[str],"tips":str}
@@ -571,4 +577,162 @@ test("Q4.2: addBackVariables — fehlende Variablen ans Ende, jede in eigener Ze
   const back = addBackVariables(DEFAULT_INSTRUCTIONS.replace("{recipes}", ""), ["recipes"]);
   assert(back.endsWith("\n{recipes}"));
   assertDeepEqual(missingVariables(back), []);
+});
+
+/* ---------- G3.2 (#73): Assistent schlägt Rezept-Änderungen vor ---------- */
+
+const STORED73 = {
+  id: "r07", name: "Linsen-Bolognese", category: "Pasta & Nudeln", time: "30 Min", servings: "~4",
+  ingredients: ["400g Spaghetti", "200g Hackfleisch 🛒", "1 Dose Tomaten"], steps: ["Hack anbraten.", "Tomaten 15 Min köcheln."],
+  tips: "Topping: Parmesan.", effort: "alltag", tags: ["pasta"], toTry: false, mealPrep: true,
+  favorite: true, rating: 5, feedback: "Mehr Knoblauch!", photos: [{ id: "f1", added: "2026-01-01" }],
+  cookedCount: 7, lastCooked: "Oktober 2026", image: "https://example.org/b.jpg", origin: "user", extraFuture: "bleibt",
+};
+const VEGAN73 = {
+  name: "Vegane Linsen-Bolognese", category: "pasta & nudeln", time: "30 Min", servings: "~4",
+  ingredients: ["400g Spaghetti", "200g rote Linsen 🛒", "1 Dose Tomaten"], steps: ["Linsen anbraten.", "Tomaten 15 Min köcheln."],
+  tips: "Topping: Hefeflocken.", effort: "alltag", tags: ["pasta", "vegan"], toTry: false, mealPrep: true,
+};
+const upd73 = (recipe, id = "r07") => ({ type: "update", id, intro: "Vegan gemacht.", recipe });
+
+test("#73: fester Vertrag kennt update (komplettes Rezept) und change (nur id)", () => {
+  const fixed = appendedFixedPart();
+  assert(fixed.includes('{"type":"update","id":"r…","intro":"1 Satz","recipe":{…}}'), "update fehlt im Vertrag");
+  assert(fixed.includes("KOMPLETTE geänderte Rezept"), "komplettes Rezept nicht verlangt");
+  assert(fixed.includes('{"type":"change","id":"r…","intro":"1 Satz"}'), "change fehlt im Vertrag");
+  assert(buildSystemPrompt(TPL_ARGS).includes('"type":"update"'), "Default-Prompt trägt update");
+});
+
+test("#73: coerceUpdate — unbekannte oder abweichende id → Fehler, kein Rezept", () => {
+  assertEqual(coerceUpdate(upd73(VEGAN73, "r99"), null).recipe, null);
+  const r = coerceUpdate(upd73(VEGAN73, "r99"), STORED73);
+  assertEqual(r.recipe, null);
+  assert(r.errors.length > 0 && /r99/.test(r.errors[0]), "Fehler nennt die id");
+  assertEqual(coerceUpdate(upd73(VEGAN73, ""), STORED73).recipe, null);
+  assertEqual(coerceUpdate(null, STORED73).recipe, null);
+});
+
+test("#73: coerceUpdate — Ergebnis ist schema-valide, Inhalt vom Modell", () => {
+  const { recipe, errors } = coerceUpdate(upd73(VEGAN73), STORED73);
+  assertDeepEqual(errors, []);
+  assert(validateRecipe(recipe).valid, "validateRecipe");
+  assertEqual(recipe.name, "Vegane Linsen-Bolognese");
+  assertEqual(recipe.category, "Pasta & Nudeln", "Kategorie wie bei coerceRecipe normalisiert");
+  assertDeepEqual(recipe.ingredients, VEGAN73.ingredients);
+  assertDeepEqual(recipe.tags, ["pasta", "vegan"]);
+  assertEqual(recipe.tips, "Topping: Hefeflocken.");
+  assertEqual(coerceUpdate(upd73({ ...VEGAN73, category: "Gibt es nicht" }), STORED73).recipe, null, "ungültige Kategorie");
+  assertEqual(coerceUpdate(upd73({ ...VEGAN73, ingredients: [] }), STORED73).recipe, null, "keine Zutaten");
+});
+
+test("#73: coerceUpdate — id, origin, Bild und jedes persönliche Feld kommen aus dem gespeicherten Rezept", () => {
+  const evil = { ...VEGAN73, id: "r1", origin: "shared", image: "x", favorite: false, rating: 1, feedback: "weg",
+    photos: [], cookedCount: 0, lastCooked: "nie" };
+  const { recipe } = coerceUpdate(upd73(evil), STORED73);
+  for (const f of ["id", "origin", "image", "extraFuture", ...PERSONAL_FIELDS]) {
+    assertDeepEqual(recipe[f], STORED73[f], f + " vom Modell überschrieben");
+  }
+  for (const f of ["id", "origin", "image", ...PERSONAL_FIELDS]) assert(!CONTENT_FIELDS.includes(f), f + " ist kein Inhaltsfeld");
+  for (const f of ["name", "category", "ingredients", "steps", "tips", "time", "tags", "prepTime", "cookTime", "totalTime", "servings"]) {
+    assert(CONTENT_FIELDS.includes(f), f + " fehlt in CONTENT_FIELDS");
+  }
+  // Grundrezept bleibt ohne origin
+  const base = { ...STORED73 }; delete base.origin;
+  assert(!("origin" in coerceUpdate(upd73(evil), base).recipe), "Grundrezept bekommt kein origin");
+});
+
+test("#73: coerceUpdate — vom Modell weggelassene Felder bleiben wie gespeichert (kein toTry-Default)", () => {
+  const partial = { name: "Vegane Bolognese", category: "Pasta & Nudeln", ingredients: ["Linsen"], steps: ["Kochen."] };
+  const { recipe } = coerceUpdate(upd73(partial), STORED73);
+  assertEqual(recipe.toTry, false);
+  assertEqual(recipe.mealPrep, true);
+  assertEqual(recipe.tips, STORED73.tips);
+  assertDeepEqual(recipe.tags, STORED73.tags);
+  assertEqual(recipe.effort, "alltag");
+});
+
+test("#73: recipeChanges — geänderte Felder; Zutaten/Schritte als hinzugefügte und entfernte Zeilen", () => {
+  const { recipe } = coerceUpdate(upd73(VEGAN73), STORED73);
+  const ch = recipeChanges(STORED73, recipe);
+  assertDeepEqual(ch.map((c) => c.field), ["name", "ingredients", "steps", "tips", "tags"]);
+  assertDeepEqual(ch[0], { field: "name", before: "Linsen-Bolognese", after: "Vegane Linsen-Bolognese" });
+  assertDeepEqual(ch[1], { field: "ingredients", added: ["200g rote Linsen 🛒"], removed: ["200g Hackfleisch 🛒"] });
+  assertDeepEqual(ch[2], { field: "steps", added: ["Linsen anbraten."], removed: ["Hack anbraten."] });
+  assertDeepEqual(recipeChanges(STORED73, { ...STORED73 }), [], "nichts geändert");
+  assertDeepEqual(recipeChanges(STORED73, { ...STORED73, rating: 1, favorite: false }), [], "persönliche Felder zählen nicht");
+  // Doppelte Zeilen zählen mengengenau
+  assertDeepEqual(recipeChanges({ ingredients: ["Salz", "Salz"] }, { ingredients: ["Salz"] }), [{ field: "ingredients", added: [], removed: ["Salz"] }]);
+});
+
+test("#73: applyContentFields überträgt nur Inhalt, persönliche Felder bleiben", () => {
+  const target = { ...STORED73 };
+  const { recipe } = coerceUpdate(upd73(VEGAN73), STORED73);
+  applyContentFields(target, { ...recipe, rating: 0, favorite: false });
+  assertEqual(target.name, "Vegane Linsen-Bolognese");
+  assertEqual(target.rating, 5);
+  assertEqual(target.favorite, true);
+});
+
+test("#73: attachedRecipeBlock trägt den vollen deutschen Inhalt, nichts Persönliches", () => {
+  const block = attachedRecipeBlock(STORED73);
+  assert(block.startsWith("ANGEHÄNGTES REZEPT"), "Überschrift");
+  for (const line of [...STORED73.ingredients, ...STORED73.steps, STORED73.tips, STORED73.name, "r07"]) {
+    assert(block.includes(JSON.stringify(line)), "fehlt: " + line);
+  }
+  for (const s of ["Mehr Knoblauch", "f1", "Oktober 2026", "example.org", "extraFuture", '"rating"', '"origin"']) {
+    assert(!block.includes(s), "Persönliches/Fremdes im Block: " + s);
+  }
+  const p = changeUserPrompt(STORED73, "mach es vegan");
+  assert(p.startsWith(block), "Prompt beginnt mit dem Block");
+  assert(p.includes("Wunsch: mach es vegan") && p.includes('"id":"r07"') && p.includes("update-JSON"));
+});
+
+test("#73: coerceChange — nur bekannte ids; sonst null (→ Klartext)", () => {
+  const known = new Set(["r07"]);
+  assertDeepEqual(coerceChange({ type: "change", id: "r07", intro: " Gern! " }, known), { id: "r07", intro: "Gern!" });
+  assertEqual(coerceChange({ type: "change", id: "r99", intro: "x" }, known), null);
+  assertEqual(coerceChange({ type: "change", intro: "x" }, known), null);
+});
+
+test("#73 B1: Karte gegen R gerechnet, R.name danach bearbeitet → Übernehmen ändert nur Zutaten, Name bleibt", () => {
+  const { recipe } = coerceUpdate(upd73({ ...VEGAN73, name: STORED73.name }), STORED73);
+  const patch = JSON.parse(JSON.stringify(makeUpdatePatch(STORED73, recipe)));
+  assertDeepEqual(Object.keys(patch.set).sort(), ["ingredients", "steps", "tags", "tips"]);
+  assert(!("name" in patch.set), "Name steht nicht im Patch, wenn er sich nicht ändert");
+  const edited = { ...STORED73, name: "Meine Bolognese", steps: STORED73.steps.slice(), ingredients: STORED73.ingredients.slice(), tips: STORED73.tips, tags: STORED73.tags.slice() };
+  const r = applyUpdatePatch(edited, patch);
+  assert(r.applied, "keine Konflikte, weil die Karte nur andere Felder anfasst");
+  assertEqual(edited.name, "Meine Bolognese");
+  assertEqual(edited.ingredients[1], "200g rote Linsen 🛒");
+});
+
+test("#73 B1: Feld seit der Karte geändert (oder schon angewendet) → Patch verweigert, nichts verändert", () => {
+  const { recipe } = coerceUpdate(upd73(VEGAN73), STORED73);
+  const patch = JSON.parse(JSON.stringify(makeUpdatePatch(STORED73, recipe)));
+  const edited = { ...STORED73, ingredients: ["etwas ganz anderes"] };
+  const r = applyUpdatePatch(edited, patch);
+  assert(!r.applied && r.conflicts.includes("ingredients"));
+  assertDeepEqual(edited.ingredients, ["etwas ganz anderes"]);
+  const once = { ...STORED73 };
+  assert(applyUpdatePatch(once, patch).applied);
+  assert(!applyUpdatePatch(once, patch).applied, "zweites Anwenden desselben Patches wird verweigert");
+});
+
+test("#73 B2: toTry — gespeichert false, Modell schickt true oder null → bleibt false", () => {
+  assertEqual(coerceUpdate(upd73({ ...VEGAN73, toTry: true }), STORED73).recipe.toTry, false);
+  assertEqual(coerceUpdate(upd73({ ...VEGAN73, toTry: null }), STORED73).recipe.toTry, false);
+});
+
+test("#73 B3: nur prepTime/cookTime geschickt → totalTime und time werden neu abgeleitet", () => {
+  const stored = { ...STORED73, prepTime: 10, cookTime: 15, totalTime: 25, time: "25 Min" };
+  const { recipe } = coerceUpdate(upd73({ ...VEGAN73, time: "", prepTime: 20, cookTime: 30 }), stored);
+  assertEqual(recipe.totalTime, 50);
+  assertEqual(recipe.time, "50 Min");
+});
+
+test("#73 Nit: falsch getypte Werte lassen das Gespeicherte stehen", () => {
+  const { recipe } = coerceUpdate(upd73({ ...VEGAN73, tipps: undefined, tips: 5, tags: "scharf", effort: "hoch" }), STORED73);
+  assertEqual(recipe.tips, STORED73.tips);
+  assertDeepEqual(recipe.tags, STORED73.tags);
+  assertEqual(recipe.effort, STORED73.effort);
 });

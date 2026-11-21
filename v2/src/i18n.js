@@ -167,6 +167,7 @@ export const DICT = {
     },
     badge: { alltag: "⚡ Alltag", besonders: "✨ Besonders", mealprep: "🍱 Meal-Prep", totry: "🆕 Zu probieren" },
     detail: {
+      changeWithAssistant: "✨ Mit Assistent ändern",
       favoriteTitle: "Favorit",
       ingredients: "Zutaten", steps: "Zubereitung", tips: "Tipps",
       toShopping: "🛒 Zutaten zur Einkaufsliste", cookMode: "👨‍🍳 Kochmodus",
@@ -288,6 +289,10 @@ export const DICT = {
       generatePrompt: "Was für ein Rezept soll ich erfinden? (z.B. „Bazaar-Bowl mit Granatapfel“)",
       toSettings: "Zu den Einstellungen", previewTitle: "{cat} · Vorschau",
       schemaFail: "Das Rezept war leider nicht schema-konform ({errors}). Formuliere den Wunsch nochmal — ich versuche es erneut.",
+      changePlaceholder: "Was soll sich ändern? z.B. „mach es vegan“", attached: "Angehängt: „{name}“",
+      changeThis: "✨ „{name}“ mit Assistent ändern", applyChange: "✅ Änderung übernehmen", changeApplied: "✓ Übernommen", changeStale: "Das Rezept hat sich inzwischen geändert — bitte den Vorschlag neu anfragen.",
+      updateNoChange: "Der Vorschlag ändert nichts am Rezept — es bleibt, wie es ist.", updateOrder: "Reihenfolge geändert",
+      field: { prepTime: "Vorbereitung (Min)", cookTime: "Kochzeit (Min)", totalTime: "Gesamtzeit (Min)", tags: "Tags", mealPrep: "Meal-Prep", toTry: "Zu probieren" },
     },
     capture: {
       title: "Rezept erfassen", subtitle: "Foto oder URL → Kochbuch",
@@ -443,6 +448,7 @@ export const DICT = {
     },
     badge: { alltag: "⚡ Everyday", besonders: "✨ Special", mealprep: "🍱 Meal prep", totry: "🆕 To try" },
     detail: {
+      changeWithAssistant: "✨ Change with assistant",
       favoriteTitle: "Favorite",
       ingredients: "Ingredients", steps: "Method", tips: "Tips",
       toShopping: "🛒 Ingredients to shopping list", cookMode: "👨‍🍳 Cooking mode",
@@ -564,6 +570,10 @@ export const DICT = {
       generatePrompt: "What recipe should I invent? (e.g. “bazaar bowl with pomegranate”)",
       toSettings: "Go to Settings", previewTitle: "{cat} · preview",
       schemaFail: "Sorry, the recipe wasn't schema-valid ({errors}). Rephrase your request — I'll try again.",
+      changePlaceholder: "What should change? e.g. “make it vegan”", attached: "Attached: “{name}”",
+      changeThis: "✨ Change “{name}” with assistant", applyChange: "✅ Apply change", changeApplied: "✓ Applied", changeStale: "The recipe has changed in the meantime — please ask for the change again.",
+      updateNoChange: "The suggestion changes nothing in the recipe — it stays as it is.", updateOrder: "Order changed",
+      field: { prepTime: "Prep (min)", cookTime: "Cook time (min)", totalTime: "Total time (min)", tags: "Tags", mealPrep: "Meal prep", toTry: "To try" },
     },
     capture: {
       title: "Capture recipe", subtitle: "Photo or URL → cookbook",
@@ -719,6 +729,7 @@ export const DICT = {
     },
     badge: { alltag: "⚡ Diario", besonders: "✨ Especial", mealprep: "🍱 Meal prep", totry: "🆕 Probar" },
     detail: {
+      changeWithAssistant: "✨ Cambiar con el asistente",
       favoriteTitle: "Favorito",
       ingredients: "Ingredientes", steps: "Preparación", tips: "Consejos",
       toShopping: "🛒 Ingredientes a la lista", cookMode: "👨‍🍳 Modo cocina",
@@ -840,6 +851,10 @@ export const DICT = {
       generatePrompt: "¿Qué receta invento? (p. ej. “bowl de bazaar con granada”)",
       toSettings: "Ir a Ajustes", previewTitle: "{cat} · vista previa",
       schemaFail: "La receta no cumplió el esquema ({errors}). Reformula tu petición y lo intento de nuevo.",
+      changePlaceholder: "¿Qué debe cambiar? p. ej. “hazla vegana”", attached: "Adjunta: “{name}”",
+      changeThis: "✨ Cambiar “{name}” con el asistente", applyChange: "✅ Aplicar cambio", changeApplied: "✓ Aplicado", changeStale: "La receta ha cambiado mientras tanto — pide el cambio de nuevo.",
+      updateNoChange: "La propuesta no cambia nada de la receta — se queda como está.", updateOrder: "Orden cambiado",
+      field: { prepTime: "Preparación (min)", cookTime: "Cocción (min)", totalTime: "Tiempo total (min)", tags: "Etiquetas", mealPrep: "Meal prep", toTry: "Por probar" },
     },
     capture: {
       title: "Capturar receta", subtitle: "Foto o URL → recetario",
@@ -995,6 +1010,7 @@ export const DICT = {
     },
     badge: { alltag: "⚡ Hverdag", besonders: "✨ Særlig", mealprep: "🍱 Meal prep", totry: "🆕 Prøv" },
     detail: {
+      changeWithAssistant: "✨ Ændr med assistenten",
       favoriteTitle: "Favorit",
       ingredients: "Ingredienser", steps: "Fremgangsmåde", tips: "Tips",
       toShopping: "🛒 Ingredienser til indkøbsliste", cookMode: "👨‍🍳 Kogetilstand",
@@ -1116,6 +1132,10 @@ export const DICT = {
       generatePrompt: "Hvilken opskrift skal jeg finde på? (f.eks. „bazaar-bowl med granatæble“)",
       toSettings: "Til Indstillinger", previewTitle: "{cat} · forhåndsvisning",
       schemaFail: "Opskriften var desværre ikke skema-gyldig ({errors}). Omformuler dit ønske — jeg prøver igen.",
+      changePlaceholder: "Hvad skal ændres? fx „gør den vegansk“", attached: "Vedhæftet: „{name}“",
+      changeThis: "✨ Ændr „{name}“ med assistenten", applyChange: "✅ Anvend ændring", changeApplied: "✓ Anvendt", changeStale: "Opskriften er ændret i mellemtiden — bed om ændringen igen.",
+      updateNoChange: "Forslaget ændrer intet i opskriften — den forbliver som den er.", updateOrder: "Rækkefølge ændret",
+      field: { prepTime: "Forberedelse (min)", cookTime: "Tilberedning (min)", totalTime: "Samlet tid (min)", tags: "Tags", mealPrep: "Meal prep", toTry: "Skal prøves" },
     },
     capture: {
       title: "Tilføj opskrift", subtitle: "Foto eller URL → kogebog",

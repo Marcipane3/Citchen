@@ -18,7 +18,7 @@
 //     Überbleibsel.
 // Jetzt: lesen nur aus CACHE, schreiben nur solange CACHE existiert und innerhalb des Events.
 
-const CACHE = "koch-v2.18-1";
+const CACHE = "koch-v2.19-1";
 
 // Bewusst NICHT im SHELL: add.html (Freundes-Seite des I3-Freunde-Links). Sie wird von Freunden
 // ohne App geöffnet und braucht ohnehin Netz (Supabase); wird sie hier im Scope geladen, landet sie
@@ -69,6 +69,7 @@ const SHELL = [
   "./src/data/units.js",
   "./src/data/ingredients.js",
   "./src/data/ingredientMatch.js",
+  "./src/data/items.js",
   "./src/features/shopping/logic.js",
   "./src/features/shopping/shopping.js",
   "./src/features/shopping/listMerge.js",
@@ -100,6 +101,7 @@ const SHELL = [
   "./data/rezepte.snapshot.da.json",
   "./data/rezepte.snapshot.es.json",
   "./data/rezepte.snapshot.en.json",
+  "./data/ingredients.json",
 ];
 
 self.addEventListener("install", (e) => {

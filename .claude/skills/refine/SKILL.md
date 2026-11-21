@@ -71,5 +71,5 @@ release) to learn the current state, then check every Definition of Ready point.
 `No status label: #y, …` · `Buffer: k/3`. Questions older than 7 days are listed again with their age.
 
 ## Never
-Write code · edit any `ROADMAP*.md` (release-prep does that weekly) · promote `status:proposed` ·
+Write code · edit any `ROADMAP*.md` (release-prep does that, Wed + Sat) · promote `status:proposed` ·
 answer your own questions · change a priority Marcel set · delete or close issues.
