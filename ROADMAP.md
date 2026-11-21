@@ -1,9 +1,9 @@
 # 🍳 Koch — Roadmap index
 
 > Start here. This page says **what is next** and where everything else lives.
-> **Last updated: 2026-11-18** (replan with Marcel: **launch 26 Feb 2027**, closed test from **12 Dec**,
+> **Last updated: 2026-11-21** (replan with Marcel: **launch 26 Feb 2027**, closed test from **12 Dec**,
 > domain switch **5 Dec**, scope freeze **15 Dec**, two releases a week; D10/D11 decided) · Live: **v2.18**
-> (release PR #98 merged 18 Nov)
+> (release PR #98 merged 18 Nov) · **v2.19 release PR open** (21 Nov, waits for Marcel)
 
 ## The two roadmaps
 
@@ -26,7 +26,7 @@ Why the dates moved: the agent pipeline now writes the code (23 PRs merged in Oc
 | When | V2 line | V3 line |
 |------|---------|---------|
 | **Oct 2026** | ✅ v2.14 – v2.16b: friends link, e2e tests, one sync core, data-safety hotfixes, backend hardening, AI housekeeping | ✅ Decisions D8, A10, D9, A11, E6, G7 (4 Oct) |
-| **Nov 2026** | ✅ v2.17 find recipes · ✅ **v2.18** export/import (live 18 Nov) · P3 + P4 phone tests (Marcel, week of 18 Nov) · **v2.20** assistant edits recipes (25 Nov) · **v2.19** ingredient master + `items[]` (28 Nov) | ✅ domain `citchen.de` · ✅ 12 testers · ✅ D10/D11 + replan (18 Nov) · Play identity check (pending) · spikes C-1/C-8/C-20 + ADRs (by 2 Dec) |
+| **Nov 2026** | ✅ v2.17 find recipes · ✅ **v2.18** export/import (live 18 Nov) · P3 + P4 phone tests (Marcel, week of 18 Nov) · **v2.19** assistant edits recipes (G3.2) + master batch 2 + `items[]` re-link (release PR open, 21 Nov) · **v2.20** assistant deletes user recipes (25 Nov) | ✅ domain `citchen.de` · ✅ 12 testers · ✅ D10/D11 + replan (18 Nov) · Play identity check (pending) · spikes C-1/C-8/C-20 + ADRs (by 2 Dec) |
 | **Dec 2026** | **v2.21** move helper (2 Dec) · **v2.19a** calories (9 Dec) · **v2.19b** structured editor + ownership (12 Dec) · **v2.19c** capture → master (16 Dec) · **v2.22** nutrition goal (19 Dec) | **v3.0-a1 domain switch Sat 5 Dec** (everyone moves; export 2–5 Dec) · **v3.0-a3 Android build → closed test starts Sat 12 Dec** · **scope freeze Tue 15 Dec** · 19 Dec – 6 Jan fixes only |
 | **Jan 2027** | — (all releases are `v3.0-…`) | Apply for Play production access (~28 Dec – 4 Jan) · **a5** capture camera/share (9 Jan) · **a1b** feedback backend (13 Jan) · **a4** onboarding + home screen (20 Jan) · **a6** clean-up + feedback form (30 Jan) · partner feedback chat (G1) |
 | **Feb 2027** | — | **b-builds**: tester fixes, store listing · **rc 20 Feb** · **v3.0 launch Fri 26 Feb** |
@@ -43,10 +43,10 @@ below every time an item is crossed off.
 
 | # | Item | Line | Owner | Why now | Effort | Unblocks |
 |---|------|------|-------|---------|--------|----------|
-| 1 | **v2.18 device checklist + P3 two-account proof + P4 live friend test** (this week) | V2 | Marcel (Claude guides) | Live beats new (rule 1) and gates beat features (rule 2): P3/P4 are the **last V2 gate items** before the domain switch on 5 Dec. v2.18 checks are in its release PR (#98); still open from earlier releases: v2.16 capture check on 10 real photos/URLs, keep-alive *Run workflow* once. P3 needs the Picker API key + partner as OAuth test user (`v2/docs/SHARING.md`) | ~1.5 h | V3 gate, US-06, closes I3 |
+| 1 | **v2.19 release PR (21 Nov): ~1 h device check, merge with "Create a merge commit"** · **v2.18 device checklist + P3 two-account proof + P4 live friend test** (this week) | V2 | Marcel (Claude guides) | Live beats new (rule 1) and gates beat features (rule 2): P3/P4 are the **last V2 gate items** before the domain switch on 5 Dec. v2.18 checks are in its release PR (#98); still open from earlier releases: v2.16 capture check on 10 real photos/URLs, keep-alive *Run workflow* once. P3 needs the Picker API key + partner as OAuth test user (`v2/docs/SHARING.md`) | ~1.5 h | V3 gate, US-06, closes I3 |
 | 2 | **Finish the Play identity check · support e-mail on `citchen.de` · DNS access for GitHub Pages** | V3 | Marcel | Nothing else can start the 14-day clock on 12 Dec. Google's identity check can take days | ~30 min + waiting | Slice 1, slice 3 |
-| 3 | **Assistant edits recipes** (G3.2 #73 — PR #87 has changes requested; then G3.3 #74) | V2 | Claude | Core tier; due Wed 25 Nov (v2.20) | S–M | v2.20 |
-| 4 | **R2 ingredient master 70 → ~150 + R3 `items[]` on recipes** (Epic R, ADR R1 §8) | V2 | Claude | Due Sat 28 Nov (v2.19); gates calories (v2.19a), the editor (v2.19b) and capture mapping (v2.19c) | M–L | v2.19a–c |
+| 3 | **Assistant deletes only user-created recipes** (G3.3 #74, PR #102 needs-human; G3.2 ✅ in v2.19) | V2 | Claude | Core tier; due Wed 25 Nov (v2.20) | S | v2.20 |
+| 4 | **R2.3 ingredient master to ~150 (113 live) + persist/UI for `items[]`** (Epic R, ADR R1 §8; R2.2 #105 and R3.2 #107 ✅ in v2.19) | V2 | Claude | Due Sat 28 Nov; gates calories (v2.19a), the editor (v2.19b) and capture mapping (v2.19c) | M–L | v2.19a–c |
 | 5 | **P5 move helper** + spikes **C-1** (TWA on `citchen.de/app`), **C-8** (Google sign-in production), **C-20** (`/app` layout + github.io redirect) + ADRs D10 / D11 / hosting | V2 + V3 | Claude (+ Marcel signs off ADRs) | The domain switch on Sat 5 Dec redirects the whole old address; P5 must be live on 2 Dec so people can export first | M + S | Slice 1 (5 Dec), slice 3 (12 Dec) |
 
 **Waiting on Marcel — 5-minute answers / actions:**
