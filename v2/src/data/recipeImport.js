@@ -2,7 +2,7 @@
 // Bestand planen. Kein DOM, kein Store. Dateiform = rezepte.json ({version, updated, recipes[]}).
 // Eine Import-ID überschreibt NIE ein vorhandenes Rezept: Kollisionen bekommen eine frische ID.
 
-import { validateRecipe, withDefaults, makeIdFactory, envelopeProblem, RECIPE_FIELDS, PERSONAL_FIELDS, ORIGIN_USER } from "./schema.js";
+import { validateRecipe, withDefaults, makeIdFactory, envelopeProblem, withoutBadItems, RECIPE_FIELDS, PERSONAL_FIELDS, ORIGIN_USER } from "./schema.js";
 import { sameContent } from "./recipeMerge.js";
 
 // Eine Import-Datei ist ein FREMDER Kanal (#36): Grenzen weit über echten Rezepten (längster Name im
@@ -62,7 +62,8 @@ export function parseImportFile(text) {
   if (problem === "newerFormat") return none(`Datei stammt aus einer neueren App-Version (Format ${data.version})`);
 
   const recipes = [], errors = [], notes = [];
-  data.recipes.forEach((r, i) => {
+  data.recipes.forEach((raw, i) => {
+    const r = withoutBadItems(raw); // items ist abgeleitet: ein kaputter Wert verwirft nicht das Rezept
     const res = validateRecipe(r);
     const problems = res.valid ? limitProblems(r) : res.errors;
     if (problems.length) { errors.push(`Rezept[${i}]: ${problems.join("; ")}`); return; }

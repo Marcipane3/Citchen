@@ -262,3 +262,8 @@ test("sameCollection: undefined-Slot / kürzere zweite Liste → false", () => {
   assert(!sameCollection([r("a", "A"), r("b", "B")], [r("a", "A")]));
   assert(!sameCollection([r("a", "A")], []));
 });
+
+test("items: abgeleitet, zählt nicht als Inhalt (zwei Geräte, nur items verschieden → dasselbe Rezept) (#107)", () => {
+  const a = r("a", "A", { items: [{ text: "Salz", buy: false, optional: false }] }), b = r("a", "A");
+  assert(sameContent(a, b));
+});

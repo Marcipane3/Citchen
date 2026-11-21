@@ -7,7 +7,8 @@ import * as sync from "./data/sync.js";
 import * as db from "./data/db.js";
 import * as drive from "./data/drive.js";
 import * as friendInbox from "./data/friendInbox.js";
-import { state, onState, setRecipes, setSignedIn, applySynced, applyLanguageOverlay } from "./store.js";
+import { state, onState, setRecipes, setSignedIn, applySynced, applyLanguageOverlay, setItemIndex } from "./store.js";
+import { buildIndex } from "./data/ingredientMatch.js";
 import { renderCookbook } from "./features/cookbook/cookbook.js";
 import { renderMatch } from "./features/match/match.js";
 import { renderCook } from "./features/cooking/cooking.js";
@@ -72,6 +73,11 @@ async function boot() {
   setRecipes(recipes, meta);
   // 1b. Anzeige-Overlay für die aktive Sprache (Basis-Rezepte übersetzt; nur Anzeige)
   await applyLanguageOverlay(getLang());
+  // 1c. Zutaten-Stamm → items[] der Rezepte (nur im Speicher, R3.2); fehlt die Datei, bleibt alles wie zuvor
+  fetch(new URL("../data/ingredients.json", import.meta.url))
+    .then((r) => (r.ok ? r.json() : null))
+    .then((master) => { if (master) setItemIndex(buildIndex(master)); })
+    .catch((e) => console.warn("Zutaten-Stamm nicht ladbar:", e));
 
   // 2. Routen (+ J2: feste Tab-Leiste unten, außerhalb von #app)
   mountTabBar();

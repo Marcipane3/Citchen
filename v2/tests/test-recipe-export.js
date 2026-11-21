@@ -155,3 +155,13 @@ test("DG-17: Marker erscheint nie in JSON/structuredClone; deutsche Rezepte expo
   assertEqual(JSON.stringify(buildExportFile(de, now)), JSON.stringify(buildExportFile(JSON.parse(JSON.stringify(de)), now)));
   assertEqual(JSON.stringify(buildExportFile(de, now)).includes("localized"), false);
 });
+
+test("export/import: items überleben die Runde unverändert (#107)", async () => {
+  const items = [{ text: "1 Süßkartoffel", ing: "sweet-potato", amount: 1, unit: "piece", buy: false, optional: false }];
+  const file = buildExportFile([{ ...full(), items }]);
+  assertDeepEqual(file.recipes[0].items, items);
+  const { parseImportFile } = await import("../src/data/recipeImport.js");
+  const back = parseImportFile(JSON.stringify(file));
+  assertEqual(back.errors.length, 0, back.errors.join(";"));
+  assertDeepEqual(back.recipes[0].items, items);
+});

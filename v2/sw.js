@@ -69,6 +69,7 @@ const SHELL = [
   "./src/data/units.js",
   "./src/data/ingredients.js",
   "./src/data/ingredientMatch.js",
+  "./src/data/items.js",
   "./src/features/shopping/logic.js",
   "./src/features/shopping/shopping.js",
   "./src/features/shopping/listMerge.js",
@@ -100,6 +101,7 @@ const SHELL = [
   "./data/rezepte.snapshot.da.json",
   "./data/rezepte.snapshot.es.json",
   "./data/rezepte.snapshot.en.json",
+  "./data/ingredients.json",
 ];
 
 self.addEventListener("install", (e) => {
