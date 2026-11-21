@@ -119,9 +119,9 @@ export function coercePlanDays(raw, knownIds) {
 }
 
 /**
- * G3.2 (#73): Inhaltsfelder, die der Assistent bei einer Änderung anfassen darf. id, origin, image
- * items (abgeleitet, R3.2) und die persönlichen Felder (PERSONAL_FIELDS) gehören nicht dazu: die kommen immer aus dem
- * gespeicherten Rezept. Abgeleitet aus RECIPE_FIELDS, damit ein neues Inhaltsfeld automatisch mitläuft.
+ * G3.2 (#73): Inhaltsfelder, die der Assistent bei einer Änderung anfassen darf. id, origin, image,
+ * items (abgeleitet, R3.2) und die persönlichen Felder (PERSONAL_FIELDS) gehören nicht dazu:
+ * die kommen immer aus dem gespeicherten Rezept. Abgeleitet aus RECIPE_FIELDS, damit ein neues Inhaltsfeld automatisch mitläuft.
  */
 export const CONTENT_FIELDS = Object.freeze(RECIPE_FIELDS.filter((f) =>
   !["id", "origin", "image", "items"].includes(f) && !PERSONAL_FIELDS.includes(f)));

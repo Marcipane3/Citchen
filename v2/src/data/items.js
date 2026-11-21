@@ -20,11 +20,21 @@ export function relinkItems(recipe, index) {
   for (const it of Array.isArray(recipe?.items) ? recipe.items : []) {
     if (isItem(it)) known.set(it.text, [...(known.get(it.text) || []), it]);
   }
+  const count = new Map(); // text → wie oft die Zeile vorkommt
+  for (const line of lines) count.set(line, (count.get(line) || 0) + 1);
+  const seen = new Map();
   const out = [];
   for (const line of lines) {
     const kept = known.get(line);
-    if (kept) { out.push(...kept); known.delete(line); } // eine Zeile verbraucht ihre Items einmal
-    else out.push(...matchLine(line, index));
+    const n = count.get(line);
+    const k = seen.get(line) || 0;
+    seen.set(line, k + 1);
+    // Gleiche Zeile n-mal: die vorhandenen Items verteilen sich gleichmäßig auf die Vorkommen (idempotent);
+    // passt die Zahl nicht auf, wird die Zeile neu abgeleitet statt Items zu vervielfachen.
+    if (kept && kept.length % n === 0) {
+      const per = kept.length / n;
+      out.push(...kept.slice(k * per, (k + 1) * per));
+    } else out.push(...matchLine(line, index));
   }
   return out;
 }

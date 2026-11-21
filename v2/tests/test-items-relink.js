@@ -101,3 +101,35 @@ test("store: items entstehen beim Laden nur in der Anzeige-Sicht; Persistenz-Sam
     assertEqual(saves, 0);
   } finally { setSaveChangeForTest(null); setItemIndex(null); setRecipes([], null); }
 });
+
+test("relink: doppelte Zeile ist idempotent", () => {
+  const r = recipe(["1 TL Salz", "1 TL Salz", "2 Eier"]);
+  const once = withItems(r, index);
+  assertEqual(once.items.filter((i) => i.text === "1 TL Salz").length, 2);
+  assertEqual(once.items.length, 3);
+  assert(withItems(once, index) === once, "zweiter Durchlauf ändert nichts");
+  assert(withItems(withItems(once, index), index) === once, "dritter auch nicht");
+});
+
+/* ---------- kaputtes items blockiert nichts ---------- */
+import { updateRecipe } from "../src/store.js";
+import { parseImportFile } from "../src/data/recipeImport.js";
+
+for (const bad of [null, [{ ing: "salt" }]]) {
+  test(`updateRecipe: kaputtes items (${JSON.stringify(bad)}) → favorite speichert ohne Fehler`, async () => {
+    setSaveChangeForTest(async () => ({ meta: {}, recipes: null }));
+    try {
+      setRecipes([{ ...recipe(["Salz"]), items: bad }], null);
+      const out = await updateRecipe("r1", (x) => { x.favorite = true; });
+      assertEqual(out.favorite, true);
+    } finally { setSaveChangeForTest(null); setRecipes([], null); }
+  });
+}
+
+test("parseImportFile: kaputtes items → Rezept übernommen, items entfernt", () => {
+  const file = JSON.stringify({ version: 3, recipes: [{ ...recipe(["Salz"]), items: [{ ing: "salt" }] }] });
+  const res = parseImportFile(file);
+  assertEqual(res.errors.length, 0);
+  assertEqual(res.recipes.length, 1);
+  assert(!("items" in res.recipes[0]), "items entfernt");
+});

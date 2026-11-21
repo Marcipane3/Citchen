@@ -101,8 +101,7 @@ export function validateRecipe(r) {
   }
   // items (R3.2): optional, abgeleitet — nur die Form prüfen: Array von Objekten mit String-`text`.
   if (r.items !== undefined) {
-    const ok = Array.isArray(r.items) && r.items.every((it) => it && typeof it === "object" && !Array.isArray(it) && isStr(it.text));
-    if (!ok) errors.push("items muss Array von {text, …} sein");
+    if (!itemsShapeOk(r.items)) errors.push("items muss Array von {text, …} sein");
   }
   if (r.photos !== undefined) {
     const ok = Array.isArray(r.photos) &&
@@ -110,6 +109,20 @@ export function validateRecipe(r) {
     if (!ok) errors.push("photos muss Array von {id, added} sein");
   }
   return { valid: errors.length === 0, errors };
+}
+
+function itemsShapeOk(items) {
+  return Array.isArray(items) && items.every((it) => it && typeof it === "object" && !Array.isArray(it) && isStr(it.text));
+}
+
+/**
+ * `items` ist abgeleitet und wird neu aufgebaut: ein kaputter Wert darf nie ein Rezept blockieren.
+ * Gibt das Rezept ohne ungültiges `items` zurück (dasselbe Objekt, wenn nichts zu tun ist).
+ */
+export function withoutBadItems(r) {
+  if (!r || typeof r !== "object" || r.items === undefined || itemsShapeOk(r.items)) return r;
+  const { items: _drop, ...rest } = r;
+  return rest;
 }
 
 /** Validiert die ganze Sammlung {version, updated, recipes}. */
