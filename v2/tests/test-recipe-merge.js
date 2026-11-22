@@ -267,3 +267,53 @@ test("items: abgeleitet, zählt nicht als Inhalt (zwei Geräte, nur items versch
   const a = r("a", "A", { items: [{ text: "Salz", buy: false, optional: false }] }), b = r("a", "A");
   assert(sameContent(a, b));
 });
+
+/* ---------- #90: verlorene Drive-Bestätigung (pendingBase) ---------- */
+
+test("#90 lost ack + later local edit does not fork", () => {
+  const x1 = r("x", "X"), x2 = r("x", "X", { tips: "lokal bearbeitet" });
+  const out = mergeRecipes({ base: [], local: [x2], remote: [x1], pendingBase: [x1], now: () => 5000 });
+  assertDeepEqual(out.forked, []);
+  assertEqual(out.merged.length, 1);
+  assertEqual(out.merged[0].tips, "lokal bearbeitet");
+});
+
+test("#90: lost ack + partner edit → Drive-Stand, kein Fork", () => {
+  const x1 = r("x", "X"), x3 = r("x", "X von Partner");
+  const out = mergeRecipes({ base: [], local: [x1], remote: [x3], pendingBase: [x1], now: () => 5000 });
+  assertDeepEqual(out.forked, []);
+  assertDeepEqual(names(out.merged), ["X von Partner"]);
+});
+
+test("#90: lost ack, beide Seiten weichen von pendingBase ab → nicht unterscheidbar von Zwilling: Fork (kein Datenverlust)", () => {
+  const out = mergeRecipes({ base: [], local: [r("x", "X", { time: "15 Min" })], remote: [r("x", "X neu")], pendingBase: [r("x", "X")], now: () => 5000 });
+  assertEqual(out.forked.length, 1);
+  assertEqual(out.merged.length, 2);
+});
+
+test("#90: lost ack, Drive = pendingBase, lokal geändert, Drive-Rezept bekommt Felder → pro Feld", () => {
+  const x1 = r("x", "X", { time: "10 Min" });
+  const out = mergeRecipes({ base: [], local: [r("x", "X", { time: "15 Min" })], remote: [x1], pendingBase: [x1], now: () => 5000 });
+  assertDeepEqual(out.forked, []);
+  assertEqual(out.merged[0].time, "15 Min");
+});
+
+test("#90: unabhängiger Zwilling (Drive-Inhalt ≠ pendingBase) forkt weiter", () => {
+  const out = mergeRecipes({
+    base: [], local: [r("x", "Lokal", { tips: "a" })], remote: [r("x", "Drive vom Partner")],
+    pendingBase: [r("x", "Lokal")], now: () => 5000,
+  });
+  assertEqual(out.forked.length, 1);
+  assertEqual(out.merged.length, 2);
+});
+
+test("#90: ohne pendingBase bleibt #49 unverändert (Fork)", () => {
+  const out = mergeRecipes({ base: [], local: [r("x", "X", { tips: "b" })], remote: [r("x", "X")], now: () => 5000 });
+  assertEqual(out.forked.length, 1);
+});
+
+test("#90: nach verlorener Bestätigung lokal gelöscht → bleibt gelöscht", () => {
+  const x1 = r("x", "X");
+  const out = mergeRecipes({ base: [], local: [], remote: [x1], pendingBase: [x1] });
+  assertEqual(out.merged.length, 0);
+});

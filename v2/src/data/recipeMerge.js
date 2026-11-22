@@ -98,6 +98,12 @@ export const sameCollection = (a, b) => a.length === b.length && a.every((r, i) 
  * base   — letzter gemeinsamer Stand mit Drive (null = unbekannt, z. B. vor v2.15.1)
  * local  — lokale Sammlung · remote — geprüfte Drive-Sammlung (inspectRemote)
  * prefer — nur ohne Basis: wer bei Unterschieden gewinnt ("local" | "remote")
+ * pendingBase — optional (#90): der Stand, den der letzte Abgleich VOR dem Drive-Schreiben gemerkt hat. Ging die
+ *   Antwort von Drive verloren, kennt die Basis neue Rezepte nicht; steht ein solches auf Drive mit demselben
+ *   Inhalt wie in pendingBase, ist es unser eigener Schreibvorgang → pendingBase gilt für diese id als Basis
+ *   (kein Fork, spätere Änderungen werden normal gemergt). Gleiches gilt, wenn lokal noch dem pendingBase-Stand
+ *   entspricht und Drive danach geändert wurde. Weichen BEIDE Seiten von pendingBase ab, ist ein Partner-Edit
+ *   nicht von einem unabhängigen Zwilling zu unterscheiden → Fork wie bisher (Duplikat statt Datenverlust).
  * → { merged, removedRemotely: [ids lokal gelöscht, weil Drive sie löschte], conflicts: [ids beidseitig geändert],
  *     forked: [{from, to, name}] }
  *
@@ -109,13 +115,20 @@ export const sameCollection = (a, b) => a.length === b.length && a.every((r, i) 
  * Reihenfolge: neue lokale Rezepte vorn (App fügt vorn ein), danach die Drive-Reihenfolge,
  * dann übrige lokale. Ohne Basis wird nichts gelöscht (Vereinigung) — kein Datenverlust beim Umstieg.
  */
-export function mergeRecipes({ base, local, remote, prefer = "remote", now = Date.now }) {
+export function mergeRecipes({ base, local, remote, prefer = "remote", pendingBase = null, now = Date.now }) {
   const B = base ? byId(base) : null, L = byId(local), R = byId(remote);
+  const P = B && pendingBase ? byId(pendingBase.map((x) => withDefaults(x))) : null;
   const merged = new Map();
   const removedRemotely = [], conflicts = [], twins = [];
 
   const decide = (id) => {
-    const b = B ? B.get(id) : undefined, l = L.get(id), r = R.get(id);
+    let b = B ? B.get(id) : undefined;
+    const l = L.get(id), r = R.get(id);
+    if (B && !b && P && P.has(id)) {                  // #90: verlorene Bestätigung
+      const p = P.get(id);
+      if (r && sameContent(p, r)) b = r;              // Drive hat genau unseren Schreibvorgang
+      else if (l && r && sameContent(p, l)) b = l;    // lokal noch unser Stand, Drive danach geändert (Partner)
+    }
     if (l && r) {
       if (sameRecipe(l, r)) return l;
       if (B && !b && !sameContent(l, r)) { twins.push(l); return r; } // zwei verschiedene Rezepte, eine id

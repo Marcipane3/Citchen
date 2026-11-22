@@ -58,7 +58,7 @@ const recipe = (id, name, extra = {}) => ({
 function recipeDevice(drive, { recipes = [], meta = { updated: T(0), source: "snapshot", dirty: false }, base = "snapshot", approve = false } = {}) {
   const kv = fakeKv();
   kv.m.set("collection", meta);
-  const local = { recipes: structuredClone(recipes), base: base === "snapshot" ? structuredClone(recipes) : base, backup: null };
+  const local = { recipes: structuredClone(recipes), base: base === "snapshot" ? structuredClone(recipes) : base, backup: null, pending: null };
   const dv = drive.device();
   const asked = [];
   let retries = 0;
@@ -70,7 +70,9 @@ function recipeDevice(drive, { recipes = [], meta = { updated: T(0), source: "sn
         readAll: async () => structuredClone(local.recipes),
         replaceAll: async (r) => { local.recipes = structuredClone(r); },
         getBase: async () => structuredClone(local.base),
-        setBase: async (r) => { local.base = structuredClone(r); },
+        getPendingBase: async () => structuredClone(local.pending),
+        setPendingBase: async (r) => { local.pending = structuredClone(r); },
+        setBase: async (r) => { local.base = structuredClone(r); local.pending = null; },
         backup: async (r) => { local.backup = structuredClone(r); },
       },
       approveDrop: async (q) => { asked.push(q); return approve; },
@@ -228,6 +230,36 @@ test("Rezepte: Erstlauf legt GENAU eine Datei an; zweites Gerät übernimmt sie 
   assertEqual(res.changed, true);
   assertDeepEqual(B.names(), ["Curry", "Dal", "Neu von A", "Pasta"]);
   assertEqual(drive.byName("rezepte.json").length, 1);
+});
+
+test("#90: Schreiben ohne Bestätigung, dann lokal bearbeiten, erneut abgleichen → EIN Rezept; pendingBase danach weg", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync();
+  const realUpdate = A.dv.updateFile;
+  A.dv.updateFile = async (id, content) => { await realUpdate.call(A.dv, id, content); throw new Error("Antwort verloren"); };
+  await A.save((l) => [recipe("rX", "Neu"), ...l]);          // Drive hat es, apply lief nie
+  assert(driveNames(drive).includes("Neu"), "Drive hat das Rezept");
+  assert(A.local.pending && A.local.pending.some((r) => r.id === "rX"), "pendingBase gemerkt");
+  A.dv.updateFile = realUpdate;
+  await A.save(edit("rX", { tips: "danach bearbeitet" }));
+  assertEqual(A.local.recipes.filter((r) => r.name === "Neu").length, 1, "lokal nur eine Kopie");
+  assertEqual(driveRecipes(drive).filter((r) => r.name === "Neu").length, 1, "auf Drive nur eine Kopie");
+  assertEqual(A.get("rX").tips, "danach bearbeitet");
+  assertEqual(A.local.pending, null, "setBase räumt pendingBase weg");
+});
+
+test("#90: nach verlorener Bestätigung lokal gelöscht → bleibt gelöscht, ein veraltetes pendingBase belebt nichts", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE20 });
+  await A.engine.sync();
+  const realUpdate = A.dv.updateFile;
+  A.dv.updateFile = async (id, content) => { await realUpdate.call(A.dv, id, content); throw new Error("Antwort verloren"); };
+  await A.save((l) => [recipe("rX", "Neu"), ...l]);
+  A.dv.updateFile = realUpdate;
+  await A.save((l) => l.filter((r) => r.id !== "rX"));
+  assert(!A.get("rX"), "lokal weg");
+  assert(!driveNames(drive).includes("Neu"), "auf Drive weg");
 });
 
 test("T1 / DG-01: Claude fügt auf Drive ein Rezept hinzu, die App tippt ♥ → BEIDES bleibt (lokal und auf Drive)", async () => {
