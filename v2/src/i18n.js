@@ -126,7 +126,7 @@ export const DICT = {
   /* ---------------- DEUTSCH ---------------- */
   de: {
     export: { copied: "Markdown in Zwischenablage kopiert!", copyFail: "Zwischenablage nicht verfügbar: {msg}" },
-    importFile: { title: "Import", imported: "{n} importiert", skipped: "{n} übersprungen", renamed: "{n} mit neuer ID", invalid: "Nichts importiert. Die Datei ist ungültig oder enthält keine gültigen Rezepte.", readFail: "Lesen fehlgeschlagen: {msg}", saveFail: "Speichern fehlgeschlagen, nichts importiert: {msg}" },
+    importFile: { title: "Import", imported: "{n} importiert", skipped: "{n} übersprungen", renamed: "{n} mit neuer ID", invalid: "Nichts importiert. Die Datei ist ungültig oder enthält keine gültigen Rezepte.", readFail: "Lesen fehlgeschlagen: {msg}", saveFail: "Speichern fehlgeschlagen, nichts importiert: {msg}", problem: { empty: "Die Datei enthält keine Rezepte.", notText: "Die Datei ist kein Text.", tooLarge: "Die Datei ist größer als 2 MB.", notJson: "Die Datei ist kein gültiges JSON.", notObject: "Die Datei enthält kein Objekt.", noVersion: "„version“ fehlt oder ist keine Zahl.", noRecipes: "„recipes“ fehlt oder ist kein Array.", newerFormat: "Die Datei stammt aus einer neueren App-Version (Format {version}).", recipeInvalid: "Rezept {n} „{name}“: ungültige Felder: {fields}", recipeInvalidNoName: "Rezept {n}: ungültige Felder: {fields}", recipeNotObject: "Rezept {n}: kein gültiges Rezept", imageRemoved: "Rezept {n} „{name}“: Bild-Adresse entfernt (nur https erlaubt)" } },
     common: {
       save: "Speichern", saving: "Speichere…", cancel: "Abbrechen", delete: "Löschen",
       edit: "Bearbeiten", close: "Schließen", back: "Zurück", add: "Hinzufügen",
@@ -434,7 +434,7 @@ export const DICT = {
   /* ---------------- ENGLISH ---------------- */
   en: {
     export: { copied: "Markdown copied to clipboard!", copyFail: "Clipboard not available: {msg}" },
-    importFile: { title: "Import", imported: "{n} imported", skipped: "{n} skipped", renamed: "{n} got a new id", invalid: "Nothing imported. The file is invalid or has no valid recipes.", readFail: "Could not read file: {msg}", saveFail: "Saving failed, nothing imported: {msg}" },
+    importFile: { title: "Import", imported: "{n} imported", skipped: "{n} skipped", renamed: "{n} got a new id", invalid: "Nothing imported. The file is invalid or has no valid recipes.", readFail: "Could not read file: {msg}", saveFail: "Saving failed, nothing imported: {msg}", problem: { empty: "The file contains no recipes.", notText: "The file is not text.", tooLarge: "The file is larger than 2 MB.", notJson: "The file is not valid JSON.", notObject: "The file does not contain an object.", noVersion: "“version” is missing or not a number.", noRecipes: "“recipes” is missing or not an array.", newerFormat: "The file comes from a newer app version (format {version}).", recipeInvalid: "Recipe {n} “{name}”: invalid fields: {fields}", recipeInvalidNoName: "Recipe {n}: invalid fields: {fields}", recipeNotObject: "Recipe {n}: not a valid recipe", imageRemoved: "Recipe {n} “{name}”: image address removed (https only)" } },
     common: {
       save: "Save", saving: "Saving…", cancel: "Cancel", delete: "Delete",
       edit: "Edit", close: "Close", back: "Back", add: "Add",
@@ -742,7 +742,7 @@ export const DICT = {
   /* ---------------- ESPAÑOL ---------------- */
   es: {
     export: { copied: "¡Markdown copiado al portapapeles!", copyFail: "Portapapeles no disponible: {msg}" },
-    importFile: { title: "Importar", imported: "{n} importadas", skipped: "{n} omitidas", renamed: "{n} con nuevo id", invalid: "No se importó nada. El archivo no es válido o no tiene recetas válidas.", readFail: "No se pudo leer el archivo: {msg}", saveFail: "Error al guardar, no se importó nada: {msg}" },
+    importFile: { title: "Importar", imported: "{n} importadas", skipped: "{n} omitidas", renamed: "{n} con nuevo id", invalid: "No se importó nada. El archivo no es válido o no tiene recetas válidas.", readFail: "No se pudo leer el archivo: {msg}", saveFail: "Error al guardar, no se importó nada: {msg}", problem: { empty: "El archivo no contiene recetas.", notText: "El archivo no es texto.", tooLarge: "El archivo es mayor de 2 MB.", notJson: "El archivo no es un JSON válido.", notObject: "El archivo no contiene un objeto.", noVersion: "Falta “version” o no es un número.", noRecipes: "Falta “recipes” o no es una lista.", newerFormat: "El archivo procede de una versión más nueva de la app (formato {version}).", recipeInvalid: "Receta {n} “{name}”: campos no válidos: {fields}", recipeInvalidNoName: "Receta {n}: campos no válidos: {fields}", recipeNotObject: "Receta {n}: no es una receta válida", imageRemoved: "Receta {n} “{name}”: dirección de imagen eliminada (solo https)" } },
     common: {
       save: "Guardar", saving: "Guardando…", cancel: "Cancelar", delete: "Eliminar",
       edit: "Editar", close: "Cerrar", back: "Atrás", add: "Añadir",
@@ -1050,7 +1050,7 @@ export const DICT = {
   /* ---------------- DANSK ---------------- */
   da: {
     export: { copied: "Markdown kopieret til udklipsholderen!", copyFail: "Udklipsholder ikke tilgængelig: {msg}" },
-    importFile: { title: "Import", imported: "{n} importeret", skipped: "{n} sprunget over", renamed: "{n} fik nyt id", invalid: "Intet importeret. Filen er ugyldig eller har ingen gyldige opskrifter.", readFail: "Kunne ikke læse filen: {msg}", saveFail: "Kunne ikke gemme, intet importeret: {msg}" },
+    importFile: { title: "Import", imported: "{n} importeret", skipped: "{n} sprunget over", renamed: "{n} fik nyt id", invalid: "Intet importeret. Filen er ugyldig eller har ingen gyldige opskrifter.", readFail: "Kunne ikke læse filen: {msg}", saveFail: "Kunne ikke gemme, intet importeret: {msg}", problem: { empty: "Filen indeholder ingen opskrifter.", notText: "Filen er ikke tekst.", tooLarge: "Filen er større end 2 MB.", notJson: "Filen er ikke gyldig JSON.", notObject: "Filen indeholder ikke et objekt.", noVersion: "“version” mangler eller er ikke et tal.", noRecipes: "“recipes” mangler eller er ikke en liste.", newerFormat: "Filen stammer fra en nyere appversion (format {version}).", recipeInvalid: "Opskrift {n} “{name}”: ugyldige felter: {fields}", recipeInvalidNoName: "Opskrift {n}: ugyldige felter: {fields}", recipeNotObject: "Opskrift {n}: ikke en gyldig opskrift", imageRemoved: "Opskrift {n} “{name}”: billedadresse fjernet (kun https)" } },
     common: {
       save: "Gem", saving: "Gemmer…", cancel: "Annuller", delete: "Slet",
       edit: "Rediger", close: "Luk", back: "Tilbage", add: "Tilføj",

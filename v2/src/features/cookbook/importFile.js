@@ -7,7 +7,26 @@ import { openSheet } from "../../ui/sheet.js";
 import { esc } from "../../ui/helpers.js";
 import { t } from "../../i18n.js";
 
+/** Strukturiertes Problem aus parseImportFile → ein übersetzter Satz. Feldnamen bleiben technisch. */
+export function problemText(p) {
+  const n = (p.index ?? 0) + 1;
+  if (p.code === "recipeInvalid") {
+    return t(p.name ? "importFile.problem.recipeInvalid" : "importFile.problem.recipeInvalidNoName",
+      { n, name: p.name, fields: p.fields.join(", ") });
+  }
+  return t("importFile.problem." + p.code, { n, name: p.name, version: p.version });
+}
+
 function resultSheet(summary) {
+  if (summary.imported === 0 && summary.skipped === 0 && summary.reasons.length === 0) {
+    const { el, close } = openSheet(`
+    <div class="sheet-head"><span class="cat-label">${esc(t("importFile.title"))}</span><button class="icon-btn close" aria-label="${esc(t("common.close"))}">✕</button></div>
+    <p class="import-summary import-empty">${esc(t("importFile.problem.empty"))}</p>
+    <button class="btn-primary import-done">${esc(t("common.done"))}</button>`);
+    el.querySelector(".close").onclick = close;
+    el.querySelector(".import-done").onclick = close;
+    return;
+  }
   const failed = summary.imported === 0 && summary.skipped > (summary.duplicates || 0);
   const line = failed
     ? t("importFile.invalid")
@@ -15,7 +34,7 @@ function resultSheet(summary) {
        t("importFile.skipped", { n: summary.skipped }),
        t("importFile.renamed", { n: summary.renamed })].join(" · ");
   const reasons = summary.reasons.length
-    ? `<ul class="import-reasons">${summary.reasons.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>` : "";
+    ? `<ul class="import-reasons">${summary.reasons.map((r) => `<li>${esc(problemText(r))}</li>`).join("")}</ul>` : "";
   const { el, close } = openSheet(`
     <div class="sheet-head"><span class="cat-label">${esc(t("importFile.title"))}</span><button class="icon-btn close" aria-label="${esc(t("common.close"))}">✕</button></div>
     <p class="import-summary ${failed ? "err" : ""}">${esc(line)}</p>${reasons}
@@ -26,7 +45,7 @@ function resultSheet(summary) {
 
 export async function importText(text) {
   const { recipes, errors, notes } = parseImportFile(text);
-  if (!recipes.length) { resultSheet(summarizeImport({ toAdd: [], skipped: [], renamed: [] }, errors.length ? errors : ["–"])); return; }
+  if (!recipes.length) { resultSheet(summarizeImport({ toAdd: [], skipped: [], renamed: [] }, errors)); return; }
   let plan;
   try { plan = await importRecipes(recipes); }
   catch (e) { alert(t("importFile.saveFail", { msg: e.message })); return; }
