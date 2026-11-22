@@ -162,6 +162,12 @@ test("ingredients.json: zweite Charge — mindestens 110 Einträge, dünne Gäng
   assertDeepEqual(BATCH1.filter((id) => !byId.has(id)), []);
 });
 
+test("ingredients.json: dritte Charge — ~150 Einträge, alle 113 bisherigen Ids erhalten, Quelle benannt", () => {
+  assert(master.ingredients.length >= 148 && master.ingredients.length <= 152, `${master.ingredients.length} Einträge`);
+  for (const id of ["sweet-potato", "white-beans-canned", "salad-leaves", "spinach", "flaxseed", "bread-flour", "sour-cream", "cod"]) assert(byId.has(id), `${id} fehlt`);
+  for (const r of master.ingredients) assert(master.sources[r.source.split(":")[0]], `${r.id}: Quelle „${r.source}“ nicht in sources`);
+});
+
 test("ingredients.json: jeder Eintrag hat die Felder aus ADR §3", () => {
   for (const r of master.ingredients) {
     assert(AISLES[r.aisle], `${r.id}: aisle „${r.aisle}“ unbekannt`);
