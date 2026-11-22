@@ -64,3 +64,33 @@ test("Import: ungültige Datei zeigt Fehler und ändert nichts", async ({ page }
   await s.locator(".import-done").click();
   await expect(page.locator("#cards .rcard")).toHaveCount(before);
 });
+
+test("Import (EN): ungültiges JSON zeigt den englischen Grund, kein Deutsch (#84)", async ({ device }) => {
+  const { page } = await device({ lang: "en" });
+  await openApp(page);
+  await waitForCookbook(page);
+  const s = await pick(page, { name: "x.json", mimeType: "application/json", buffer: Buffer.from("{kein json") });
+  await expect(s.locator(".import-reasons li")).toHaveText("The file is not valid JSON.");
+  await expect(s).not.toContainText("Datei");
+});
+
+test("Import (EN): übersprungenes Rezept = eine Zeile mit Nummer, Name, Feldnamen (#84)", async ({ device }) => {
+  const { page } = await device({ lang: "en" });
+  await openApp(page);
+  await waitForCookbook(page);
+  const bad = { id: "p3", name: "Pasta al limone", category: "Pasta", ingredients: ["1 Zitrone"], steps: "x" };
+  const s = await pick(page, jsonFile([recipe("ok-1", "Gut"), recipe("ok-2", "Auch gut"), bad]));
+  await expect(s.locator(".import-reasons li")).toHaveText("Recipe 3 “Pasta al limone”: invalid fields: category, steps");
+});
+
+test("Import (EN): gültige Datei ohne Rezepte → neutrale Meldung, kein Fehler, keine Liste (#84)", async ({ device }) => {
+  const { page } = await device({ lang: "en" });
+  await openApp(page);
+  await waitForCookbook(page);
+  const s = await pick(page, jsonFile([]));
+  await expect(s.locator(".import-summary")).toHaveText("The file contains no recipes.");
+  await expect(s.locator(".import-summary")).not.toHaveClass(/err/);
+  await expect(s.locator(".import-reasons")).toHaveCount(0);
+  await expect(s).not.toContainText("skipped");
+  await expect(s).not.toContainText("–");
+});

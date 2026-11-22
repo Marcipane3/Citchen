@@ -19,7 +19,8 @@ test("import: ungültige Rezepte werden mit Index gemeldet, gültige trotzdem im
   const res = parseImportFile(file([r("a", "A"), { id: "b" }, r("c", "C"), null]));
   assertDeepEqual(res.recipes.map((x) => x.id), ["a", "c"]);
   assertEqual(res.errors.length, 2);
-  assert(res.errors[0].includes("[1]") && res.errors[1].includes("[3]"), "Index im Fehler");
+  assertEqual(res.errors[0].index, 1);
+  assertEqual(res.errors[1].index, 3);
 });
 
 test("import: photos fallen weg, image und andere Felder bleiben, Defaults gesetzt", () => {
@@ -118,7 +119,7 @@ test("summarizeImport: importiert / übersprungen (mit Gründen) / neue ID", () 
   assertEqual(s.skipped, 1);
   assertEqual(s.renamed, 1);
   assertEqual(s.reasons.length, 1);
-  assert(s.reasons[0].includes("[1]"), "Grund mit Index");
+  assertEqual(s.reasons[0].index, 1, "Grund mit Index");
 });
 
 test("summarizeImport: kaputte Datei → 0 importiert, Grund bleibt", () => {
@@ -237,7 +238,7 @@ test("#36: image nur https — http:, javascript: und data: werden entfernt und 
     assertEqual(res.recipes[0].image, "", "Bild entfernt: " + bad);
     assertEqual(res.errors.length, 0);
     assertEqual(res.notes.length, 1);
-    assert(res.notes[0].includes("[0]") && res.notes[0].includes("Apfelkuchen"), "Hinweis nennt das Rezept");
+    assertDeepEqual(res.notes[0], { code: "imageRemoved", index: 0, name: "Apfelkuchen" });
   }
   const ok = parseImportFile(file([r("a", "A", { image: "https://example.org/b.jpg" }), r("b", "B")]));
   assertEqual(ok.recipes[0].image, "https://example.org/b.jpg");
@@ -259,7 +260,9 @@ test("#36: Längengrenzen — zu große Rezepte werden mit Index gemeldet, der R
     const res = parseImportFile(file([r("ok", "OK"), r("big", "Big", extra)]));
     assertDeepEqual(res.recipes.map((x) => x.id), ["ok"], JSON.stringify(Object.keys(extra)));
     assertEqual(res.errors.length, 1);
-    assert(res.errors[0].startsWith("Rezept[1]:"), "Index im Fehler");
+    assertEqual(res.errors[0].index, 1, "Index im Fehler");
+    assertEqual(res.errors[0].code, "recipeInvalid");
+    assertEqual(res.errors[0].fields.length, 1, "genau ein Feld: " + JSON.stringify(res.errors[0]));
   }
   // genau an der Grenze: erlaubt
   const edge = parseImportFile(file([r("a", "n".repeat(L.name), { steps: ["s".repeat(L.line)], tips: "t".repeat(L.tips) })]));
@@ -270,14 +273,14 @@ test("#36: Längengrenzen — zu große Rezepte werden mit Index gemeldet, der R
 test("#36: Datei über 2 MB wird abgelehnt, bevor sie geparst wird", () => {
   const res = parseImportFile(file([r("a", "A")]) + " ".repeat(IMPORT_LIMITS.fileChars));
   assertEqual(res.recipes.length, 0);
-  assert(res.errors[0].includes("2 MB"));
+  assertEqual(res.errors[0].code, "tooLarge");
 });
 
 test("#36/#50: neueres Dateiformat (version 99) wird abgelehnt — gleiche Prüfung wie der Drive-Sync", () => {
   const res = parseImportFile(JSON.stringify({ version: 99, recipes: [r("a", "A")] }));
   assertEqual(res.recipes.length, 0);
   assertEqual(res.errors.length, 1);
-  assert(res.errors[0].includes("99"), "Fehler nennt das Format");
+  assertDeepEqual(res.errors[0], { code: "newerFormat", version: 99 });
   let code = null;
   try { inspectRemote({ version: 99, recipes: [] }); } catch (e) { code = e.code; }
   assertEqual(code, "newerFormat");
@@ -353,7 +356,7 @@ test("#52: von Hand verdorbener Export — genau dieser Index wird gemeldet, der
   exported.recipes[2].category = "Gibt es nicht";
   const res = parseImportFile(JSON.stringify(exported));
   assertEqual(res.errors.length, 1);
-  assert(res.errors[0].startsWith("Rezept[2]:"), res.errors[0]);
+  assertEqual(res.errors[0].index, 2);
   assertDeepEqual(res.recipes.map((x) => x.id), [0, 1, 3, 4].map((i) => baseRecipes[i].id));
 });
 
@@ -462,4 +465,57 @@ test("#89: der Bestand wird beim Planen nicht verändert", () => {
   const before = JSON.stringify(existing);
   planImport(parseImportFile(file(existing)).recipes, existing);
   assertEqual(JSON.stringify(existing), before);
+});
+
+/* ---------- #84: strukturierte Probleme statt deutscher Sätze ---------- */
+
+test("#84: Datei-Probleme haben je einen Code", () => {
+  const code = (x) => parseImportFile(x).errors.map((e) => e.code);
+  assertDeepEqual(code(5), ["notText"]);
+  assertDeepEqual(code("{nope"), ["notJson"]);
+  assertDeepEqual(code("[]"), ["notObject"]);
+  assertDeepEqual(code(JSON.stringify({ recipes: [] })), ["noVersion"]);
+  assertDeepEqual(code(JSON.stringify({ version: 3 })), ["noRecipes"]);
+  assertDeepEqual(code(JSON.stringify({ version: 99, recipes: [] })), ["newerFormat"]);
+});
+
+test("#84: ein übersprungenes Rezept nennt Nummer, Name und falsche Felder — nicht den Wert", () => {
+  const bad = { id: "x", name: "Pasta al limone", category: "Pasta", steps: "kein Array", ingredients: ["1 Zitrone"] };
+  const res = parseImportFile(file([r("a", "A"), bad]));
+  assertDeepEqual(res.errors, [{ code: "recipeInvalid", index: 1, name: "Pasta al limone", fields: ["category", "steps"] }]);
+  assert(!JSON.stringify(res.errors).includes("kein Array"), "falscher Wert wird nicht wiederholt");
+  assertDeepEqual(parseImportFile(file([null])).errors, [{ code: "recipeNotObject", index: 0 }]);
+});
+
+test("#84: gültige Datei mit recipes: [] ist kein Fehler und zählt nichts als übersprungen", () => {
+  const res = parseImportFile(file([]));
+  assertDeepEqual(res.errors, []);
+  const s = summarizeImport(planImport(res.recipes, []), res.errors, res.notes);
+  assertEqual(s.skipped, 0);
+  assertEqual(s.reasons.length, 0);
+});
+
+test("#84: Bild-Hinweis ist strukturiert", () => {
+  const res = parseImportFile(file([r("a", "A", { image: "http://x/y.jpg" })]));
+  assertDeepEqual(res.notes, [{ code: "imageRemoved", index: 0, name: "A" }]);
+});
+
+test("#84: jeder Problem-Code hat in DE/EN/ES/DA einen Text", async () => {
+  const { setLang, t } = await import("../src/i18n.js");
+  const { problemText } = await import("../src/features/cookbook/importFile.js");
+  const samples = [{ code: "notText" }, { code: "tooLarge" }, { code: "notJson" }, { code: "notObject" }, { code: "noVersion" },
+    { code: "noRecipes" }, { code: "newerFormat", version: 9 }, { code: "recipeInvalid", index: 2, name: "N", fields: ["a", "b"] },
+    { code: "recipeInvalid", index: 2, name: "", fields: ["a"] }, { code: "recipeNotObject", index: 0 },
+    { code: "imageRemoved", index: 0, name: "N" }];
+  try {
+    for (const lang of ["de", "en", "es", "da"]) {
+      setLang(lang);
+      for (const p of samples) {
+        const txt = problemText(p);
+        assert(!txt.startsWith("importFile.problem"), `${lang}: Text für ${p.code}`);
+        assert(!/[{}]/.test(txt), `${lang}: Platzhalter ersetzt in ${p.code}`);
+      }
+      assert(t("importFile.problem.empty") !== "importFile.problem.empty", `${lang}: empty`);
+    }
+  } finally { setLang("en"); }
 });
