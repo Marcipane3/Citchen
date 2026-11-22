@@ -330,8 +330,10 @@ test("ausgelieferter Stamm: 3 Knoblauchzehen → clove, 9 g (Alias „Knoblauchz
 
 // Gemessen am 2026-11-13 (105 Rezepte, 70 Zutaten): 839 Zeilen → 1010 Teile, 965 mit Zutat (95,5 %).
 // R2.2 (113 Zutaten): 1013 Teile, 1002 mit Zutat (98,9 %). Neue Stamm-Daten dürfen den Anteil nur heben.
+// R2.3 (150 Zutaten): 1014 Teile, 1010 mit Zutat (99,6 %).
 const BASE_70_PCT = 95.5;
-const MEASURED_PCT = 98.9;
+const BASE_113_PCT = 98.9;
+const MEASURED_PCT = 99.6;
 const FLOOR_PCT = MEASURED_PCT - 1;
 
 test("Abdeckung: Anteil der Teile mit Zutat liegt über dem Boden", () => {
@@ -361,5 +363,5 @@ test("master covers more base-recipe lines than before", () => {
   const idx = buildIndex(master);
   let parts = 0, matched = 0;
   for (const r of snapshot.recipes) for (const line of r.ingredients || []) for (const it of matchLine(line, idx)) { parts++; if (it.ing) matched++; }
-  assert((matched / parts) * 100 > BASE_70_PCT + 3, `Abdeckung ${((matched / parts) * 100).toFixed(1)} % hebt sich nicht über die 70er Datei (${BASE_70_PCT} %)`);
+  assert((matched / parts) * 100 > BASE_113_PCT, `Abdeckung ${((matched / parts) * 100).toFixed(1)} % hebt sich nicht über die 113er Datei (${BASE_113_PCT} %)`);
 });
