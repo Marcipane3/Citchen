@@ -39,10 +39,28 @@ function isHttpsUrl(v) {
   try { return new URL(v).protocol === "https:"; } catch { return false; }
 }
 
+/** items[] einer Import-Datei (#111): nur Einträge zu echten Zutatenzeilen, Strings in Grenzen, kein Markup, höchstens `lines`. */
+function cleanItems(items, ingredients) {
+  const lines = new Set(ingredients);
+  const out = [];
+  for (const it of items) {
+    if (out.length >= IMPORT_LIMITS.lines) break;
+    if (!lines.has(it.text)) continue;
+    const entries = Object.entries(it);
+    if (entries.some(([, v]) => typeof v === "string" && v.length > IMPORT_LIMITS.line)) continue;
+    if (typeof it.ing === "string" && /[<>]/.test(it.ing)) continue;
+    const item = { ...it };
+    if (item.ing !== undefined && typeof item.ing !== "string") delete item.ing;
+    out.push(item);
+  }
+  return out;
+}
+
 /** Die eine Bereinigung für Import UND Vergleich: nur Vertragsfelder, id getrimmt, nur https-Bild, Defaults. Mutiert nichts. */
 function cleanRecipe(r) {
   const clean = {};
   for (const f of KEPT_FIELDS) if (r[f] !== undefined) clean[f] = r[f];
+  if (Array.isArray(clean.items)) clean.items = cleanItems(clean.items, Array.isArray(clean.ingredients) ? clean.ingredients : []);
   clean.id = r.id.trim(); // „ r01 “ ist dasselbe Rezept wie „r01“ (#50)
   const imageRemoved = !!clean.image && !isHttpsUrl(clean.image);
   if (imageRemoved) clean.image = "";
