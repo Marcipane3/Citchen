@@ -294,6 +294,23 @@ test("#90: Partner-Rezept + eigener Schreibvorgang ohne Bestätigung → Partner
   assert(A.local.recipes.some((r) => r.name === "Partner"), "Partner-Rezept lokal");
 });
 
+test("#90: fork + verlorene Bestätigung → Partner-Rezept bleibt, nichts geht verloren", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  const B = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync(); await B.engine.sync();
+  await B.save((l) => [recipe("x", "Partner Rezept"), ...l]);
+  await A.save((l) => [recipe("x", "Mein Import"), ...l], { online: false });
+  const realUpdate = A.dv.updateFile;
+  A.dv.updateFile = async (id, content) => { await realUpdate.call(A.dv, id, content); throw new Error("Antwort verloren"); };
+  await A.engine.sync();
+  A.dv.updateFile = realUpdate;
+  await A.engine.sync(); await A.engine.sync();
+  assert(driveNames(drive).includes("Partner Rezept"), "Partner-Rezept auf Drive");
+  assert(driveNames(drive).includes("Mein Import"), "eigenes Rezept auf Drive");
+  assertEqual(driveRecipes(drive).find((r) => r.id === "x").name, "Partner Rezept");
+});
+
 test("T1 / DG-01: Claude fügt auf Drive ein Rezept hinzu, die App tippt ♥ → BEIDES bleibt (lokal und auf Drive)", async () => {
   const drive = fakeDrive();
   const A = recipeDevice(drive, { recipes: BASE3 });
