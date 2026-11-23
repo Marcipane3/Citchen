@@ -278,11 +278,17 @@ test("#90 lost ack + later local edit does not fork", () => {
   assertEqual(out.merged[0].tips, "lokal bearbeitet");
 });
 
-test("#90: lost ack + partner edit → Drive-Stand, kein Fork", () => {
-  const x1 = r("x", "X"), x3 = r("x", "X von Partner");
-  const out = mergeRecipes({ base: [], local: [x1], remote: [x3], pendingBase: [x1], now: () => 5000 });
-  assertDeepEqual(out.forked, []);
-  assertDeepEqual(names(out.merged), ["X von Partner"]);
+test("#90: Schreiben fehlgeschlagen, fremder Zwilling mit gleicher id → Fork, beide bleiben", () => {
+  const mine = r("x", "Mein Import"), theirs = r("x", "Anderes Rezept vom Partner");
+  const out = mergeRecipes({ base: [], local: [mine], remote: [theirs], pendingBase: [mine], now: () => 5000 });
+  assertEqual(out.forked.length, 1);
+  assertDeepEqual(names(out.merged).sort(), ["Anderes Rezept vom Partner", "Mein Import"]);
+});
+
+test("#90: Partner-Rezept in pendingBase (reiner mergeRecipes-Fall) wird nicht als lokal gelöscht gewertet, wenn pendingBase nur Eigenes enthält", () => {
+  const a = r("a", "A"), x = r("x", "X"), y = r("y", "Y");
+  const out = mergeRecipes({ base: [a], local: [x, a], remote: [y, a], pendingBase: [x, a] });
+  assertDeepEqual(names(out.merged).sort(), ["A", "X", "Y"]);
 });
 
 test("#90: lost ack, beide Seiten weichen von pendingBase ab → nicht unterscheidbar von Zwilling: Fork (kein Datenverlust)", () => {

@@ -90,7 +90,12 @@ export function recipeSync({ store, approveDrop = async () => false, onRetry = (
 
       const write = notes.length > 0 || !sameCollection(merged, collection.recipes);
       // #90: vor dem Schreiben merken; geht die Antwort verloren, erkennt der nächste Abgleich die eigene Datei.
-      if (write && store.setPendingBase) await store.setPendingBase(merged);
+      // Nur lokal entstandene Rezepte: Drive-Neuzugänge (Partner) dürfen hier nicht stehen, sonst würde ein
+      // verlorener Schreibvorgang sie später als "lokal gelöscht" lesen und von Drive entfernen.
+      if (write && store.setPendingBase) {
+        const localIds = new Set(local.map((r) => r.id)), remoteIds = new Set(collection.recipes.map((r) => r.id));
+        await store.setPendingBase(merged.filter((r) => localIds.has(r.id) || !remoteIds.has(r.id)));
+      }
       return {
         write: write ? toFileString({ updated: now, recipes: merged }) : null,
         apply: async () => {

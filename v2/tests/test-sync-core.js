@@ -262,6 +262,38 @@ test("#90: nach verlorener Bestätigung lokal gelöscht → bleibt gelöscht, ei
   assert(!driveNames(drive).includes("Neu"), "auf Drive weg");
 });
 
+test("#90: Partner-Rezept + eigener Schreibvorgang ohne Bestätigung → Partner-Rezept bleibt (lokal und Drive), Variante: Schreiben kam an", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  const B = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync(); await B.engine.sync();
+  await B.save((l) => [recipe("rY", "Partner"), ...l]); await B.engine.sync();
+  const realUpdate = A.dv.updateFile;
+  A.dv.updateFile = async (id, content) => { await realUpdate.call(A.dv, id, content); throw new Error("Antwort verloren"); };
+  await A.save((l) => [recipe("rX", "Eigen"), ...l]);
+  A.dv.updateFile = realUpdate;
+  await A.engine.sync(); await A.engine.sync();
+  assert(driveNames(drive).includes("Partner"), "Partner-Rezept auf Drive");
+  assert(driveNames(drive).includes("Eigen"), "eigenes Rezept auf Drive");
+  assert(A.local.recipes.some((r) => r.name === "Partner"), "Partner-Rezept lokal");
+});
+
+test("#90: Partner-Rezept + eigener Schreibvorgang ohne Bestätigung → Partner-Rezept bleibt, Variante: Schreiben kam nicht an", async () => {
+  const drive = fakeDrive();
+  const A = recipeDevice(drive, { recipes: BASE3 });
+  const B = recipeDevice(drive, { recipes: BASE3 });
+  await A.engine.sync(); await B.engine.sync();
+  await B.save((l) => [recipe("rY", "Partner"), ...l]); await B.engine.sync();
+  const realUpdate = A.dv.updateFile;
+  A.dv.updateFile = async () => { throw new Error("Netz weg"); };
+  await A.save((l) => [recipe("rX", "Eigen"), ...l]);
+  A.dv.updateFile = realUpdate;
+  await A.engine.sync(); await A.engine.sync();
+  assert(driveNames(drive).includes("Partner"), "Partner-Rezept auf Drive");
+  assert(driveNames(drive).includes("Eigen"), "eigenes Rezept auf Drive");
+  assert(A.local.recipes.some((r) => r.name === "Partner"), "Partner-Rezept lokal");
+});
+
 test("T1 / DG-01: Claude fügt auf Drive ein Rezept hinzu, die App tippt ♥ → BEIDES bleibt (lokal und auf Drive)", async () => {
   const drive = fakeDrive();
   const A = recipeDevice(drive, { recipes: BASE3 });

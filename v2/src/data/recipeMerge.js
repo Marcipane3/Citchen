@@ -101,9 +101,9 @@ export const sameCollection = (a, b) => a.length === b.length && a.every((r, i) 
  * pendingBase — optional (#90): der Stand, den der letzte Abgleich VOR dem Drive-Schreiben gemerkt hat. Ging die
  *   Antwort von Drive verloren, kennt die Basis neue Rezepte nicht; steht ein solches auf Drive mit demselben
  *   Inhalt wie in pendingBase, ist es unser eigener Schreibvorgang → pendingBase gilt für diese id als Basis
- *   (kein Fork, spätere Änderungen werden normal gemergt). Gleiches gilt, wenn lokal noch dem pendingBase-Stand
- *   entspricht und Drive danach geändert wurde. Weichen BEIDE Seiten von pendingBase ab, ist ein Partner-Edit
- *   nicht von einem unabhängigen Zwilling zu unterscheiden → Fork wie bisher (Duplikat statt Datenverlust).
+ *   (kein Fork, spätere Änderungen werden normal gemergt). Weicht Drive von pendingBase ab, ist ein Partner-Edit
+ *   nicht von einem unabhängigen Zwilling zu unterscheiden (auch wenn unser Schreiben nie ankam) → Fork wie
+ *   bisher (Duplikat statt Datenverlust).
  * → { merged, removedRemotely: [ids lokal gelöscht, weil Drive sie löschte], conflicts: [ids beidseitig geändert],
  *     forked: [{from, to, name}] }
  *
@@ -127,7 +127,6 @@ export function mergeRecipes({ base, local, remote, prefer = "remote", pendingBa
     if (B && !b && P && P.has(id)) {                  // #90: verlorene Bestätigung
       const p = P.get(id);
       if (r && sameContent(p, r)) b = r;              // Drive hat genau unseren Schreibvorgang
-      else if (l && r && sameContent(p, l)) b = l;    // lokal noch unser Stand, Drive danach geändert (Partner)
     }
     if (l && r) {
       if (sameRecipe(l, r)) return l;
