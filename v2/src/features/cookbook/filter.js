@@ -186,6 +186,7 @@ for (const names of [DE_MONTHS, ...Object.values(MONTH_DICT)]) {
     MONTH_WORDS.set(w.slice(0, 3), i + 1);
   });
 }
+MONTH_WORDS.set("sept", 9); // einzige 4-Buchstaben-Form, die in der Praxis vorkommt
 function monthFromWord(v) {
   for (const w of plain(v).match(/[a-z]+/g) || []) if (MONTH_WORDS.has(w)) return MONTH_WORDS.get(w);
   return 0;
