@@ -133,3 +133,28 @@ test("parseImportFile: kaputtes items → Rezept übernommen, items entfernt", (
   assertEqual(res.recipes.length, 1);
   assert(!("items" in res.recipes[0]), "items entfernt");
 });
+
+/* ---------- #112: gleiche Zeile mehrfach, eine entfernt ---------- */
+test("relink #112: doppelte Zeile, eine entfernt → Items EINER Zeile, nicht vervielfacht", () => {
+  const line = "200 g Reis, Salz"; // ergibt 2 Items pro Zeile
+  const two = withItems(recipe([line, line]), index);
+  assertEqual(two.items.length, 4, "Ausgang: 2 Items je Zeile");
+  const one = relinkItems({ ...two, ingredients: [line] }, index);
+  assertEqual(one.length, 2);
+});
+
+test("relink #112: Idempotenz bei 1, 2 und 3 gleichen Zeilen", () => {
+  const line = "200 g Reis, Salz";
+  for (const n of [1, 2, 3]) {
+    const once = withItems(recipe(Array(n).fill(line)), index);
+    assertEqual(once.items.length, 2 * n);
+    assert(withItems(once, index) === once, `n=${n}: zweiter Durchlauf ändert nichts`);
+  }
+});
+
+test("relink #112: ungleichmäßig teilbarer Bestand wird neu abgeleitet", () => {
+  const line = "200 g Reis, Salz";
+  const base = withItems(recipe([line, line]), index).items;
+  const out = relinkItems({ ...recipe([line, line, line]), items: base }, index);
+  assertEqual(out.length, 6);
+});
