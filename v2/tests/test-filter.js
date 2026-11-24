@@ -271,6 +271,13 @@ test("Zeit-Chips (F4): ≤ 15 / ≤ 30 / ≤ 60 filtern nach Gesamtzeit; ein Chi
   assert(fast.includes("__t15") && !fast.includes("__quick") && !fast.includes("__t60"));
 });
 
+test("cookedMonthKey: „Sept“ (auch „Sept.“, „sept“) ist September", () => {
+  assertEqual(cookedMonthKey("Sept 2026"), 202609);
+  assertEqual(cookedMonthKey("Sept. 2026"), 202609);
+  assertEqual(cookedMonthKey("sept 2026"), 202609);
+  assertEqual(cookedMonthKey("Septi 2026"), 202600);
+});
+
 test("cookedMonthKey: Nicht-Monatswörter („Martes“, „Mayonesa“) zählen nicht als Monat", () => {
   assertEqual(cookedMonthKey("Martes 2025"), 202500);
   assertEqual(cookedMonthKey("Mayonesa 2025"), 202500);
