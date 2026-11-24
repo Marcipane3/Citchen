@@ -519,3 +519,47 @@ test("#84: jeder Problem-Code hat in DE/EN/ES/DA einen Text", async () => {
     }
   } finally { setLang("en"); }
 });
+
+// ---- #111: items[] aus Import-Dateien bereinigen ----
+const withItems = (items, ingredients = ["2 Eier", "1 Prise Salz"]) =>
+  parseImportFile(file([r("i1", "Item-Test", { ingredients, items })])).recipes[0];
+
+test("import #111: items ohne passende Zutatenzeile fallen weg", () => {
+  const rec = withItems([{ text: "2 Eier", ing: "ei" }, { text: "Fremde Zeile", ing: "x" }]);
+  assertDeepEqual(rec.items, [{ text: "2 Eier", ing: "ei" }]);
+});
+
+test("import #111: 20.000 items → höchstens IMPORT_LIMITS.lines, kein Fehler", () => {
+  const items = Array.from({ length: 20000 }, () => ({ text: "2 Eier", ing: "ei" }));
+  const res = parseImportFile(file([r("i1", "Viele", { ingredients: ["2 Eier"], items })]));
+  assertEqual(res.errors.length, 0);
+  assertEqual(res.recipes[0].items.length, IMPORT_LIMITS.lines);
+});
+
+test("import #111: zu lange Strings → Item fällt weg; ing kein String → ing fällt weg", () => {
+  const rec = withItems([{ text: "2 Eier", ing: "e".repeat(IMPORT_LIMITS.line + 1) }, { text: "1 Prise Salz", ing: 5 }]);
+  assertDeepEqual(rec.items, [{ text: "1 Prise Salz" }]);
+});
+
+test("import #111: ing mit < oder > wird nicht übernommen (Item fällt weg)", () => {
+  const rec = withItems([{ text: "2 Eier", ing: "<img src=x>" }, { text: "1 Prise Salz", ing: "a>b" }, { text: "1 Prise Salz", ing: "salz" }]);
+  assertDeepEqual(rec.items, [{ text: "1 Prise Salz", ing: "salz" }]);
+});
+
+test("import #111: bereinigte items zählen auch beim Vergleich — unveränderter Re-Import ist identisch", () => {
+  const dirty = r("i1", "Item-Test", { ingredients: ["2 Eier"], items: [{ text: "2 Eier", ing: "ei" }, { text: "Müll", ing: "<b>" }] });
+  const first = parseImportFile(file([dirty])).recipes;
+  const existing = [{ ...first[0] }];
+  existing[0].items = dirty.items; // Bestand mit alten, ungeprüften items
+  const plan = planImport(parseImportFile(file([dirty])).recipes, existing);
+  assertEqual(plan.skipped.length, 1);
+  assertEqual(plan.toAdd.length, 0);
+});
+
+test("planImport #111: Bestandsrezept mit items [null] wirft nicht und landet in skipped", () => {
+  const inc = parseImportFile(file([r("i1", "Item-Test", { ingredients: ["2 Eier"], items: [{ text: "2 Eier", ing: "ei" }] })])).recipes;
+  const existing = [{ ...inc[0], items: [null, 5, "x", [], { text: "2 Eier", ing: "ei" }] }];
+  const plan = planImport(inc, existing);
+  assertEqual(plan.skipped.length, 1);
+  assertEqual(plan.toAdd.length, 0);
+});
