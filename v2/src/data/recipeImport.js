@@ -45,6 +45,7 @@ function cleanItems(items, ingredients) {
   const out = [];
   for (const it of items) {
     if (out.length >= IMPORT_LIMITS.lines) break;
+    if (!it || typeof it !== "object" || Array.isArray(it)) continue;
     if (!lines.has(it.text)) continue;
     const entries = Object.entries(it);
     if (entries.some(([, v]) => typeof v === "string" && v.length > IMPORT_LIMITS.line)) continue;

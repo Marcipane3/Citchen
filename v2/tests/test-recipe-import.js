@@ -555,3 +555,11 @@ test("import #111: bereinigte items zählen auch beim Vergleich — unverändert
   assertEqual(plan.skipped.length, 1);
   assertEqual(plan.toAdd.length, 0);
 });
+
+test("planImport #111: Bestandsrezept mit items [null] wirft nicht und landet in skipped", () => {
+  const inc = parseImportFile(file([r("i1", "Item-Test", { ingredients: ["2 Eier"], items: [{ text: "2 Eier", ing: "ei" }] })])).recipes;
+  const existing = [{ ...inc[0], items: [null, 5, "x", [], { text: "2 Eier", ing: "ei" }] }];
+  const plan = planImport(inc, existing);
+  assertEqual(plan.skipped.length, 1);
+  assertEqual(plan.toAdd.length, 0);
+});
