@@ -14,6 +14,8 @@ import {
 } from "../src/ai/prompts.js";
 import { getInstructions, setInstructions, resetInstructions } from "../src/data/settings.js";
 import { validateRecipe, PERSONAL_FIELDS } from "../src/data/schema.js";
+import { buildIndex } from "../src/data/ingredientMatch.js";
+import { withItems } from "../src/data/items.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -657,6 +659,48 @@ test("#73: coerceUpdate — id, origin, Bild und jedes persönliche Feld kommen 
   // Grundrezept bleibt ohne origin
   const base = { ...STORED73 }; delete base.origin;
   assert(!("origin" in coerceUpdate(upd73(evil), base).recipe), "Grundrezept bekommt kein origin");
+});
+
+// #114: pinnt, dass `items` (abgeleitet, kein Inhaltsfeld) von coerceUpdate unberührt durchgereicht wird;
+// das Nachziehen übernimmt withItems beim Lesen.
+const ITEMS114 = [
+  { text: "400g Spaghetti", ing: "pasta", buy: false, optional: false },
+  { text: "200g Hackfleisch 🛒", ing: "mince", buy: true, optional: false },
+  { text: "1 Dose Tomaten", ing: "tomato", buy: false, optional: false },
+];
+const STORED114 = { ...STORED73, items: ITEMS114 };
+const INDEX114 = buildIndex({ ingredients: ["pasta:Spaghetti", "mince:Hackfleisch", "tomato:Tomaten", "lentil:Linsen"].map((s) => {
+  const [id, de] = s.split(":");
+  return { id, names: { de, en: id, es: id, da: id }, base: "g", shop: "g" };
+}) });
+
+test("#114: coerceUpdate mit geänderten Zutaten — gespeicherte items bleiben unberührt, Ergebnis valide", () => {
+  assert(!CONTENT_FIELDS.includes("items"), "items ist kein Inhaltsfeld");
+  const { recipe, errors } = coerceUpdate(upd73(VEGAN73), STORED114);
+  assertDeepEqual(errors, []);
+  assertDeepEqual(recipe.ingredients, VEGAN73.ingredients, "Zutaten kommen vom Modell");
+  assertDeepEqual(recipe.items, ITEMS114, "items unverändert");
+  assert(validateRecipe(recipe).valid, "schema-valide");
+});
+
+test("#114: coerceUpdate + withItems — Items entfernter Zeilen fallen weg, unveränderte bleiben", () => {
+  const { recipe } = coerceUpdate(upd73(VEGAN73), STORED114);
+  const out = withItems(recipe, INDEX114);
+  assert(!out.items.some((it) => it.text === "200g Hackfleisch 🛒"), "Item der entfernten Zeile bleibt");
+  assert(out.items.some((it) => it.text === "200g rote Linsen 🛒"), "neue Zeile bekommt ein Item");
+  assertDeepEqual(out.items.find((it) => it.text === "400g Spaghetti"), ITEMS114[0], "Item unveränderter Zeile identisch");
+  assertDeepEqual(out.items.find((it) => it.text === "1 Dose Tomaten"), ITEMS114[2], "Item unveränderter Zeile identisch");
+  assertEqual(out.items.length, VEGAN73.ingredients.length);
+  assert(validateRecipe(out).valid, "schema-valide");
+});
+
+test("#114: coerceUpdate mit gleichen Zutaten — items identisch, auch nach withItems", () => {
+  const same = { ...VEGAN73, ingredients: [...STORED114.ingredients], steps: ["Anders formuliert."] };
+  const { recipe, errors } = coerceUpdate(upd73(same), STORED114);
+  assertDeepEqual(errors, []);
+  assertDeepEqual(recipe.items, ITEMS114, "items identisch");
+  assert(validateRecipe(recipe).valid, "schema-valide");
+  assertDeepEqual(withItems(recipe, INDEX114).items, ITEMS114, "withItems ändert nichts");
 });
 
 test("#73: coerceUpdate — vom Modell weggelassene Felder bleiben wie gespeichert (kein toTry-Default)", () => {
