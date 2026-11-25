@@ -150,7 +150,8 @@ export function coerceUpdate(json, recipeDe) {
   if (!content) return { recipe: null, errors };
   // Nur ein Wert vom richtigen Typ zählt als „gegeben“; alles andere lässt das Gespeicherte stehen.
   const typed = {
-    tips: () => typeof raw.tips === "string" || (raw.tips && typeof raw.tips === "object") || (raw.tipps && typeof raw.tipps === "object"),
+    // Leere Tipps (""/{}/tipps:{}) löschen die gespeicherten nie (#113): nur ein Wert mit Inhalt zählt.
+    tips: () => !!content.tips,
     tags: () => Array.isArray(raw.tags),
     effort: () => EFFORT_VALUES.includes(raw.effort) || raw.effort === "",
     difficulty: () => DIFFICULTY_VALUES.includes(raw.difficulty) || raw.difficulty === "",
