@@ -626,6 +626,23 @@ test("#73: coerceUpdate — Ergebnis ist schema-valide, Inhalt vom Modell", () =
   assertEqual(coerceUpdate(upd73({ ...VEGAN73, ingredients: [] }), STORED73).recipe, null, "keine Zutaten");
 });
 
+test("#113: coerceUpdate — leere Tipps vom Modell löschen die gespeicherten nicht", () => {
+  const stored = { ...STORED73, tips: "Gut ziehen lassen" };
+  const base = { ...VEGAN73 };
+  delete base.tips;
+  for (const [label, extra] of [["tips {}", { tips: {} }], ["tips \"\"", { tips: "" }], ["tipps {}", { tipps: {} }], ["tips Leerraum", { tips: "  " }]]) {
+    const { recipe, errors } = coerceUpdate(upd73({ ...base, ...extra }), stored);
+    assertDeepEqual(errors, [], label);
+    assertEqual(recipe.tips, "Gut ziehen lassen", label + " behält gespeicherte Tipps");
+  }
+  assertEqual(coerceUpdate(upd73({ ...base, tips: "Neu." }), stored).recipe.tips, "Neu.", "Text ersetzt");
+  assertEqual(coerceUpdate(upd73({ ...base, tips: { technik: "Heiß braten" } }), stored).recipe.tips, "Technik: Heiß braten.", "Objekt mit Inhalt ersetzt");
+  const noTips = { ...STORED73 }; delete noTips.tips;
+  const r = coerceUpdate(upd73({ ...base, tips: {} }), noTips);
+  assert(r.recipe && validateRecipe(r.recipe).valid, "ohne gespeicherte Tipps bleibt das Rezept valide");
+  assert(!r.recipe.tips, "Tipps bleiben leer");
+});
+
 test("#73: coerceUpdate — id, origin, Bild und jedes persönliche Feld kommen aus dem gespeicherten Rezept", () => {
   const evil = { ...VEGAN73, id: "r1", origin: "shared", image: "x", favorite: false, rating: 1, feedback: "weg",
     photos: [], cookedCount: 0, lastCooked: "nie" };
