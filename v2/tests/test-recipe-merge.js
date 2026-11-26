@@ -323,3 +323,29 @@ test("#90: nach verlorener Bestätigung lokal gelöscht → bleibt gelöscht", (
   const out = mergeRecipes({ base: [], local: [], remote: [x1], pendingBase: [x1] });
   assertEqual(out.merged.length, 0);
 });
+
+test("mergeRecipes #90: lost ack + other device sets favorite → favorite kept, no fork", () => {
+  const x1 = r("x", "X");
+  const out = mergeRecipes({ base: [], local: [x1], remote: [r("x", "X", { favorite: true })], pendingBase: [x1], now: () => 5000 });
+  assertDeepEqual(out.forked, []);
+  assertEqual(out.merged.length, 1);
+  assertEqual(out.merged[0].favorite, true);
+});
+
+test("mergeRecipes #90: lost ack + other device sets rating, cookedCount, photos → all kept", () => {
+  const x1 = r("x", "X");
+  const remote = r("x", "X", { rating: 4, cookedCount: 3, photos: ["p1"] });
+  const out = mergeRecipes({ base: [], local: [x1], remote: [remote], pendingBase: [x1], now: () => 5000 });
+  assertDeepEqual(out.forked, []);
+  assertEqual(out.merged[0].rating, 4);
+  assertEqual(out.merged[0].cookedCount, 3);
+  assertDeepEqual(out.merged[0].photos, ["p1"]);
+});
+
+test("mergeRecipes #90: lost ack, local edit + other device favorite → both survive", () => {
+  const x1 = r("x", "X");
+  const out = mergeRecipes({ base: [], local: [r("x", "X", { tips: "lokal" })], remote: [r("x", "X", { favorite: true })], pendingBase: [x1], now: () => 5000 });
+  assertDeepEqual(out.forked, []);
+  assertEqual(out.merged[0].tips, "lokal");
+  assertEqual(out.merged[0].favorite, true);
+});
