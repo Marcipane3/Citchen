@@ -78,6 +78,16 @@ function contentOnly(r) {
   for (const k of Object.keys(full)) if (!NOT_CONTENT.has(k)) out[k] = full[k];
   return out;
 }
+/** #130: Basis = Drive-Inhalt, aber persönliche Felder (♥, Bewertung …) wie in unserem gemerkten Stand —
+ *  so gehen Änderungen eines anderen Geräts daran nicht still verloren (lokal gewinnt nur, was lokal neu ist). */
+function ownWrite(p, r) {
+  const b = { ...r }, dflt = withDefaults({});
+  for (const k of PERSONAL_FIELDS) {
+    if (k in p) b[k] = p[k];
+    else if (k in b && stable(b[k]) !== stable(dflt[k])) delete b[k]; // fehlt bei uns = Standardwert
+  }
+  return b;
+}
 export function sameContent(a, b) { return stable(contentOnly(a)) === stable(contentOnly(b)); }
 
 /** Feldweise: was lokal gegenüber der Basis geändert wurde, gewinnt; sonst der Drive-Stand. */
@@ -117,7 +127,7 @@ export const sameCollection = (a, b) => a.length === b.length && a.every((r, i) 
  */
 export function mergeRecipes({ base, local, remote, prefer = "remote", pendingBase = null, now = Date.now }) {
   const B = base ? byId(base) : null, L = byId(local), R = byId(remote);
-  const P = B && pendingBase ? byId(pendingBase.map((x) => withDefaults(x))) : null;
+  const P = B && pendingBase ? byId(pendingBase) : null;
   const merged = new Map();
   const removedRemotely = [], conflicts = [], twins = [];
 
@@ -126,7 +136,7 @@ export function mergeRecipes({ base, local, remote, prefer = "remote", pendingBa
     const l = L.get(id), r = R.get(id);
     if (B && !b && P && P.has(id)) {                  // #90: verlorene Bestätigung
       const p = P.get(id);
-      if (r && sameContent(p, r)) b = r;              // Drive hat genau unseren Schreibvorgang
+      if (r && sameContent(p, r)) b = ownWrite(p, r);     // Drive hat genau unseren Schreibvorgang
     }
     if (l && r) {
       if (sameRecipe(l, r)) return l;
