@@ -118,7 +118,7 @@ let retired = [];
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => { retired = keys.filter((k) => k !== CACHE); return Promise.all(retired.map((k) => caches.delete(k))); })
+      .then((keys) => { retired = keys.filter((k) => k.startsWith("koch-v2") && k !== CACHE); return Promise.all(retired.map((k) => caches.delete(k))); })
       .then(() => self.clients.claim())
   );
 });
