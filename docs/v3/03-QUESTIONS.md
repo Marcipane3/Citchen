@@ -113,8 +113,14 @@ No answers needed from Marcel here. Changes since 2026-10-01 are marked.
 
 ### Data and sync
 
-- [ ] **C-5.** v1, v2 and v3 on one origin share IndexedDB and service-worker scope. Confirm DB
+- [x] **C-5.** v1, v2 and v3 on one origin share IndexedDB and service-worker scope. Confirm DB
       names and SW scopes cannot collide (depends on C-20).
+      **Same-origin rules:** Cache Storage prefixes are `kochbuch-` (v1, root `sw.js`), `koch-v2`
+      (v2, `v2/sw.js`) and the reserved `citchen-v3` (v3). Each service worker deletes only caches
+      with its own prefix on activate. IndexedDB: v2 uses `koch-v2`, v1 uses none, v3 must use a
+      `citchen-v3*` name. localStorage: v1 uses `kb_*`; v2 and v3 must not reuse `kb_`. SW scopes:
+      `/Citchen/` (v1) and `/Citchen/v2/` (v2); v3 gets its own sub-path. Enforced by
+      `v2/tests/test-origin-isolation.js`.
 - [ ] **C-6.** Round-trip test: v3 reads the real `rezepte.json` (copy), writes it back unchanged.
 - [x] **C-7.** Extract the sync core; both instances (recipes LWW, list item-merge) pass the
       existing 206 tests plus two-instance tests. — ✅ 2026-10-19 (V2 P1, v2.15):
