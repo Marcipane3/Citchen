@@ -1,61 +1,68 @@
-# Test-Warden — findings (2026-11-21T12:00:00Z)
-_Build 2026-11-18-v2.18 (bump to 2.19 not yet on branch) · CACHE koch-v2.18-1 · tests 636/636 · HEAD 556b19c · mode DELTA (origin/main..HEAD, release candidate v2.19: #73, #89, #92, #105, #107)_
+# Test-Warden — findings (2026-11-25T12:00:00Z)
+_Build 2026-11-21-v2.19 (bump to 2.20 not yet applied) · CACHE koch-v2.19-1 · tests 689/689 · HEAD 7076063 · mode DELTA (origin/main..HEAD, release-bump/2.20)_
 
-Suite green: 636 passed, 0 failed (was 583). Pure logic changed in `ai/parse.js`, `data/items.js` (new), `data/recipeImport.js`, `data/recipeMerge.js`, `data/schema.js`, `store.js`; each has new tests in the same diff. **No new P0/P1.** Probes: `/tmp/claude-0/tw/d.mjs` (outside the repo).
+Suite green: 689 passed, 0 failed (was 636). Pure logic changed in `data/moveFile.js` (new), `data/recipeMerge.js` + `syncRules.js` + `sync.js` (#90 pendingBase), `data/items.js` (#112), `data/recipeImport.js`, `ai/parse.js`, `ai/prompts.js`, `features/cookbook/filter.js` (#93). Every changed module has new tests in the same diff. **No new P0/P1.**
 
 ## Field reports
-None open that touch this lens.
+FR-01 (shopping duplicates) is fixed in code and the shopping modules are not in this diff. No open report touches the changed modules.
 
 ## Status of previous findings
 | ID | Title | Status | Note |
 |---|---|---|---|
-| TW-20 | `mergeRecipes` twin keeps remote personal fields | ⏳ still open (low) | `recipeMerge.js` only changed `NOT_CONTENT` (+`items`); twin rule untouched. |
-| TW-21 | import outcome / BH-14 empty file | ⏳ still open (med) | `recipeImport.js` `parseImportFile` still returns `errors: []` for an empty envelope; not touched by this diff. |
-| TW-22 | `sameCollection` unpinned | ⏳ still open (low) | No test names it. |
-| TW-23 | `cookedMonthKey` "Sept" | ⏳ still open (low) | `filter.js` not in diff. |
-| TW-24 | `isSameRecipe` export not named in tests | ⏳ still open (low) | Behaviour pinned via `planImport`. |
-| TW-07 / TW-08 / TW-14 | default-clock `toFileString`, `extractJson` adversarial, `friendInbox` order | ⏳ still open (low) | Not touched. |
+| TW-20 | `mergeRecipes` twin keeps remote personal fields | ⏳ open (low) | Twin rule untouched. The #90 tests add the pendingBase variants, not this case. |
+| TW-21 | empty envelope outcome (BH-14) | ⏳ open (med) | Not re-verified in this delta. `recipeImport.js` changed in this diff, so re-check next FULL run. |
+| TW-22 | `sameCollection` unpinned | ⏳ open (low) | Still no test names it directly. `grep` count of 1 file is `test-recipe-merge.js` only via the merge path. |
+| TW-23 | `cookedMonthKey` "Sept" | ✅ fixed | Commit f140080 (#93, #122). |
+| TW-24 | `isSameRecipe` export not named in tests | ⏳ open (low) | Grep count is 0 again. |
+| TW-25 | `withoutBadItems` identity | ⏳ open (low) | Not in diff. |
+| TW-26 | `coerceUpdate` `tips {}` wipes stored tips | ✅ fixed | Commit 1a62ede (#113, #127). |
+| TW-27 | `coerceUpdate` + `withItems` stale items | ✅ fixed | Commit 7076063 pins it (#114, #128). |
+| TW-07 / TW-08 / TW-14 | default-clock `toFileString`, `extractJson` adversarial, `friendInbox` order | ⏳ open (low) | Not touched. |
 
 ## New findings
 
-### TW-25 `v2/src/data/schema.js` `withoutBadItems` · risk: low · evidence: E1
-- **Covered today:** indirectly via import and store paths (`test-recipe-import.js`, `test-canonical.js`, `test-sync-core.js`). No test imports the export directly (grep count 0 in schema/items tests).
-- **Gap:** identity contract ("same object when nothing to do", no mutation of the input, `null` or non-object input passes through) is unpinned. Probe: `withoutBadItems({id:1, items:[null]})` → `{id:1}`; behaviour correct.
+### TW-28 `v2/src/data/syncRules.js` pendingBase lifecycle · risk: low · evidence: E2
+- **Covered today:** `test-sync-core.js` "#90: Schreiben ohne Bestätigung…" and "#90: … lokal gelöscht → bleibt gelöscht". `test-recipe-merge.js` has five #90 merge cases.
+- **Gap:** `setPendingBase` runs only when `write` is true. `pendingBase` is cleared only by `setBase`. No test covers a stale pendingBase surviving a later sync that does not write. It is also unpinned that a pendingBase holding only local-only ids (the `!remoteIds.has` filter) excludes partner recipes.
 - **Proposed cases:**
-  - `withoutBadItems: valid items → same object (===)`.
-  - `withoutBadItems: bad items → copy without items, input unmodified`.
-  - `withoutBadItems: null / non-object / no items → returned unchanged`.
-- **Guards against:** a refactor that always copies, which would make `updateRecipe` and import churn.
+  - `recipeSync: lost ack, then a no-write sync → pendingBase unchanged, no duplicate, base set only on confirmed write`.
+  - `recipeSync: partner recipe added on Drive between write and retry → not in pendingBase, not removed as "locally deleted"`.
+- **Guards against:** a lost write turning a partner's recipe into a deletion.
 
-### TW-26 `v2/src/ai/parse.js` `coerceUpdate` tips type coercion · risk: low · evidence: E1
-- **Covered today:** `test-ai.js` update cases (typed-field "given" rule).
-- **Gap:** stored `tips:"t"`, model sends `tips:{}` (an object counts as "given" at `parse.js` `typed.tips`) → result `tips:""`, so the stored tip is silently wiped by an empty object. Probe output: `"tips":""`. A model that echoes an empty tips object is plausible. The user sees it in the diff card, so low.
-- **Proposed cases:** `coerceUpdate: tips {} over stored string → decide: keep stored tips, or pin "" (card shows removal)`.
-- **Guards against:** silent content loss through the assistant update card.
+### TW-29 `v2/src/data/moveFile.js` `parseMoveFile` prototype keys · risk: low · evidence: E1
+- **Covered today:** `test-move-file.js` "Import prüft jeden Wert — Unbekanntes und Kaputtes fällt weg". No test uses `__proto__` or `constructor`.
+- **Gap:** behaviour is correct today. Probe `data:{"__proto__":{polluted:1},"constructor":{…}}` → `{data:{}, dropped:["__proto__","constructor"]}` and `({}).polluted` is `undefined`. A refactor to a `for..in` or a spread could regress it silently, and the import writes to IndexedDB.
+- **Proposed case:** `parseMoveFile: __proto__ / constructor keys are dropped, Object.prototype stays clean`.
 
-### TW-27 `v2/src/ai/parse.js` `coerceUpdate` + `data/items.js` stale `items` · risk: low · evidence: E1
-- **Gap:** `coerceUpdate` carries `items` through unchanged while `ingredients` changes (probe: `ingredients:["2 Eier"]`, `items:[{text:"1 Ei"}]` stays). Harmless today (`relinkItems` matches by text and drops stale entries on the view side), but nothing pins it.
-- **Proposed case:** `coerceUpdate then withItems: changed ingredient line → items for the old line vanish, new line is derived`.
+### TW-30 `v2/src/ai/prompts.js` `shopMarkerRule`, `leftoverUserPrompt`, `generateUserPrompt`, `elaborateUserPrompt` · risk: low · evidence: E1
+- **Covered today:** none (grep count 0 for each name in `v2/tests`). The delta added a delete line to the prompt text and is covered through `buildSystemPrompt`.
+- **Gap:** pure string builders with interpolated user input. No test checks that an empty or undefined argument does not print the literal "undefined".
+- **Proposed case:** `each *UserPrompt with empty input → no "undefined" / "[object Object]" in output`.
 
 ## Checked and refuted
-- `applyUpdatePatch` double-apply: probe → second call returns `applied:false` (conflict), no overwrite. Good.
-- `coerceChange` with `__proto__` id → `null` (a `Set` lookup is safe).
-- `relinkItems` with duplicate lines and a mismatched count → re-derives, no multiplication (probe returned 2 items for 2 lines).
-- `coerceUpdate` ignores model-sent `id`, `favorite` and `toTry`; stored personal fields survive.
+- `parseMoveFile` rejects `[]`, `null`, wrong kind, a future version, a missing `data` and a file over `MAX_BYTES` with a typed error, not a crash (probe).
+- `relinkItems` #112 fix: `kept.length / n <= derived.length` still re-derives on a count mismatch and does not multiply. The new `test-items-relink.js` case covers it.
+- `db.kvDel` exists (`v2/src/data/db.js:155`), so `setBase` in `v2/src/data/sync.js` is safe.
 
 ## Verified clean
-Coverage map of the changed modules (export → tests): `CONTENT_FIELDS`, `applyContentFields`, `coerceUpdate`, `recipeChanges`, `makeUpdatePatch`, `applyUpdatePatch`, `coerceChange` (`test-ai.js`, `test-canonical.js`); `relinkItems`, `withItems`, `setItemIndex` (`test-items-relink.js`, 135 lines); items shape in `test-schema.js:123-`; `recipeImport` cleaned-existing comparison (#89) in `test-recipe-import.js`; `recipeMerge` `NOT_CONTENT` items in `test-recipe-merge.js`. Only `withoutBadItems` has no direct test (TW-25). Shopping and sync modules are not in the diff.
+Coverage map for the changed modules (export → number of test files naming it):
+- `moveFile`: all 12 exports are named in `test-move-file.js` (236 lines).
+- `recipeImport`: 4 of 5 are tested. `isSameRecipe` is named in no test, but `planImport` pins it.
+- `recipeMerge`: 6 of 6 are named in tests, with the TW-22 caveat.
+- `syncRules`, `items`, `filter`: 100% of exports named.
+- `ai/parse`: 13 of 13.
+- `ai/prompts`: 14 of 18 (see TW-30).
 
 ## Definition drift
 None.
 
 ## If you add three tests, add these
-1. TW-21 empty-envelope outcome (open bug BH-14, needs a small helper extracted first).
-2. TW-26 `coerceUpdate` empty-tips decision.
-3. TW-25 `withoutBadItems` identity and non-mutation.
+1. TW-28 lost-ack then a no-write sync (sync path, highest risk).
+2. TW-21 empty-envelope import outcome (open bug).
+3. TW-29 `__proto__` keys in a move file.
 
 ## Already well-covered
-Assistant update patch (base/set conflict, re-apply), derived `items[]` relinking (idempotence, duplicate lines, manual corrections), schema items shape, import dedupe against cleaned existing recipes.
+The #90 lost-acknowledgement merge (five cases at merge level plus two at engine level), `moveFile` (round-trip, secret exclusion, idempotent re-import, shopping merge, i18n for every reject code), `relinkItems` duplicate lines, and the assistant update/delete patch.
 
 ## Summary
-P0 0 · P1 0 · P2 0 · P3 3 new (TW-25..27) · carried: TW-21 (med) plus 7 low. Most valuable: TW-21 regression test for BH-14.
+P0: 0 · P1: 0 · P2: 0 · P3: 3 (TW-28, TW-29, TW-30). Fixed since the last run: TW-23, TW-26, TW-27. Most valuable: TW-28, a regression test for the pendingBase lifecycle.
