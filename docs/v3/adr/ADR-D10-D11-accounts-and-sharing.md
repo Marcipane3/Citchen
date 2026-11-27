@@ -1,6 +1,7 @@
 # ADR D10 / D11 — Accounts and sharing: schema sketch and open points
 
-- **Status:** decided (D10, D11: 2026-11-18) · schema is a **sketch**, built in v3.2 (send/invite) and v3.x (public)
+- **Status:** decided (D10, D11: 2026-11-18) · schema is a **sketch**, built in v3.2 (send/invite) and v3.x (public) ·
+  open points answered by Marcel 2026-11-27 (one still open: #146)
 - **Owner:** Marcel · written by Claude Code
 - **Related:** `ROADMAP-V3.md` D10/D11, US-L1, US-08e, slice 1b · `ADR-D9-supabase-backend.md` ·
   `ADR-R1-ingredient-model.md` §6 · `docs/v3/03-QUESTIONS.md` (Part 3, Round 4)
@@ -25,7 +26,7 @@ Restated from the roadmap, unchanged:
    `origin: "shared"` and `forkedFrom: "<owner>/<id>"` (ADR-R1 §6). Their first edit of the content turns
    it into `origin: "user"`.
 3. **D11 — public browsing too, with ratings/likes.** Send/invite comes first. Timing is **not**
-   decided: D11-T is decided in **May 2027** with tester and launch feedback. Comments, follows and a
+   decided: D11-T is reviewed in **March/April 2027** (does it fit what has been built?). Comments, follows and a
    feed stay out.
 4. **v3.0 writes the schema down only** (this file). No migration, nothing under `supabase/`.
 
@@ -146,17 +147,27 @@ RPCs: `public_publish`, `public_unpublish`, `public_browse(query, lang, page)`, 
 
 ## Not decided here
 
-Each has a suggested default; Marcel or the refiner can promote them.
+Answered by Marcel on 2026-11-27 (interactive session). Point 7 is still open.
 
-1. **D11-T: when do public recipes ship?** Not decided. Review May 2027. *(Default: none.)*
-2. **Handles or e-mail for "send to a person"?** *Suggested:* optional `handle`, plus invite links; no e-mail lookup of other users (privacy).
-3. **Do receivers see the sender's name?** *Suggested:* yes, `display_name` only.
-4. **Invite expiry.** *Suggested:* 30 days, then `expired`; the sender can resend.
-5. **Can a sender revoke after acceptance?** *Suggested:* no; the copy is the receiver's. Revoke only works while `sent`.
-6. **Photos in sent and public recipes.** *Suggested:* sent: not in v3.2; public: never in the first version.
-7. **Ratings and likes: one mechanism or two?** *Suggested:* one table, stars optional, like optional.
-8. **Vote-abuse limits.** *Suggested:* account at least 7 days old, 30 votes per day.
-9. **Report threshold for auto-hide.** *Suggested:* 3 distinct reporters.
-10. **Account deletion scope.** *Suggested:* delete profile, sends, published recipes and ratings immediately; copies already in other people's Drive stay (they are theirs).
-11. **Household / shared cookbook (US-08b).** Out of this ADR. *Suggested:* separate ADR in the v3.x plan, reusing `profiles`.
-12. **Sign-in providers beyond Google.** *Suggested:* Google only in v3.2.
+1. **D11-T: when do public recipes ship?** Still not decided. **Review in March/April 2027**: does it
+   fit the line of what has been built by then? (Was: May 2027.)
+2. **Handles or e-mail for "send to a person"?** **Decided:** optional `handle`, plus invite links; no
+   e-mail lookup of other users (privacy).
+3. **Do receivers see the sender's name?** **Decided:** yes, `display_name` only.
+4. **Invite expiry.** **Decided:** 30 days, then `expired`; the sender can resend.
+5. **Can a sender revoke after acceptance?** **Decided:** no; the copy is the receiver's. Revoke only
+   works while `sent`.
+6. **Photos in sent and public recipes.** **Decided:** not in the first version of either. Kept as an
+   idea in `ROADMAP-V3.md` §5 (US-08f); Marcel reconfirms it once the first versions are built.
+7. **Ratings and likes: one mechanism or two?** **Open**, in the backlog as #146. *Suggested:* one
+   table, stars optional, like optional.
+8. **Vote-abuse limits.** **Decided:** account at least 7 days old, 30 votes per day.
+9. **Report threshold for auto-hide.** **Decided:** 3 distinct reporters.
+10. **Account deletion scope.** **Decided:** delete profile, sends, published recipes and ratings
+    immediately; copies already in other people's Drive stay (they are theirs).
+11. **Household / shared cookbook (US-08b).** **Decided:** out of this ADR; a separate ADR in the v3.x
+    plan, reusing `profiles`. US-08b means one cookbook that several people in a household keep and
+    edit together. A printable cookbook is a different idea, now US-L8 in `ROADMAP-V3.md` §5.
+12. **Sign-in providers beyond Google.** **Decided:** Google only in v3.2. E-mail sign-in is on the
+    roadmap as US-L7 (v3.x), with what it changes: people without Google have no Drive, so their
+    recipes need a home on the backend.
