@@ -1,7 +1,7 @@
 # ADR D10 / D11 — Accounts and sharing: schema sketch and open points
 
 - **Status:** decided (D10, D11: 2026-11-18) · schema is a **sketch**, built in v3.2 (send/invite) and v3.x (public) ·
-  open points answered by Marcel 2026-11-27 (one still open: #146)
+  open points answered by Marcel 2026-11-27/28
 - **Owner:** Marcel · written by Claude Code
 - **Related:** `ROADMAP-V3.md` D10/D11, US-L1, US-08e, slice 1b · `ADR-D9-supabase-backend.md` ·
   `ADR-R1-ingredient-model.md` §6 · `docs/v3/03-QUESTIONS.md` (Part 3, Round 4)
@@ -147,7 +147,7 @@ RPCs: `public_publish`, `public_unpublish`, `public_browse(query, lang, page)`, 
 
 ## Not decided here
 
-Answered by Marcel on 2026-11-27 (interactive session). Point 7 is still open.
+Answered by Marcel on 2026-11-27 (interactive session); point 7 on 2026-11-28 (#146). Only D11-T timing stays open.
 
 1. **D11-T: when do public recipes ship?** Still not decided. **Review in March/April 2027**: does it
    fit the line of what has been built by then? (Was: May 2027.)
@@ -159,8 +159,8 @@ Answered by Marcel on 2026-11-27 (interactive session). Point 7 is still open.
    works while `sent`.
 6. **Photos in sent and public recipes.** **Decided:** not in the first version of either. Kept as an
    idea in `ROADMAP-V3.md` §5 (US-08f); Marcel reconfirms it once the first versions are built.
-7. **Ratings and likes: one mechanism or two?** **Open**, in the backlog as #146. *Suggested:* one
-   table, stars optional, like optional.
+7. **Ratings and likes: one mechanism or two?** **Decided (2026-11-28, #146):** one table, one row per
+   person and recipe, stars optional, like optional.
 8. **Vote-abuse limits.** **Decided:** account at least 7 days old, 30 votes per day.
 9. **Report threshold for auto-hide.** **Decided:** 3 distinct reporters.
 10. **Account deletion scope.** **Decided:** delete profile, sends, published recipes and ratings
