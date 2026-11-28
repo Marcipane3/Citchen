@@ -1,0 +1,99 @@
+# DRAFT — not active. Copy to .github/workflows/preview.yml in the setup session with Marcel
+# (docs/process/PREVIEW-NEXT.md §4). Agent PRs may not touch .github/ (policy.yml).
+#
+# Publishes the current `next` (or any branch, by hand) as a preview site on https://next.citchen.de,
+# a separate origin: its own IndexedDB, localStorage, caches and service worker, so testing there
+# can never touch the live app's data on the phone.
+#
+# What it changes in the copy (never in the repository):
+#   - CNAME = next.citchen.de, robots.txt = Disallow everything
+#   - sw.js CACHE gets "-p<sha>" appended, so every deploy installs a new worker. Feature PRs don't
+#     bump CACHE, and the cache-first worker would otherwise keep serving the previous build.
+#     The prefix stays "koch-v2…", so the worker's own cleanup removes older preview caches.
+#   - version.js BUILD gets " · preview <sha>" appended, so the footer shows which commit you test.
+#   - manifest name/short_name → "Citchen Preview" / "Preview", so the home-screen icon differs.
+# Not copied: .git, .github (the CI and the Supabase keep-alive must never run in the preview repo).
+name: Preview
+
+on:
+  push:
+    branches: [next]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or commit to preview (default: next)"
+        required: false
+        default: next
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.repository == 'Marcipane3/Citchen'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PREVIEW_HOST: next.citchen.de
+      PREVIEW_REPO: Marcipane3/Citchen-preview
+      PREVIEW_REF: ${{ inputs.ref || 'next' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PREVIEW_REF }}
+          path: src
+
+      - name: Build the preview copy
+        run: |
+          set -euo pipefail
+          sha=$(git -C src rev-parse --short=7 HEAD)
+          echo "SHA=$sha" >> "$GITHUB_ENV"
+          mkdir out && git -C src archive HEAD | tar -x -C out   # tracked files only, no .git
+          rm -rf out/.github
+          echo "$PREVIEW_HOST" > out/CNAME
+          printf 'User-agent: *\nDisallow: /\n' > out/robots.txt
+
+          # The app folder: app/ after the V3 rename, v2/ before it (v2/ then only holds stubs).
+          app=""
+          for d in app v2; do
+            if [ -f "out/$d/sw.js" ] && [ -f "out/$d/src/version.js" ]; then app="$d"; break; fi
+          done
+          [ -n "$app" ] || { echo "::error::No app folder (app/ or v2/) with sw.js + src/version.js"; exit 1; }
+          echo "APP_DIR=$app" >> "$GITHUB_ENV"
+
+          sed -i -E "s/^const CACHE = \"([^\"]+)\";/const CACHE = \"\1-p$sha\";/" "out/$app/sw.js"
+          grep -qE "^const CACHE = \"koch-v2[^\"]*-p$sha\";" "out/$app/sw.js" \
+            || { echo "::error::Could not rewrite CACHE in $app/sw.js"; exit 1; }
+
+          sed -i -E "s/^export const BUILD = \"([^\"]+)\";/export const BUILD = \"\1 · preview $sha\";/" "out/$app/src/version.js"
+          grep -qE "^export const BUILD = \".* · preview $sha\";" "out/$app/src/version.js" \
+            || { echo "::error::Could not rewrite BUILD in $app/src/version.js"; exit 1; }
+
+          m="out/$app/manifest.webmanifest"
+          jq '.name = "Citchen Preview" | .short_name = "Preview"' "$m" > "$m.tmp" && mv "$m.tmp" "$m"
+
+          echo "Preview of $(git -C src rev-parse HEAD) → https://$PREVIEW_HOST/$app/"
+
+      - name: Push to the preview repository
+        env:
+          DEPLOY_KEY: ${{ secrets.PREVIEW_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$DEPLOY_KEY" ] || { echo "::error::Secret PREVIEW_DEPLOY_KEY is missing"; exit 1; }
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/preview_key && chmod 600 ~/.ssh/preview_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          cd out
+          git init -q -b main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Preview of $PREVIEW_REF @ $SHA"
+          # One commit, replaced on every run: the preview repo keeps no history (it is a copy, not a source).
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/preview_key -o IdentitiesOnly=yes" \
+            git push -q --force "git@github.com:$PREVIEW_REPO.git" main
+          echo "### Preview: https://$PREVIEW_HOST/$APP_DIR/ (preview $SHA of $PREVIEW_REF)" >> "$GITHUB_STEP_SUMMARY"
