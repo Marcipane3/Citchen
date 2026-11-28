@@ -138,6 +138,46 @@ test("origin (#72): Backup importieren, danach anmelden — Drive kennt das Reze
   assertDeepEqual(out.forked, []);
 });
 
+test("mergeRecipes twin: same content, local-only personal fields", () => {
+  const base = [r("a", "A")];
+  const local = [r("n1", "Zwilling", { favorite: true, rating: 4 }), r("a", "A")];
+  const remote = [r("a", "A"), r("n1", "Zwilling")];
+  const out = mergeRecipes({ base, local, remote });
+  const t = out.merged.find((x) => x.id === "n1");
+  assertEqual(out.merged.length, 2);
+  assertDeepEqual(out.forked, []);
+  assertEqual(t.favorite, true, "lokales ♥ bleibt");
+  assertEqual(t.rating, 4, "lokale Bewertung bleibt");
+  assert(!sameCollection(out.merged, remote), "Merge weicht von Drive ab → wird zurückgeschrieben");
+});
+
+test("mergeRecipes twin: beide Seiten haben ♥/Bewertung → Drive gewinnt", () => {
+  const base = [r("a", "A")];
+  const local = [r("n1", "Zwilling", { favorite: true, rating: 4 }), r("a", "A")];
+  const remote = [r("a", "A"), r("n1", "Zwilling", { favorite: true, rating: 2 })];
+  const t = mergeRecipes({ base, local, remote }).merged.find((x) => x.id === "n1");
+  assertEqual(t.rating, 2);
+  assertEqual(t.favorite, true);
+});
+
+test("mergeRecipes twin: Drive hat ♥/Bewertung, lokal nichts → Drive-Wert bleibt", () => {
+  const base = [r("a", "A")];
+  const local = [r("n1", "Zwilling"), r("a", "A")];
+  const remote = [r("a", "A"), r("n1", "Zwilling", { favorite: true, rating: 5 })];
+  const t = mergeRecipes({ base, local, remote }).merged.find((x) => x.id === "n1");
+  assertEqual(t.rating, 5);
+  assertEqual(t.favorite, true);
+});
+
+test("mergeRecipes twin: anderer Inhalt bleibt Fork (Lücken füllen gilt nur bei gleichem Inhalt)", () => {
+  const base = [r("a", "A")];
+  const local = [r("n1", "Lokal", { favorite: true, rating: 4 }), r("a", "A")];
+  const remote = [r("a", "A"), r("n1", "Drive")];
+  const out = mergeRecipes({ base, local, remote });
+  assertEqual(out.forked.length, 1);
+  assert(!out.merged.find((x) => x.id === "n1").rating, "Drive-Rezept unverändert");
+});
+
 test("#49: ohne Basis bleibt die alte Regel (Umstieg: sonst verdoppelten sich alle geänderten Rezepte)", () => {
   const out = mergeRecipes({ base: null, local: [r("a", "A lokal")], remote: [r("a", "A Drive")] });
   assertEqual(out.merged.length, 1);
@@ -322,4 +362,30 @@ test("#90: nach verlorener Bestätigung lokal gelöscht → bleibt gelöscht", (
   const x1 = r("x", "X");
   const out = mergeRecipes({ base: [], local: [], remote: [x1], pendingBase: [x1] });
   assertEqual(out.merged.length, 0);
+});
+
+test("mergeRecipes #90: lost ack + other device sets favorite → favorite kept, no fork", () => {
+  const x1 = r("x", "X");
+  const out = mergeRecipes({ base: [], local: [x1], remote: [r("x", "X", { favorite: true })], pendingBase: [x1], now: () => 5000 });
+  assertDeepEqual(out.forked, []);
+  assertEqual(out.merged.length, 1);
+  assertEqual(out.merged[0].favorite, true);
+});
+
+test("mergeRecipes #90: lost ack + other device sets rating, cookedCount, photos → all kept", () => {
+  const x1 = r("x", "X");
+  const remote = r("x", "X", { rating: 4, cookedCount: 3, photos: ["p1"] });
+  const out = mergeRecipes({ base: [], local: [x1], remote: [remote], pendingBase: [x1], now: () => 5000 });
+  assertDeepEqual(out.forked, []);
+  assertEqual(out.merged[0].rating, 4);
+  assertEqual(out.merged[0].cookedCount, 3);
+  assertDeepEqual(out.merged[0].photos, ["p1"]);
+});
+
+test("mergeRecipes #90: lost ack, local edit + other device favorite → both survive", () => {
+  const x1 = r("x", "X");
+  const out = mergeRecipes({ base: [], local: [r("x", "X", { tips: "lokal" })], remote: [r("x", "X", { favorite: true })], pendingBase: [x1], now: () => 5000 });
+  assertDeepEqual(out.forked, []);
+  assertEqual(out.merged[0].tips, "lokal");
+  assertEqual(out.merged[0].favorite, true);
 });

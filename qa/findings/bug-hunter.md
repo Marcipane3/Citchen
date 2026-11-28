@@ -1,59 +1,70 @@
-# Bug-Hunter — findings (2026-11-21T12:00:00Z)
-_Build 2026-11-18-v2.18 · CACHE koch-v2.18-1 · tests 636/636 · HEAD 556b19c · mode DELTA (origin/main..HEAD, release candidate v2.19: #73 #89 #92 #105 #107)_
+# Bug-Hunter — findings (2026-11-28T12:00:00Z)
+_Build 2026-11-21-v2.19 · CACHE koch-v2.19-1 · tests 718/718 · HEAD e39acc6 · mode DELTA (origin/main..HEAD, branch release-bump/2.20-r2)_
 
 ## Δ since origin/main
-Changed under `v2/src`: `ai/parse.js`, `ai/prompts.js`, `app.js`, `data/items.js` (new), `data/recipeImport.js`,
-`data/recipeMerge.js`, `data/schema.js`, `features/assistant/assistant.js`, `features/cookbook/detail.js`, `i18n.js`,
-`store.js`, plus `v2/data/ingredients.json` and `sw.js` SHELL. The working tree is clean. I hunted these files and their importers
-(`store.js` → every `updateRecipe`/`getRecipe` caller, `detail.js` → `assistant.startChange`).
+The full range origin/main..HEAD was hunted in the previous run (HEAD 7076063). This run covers what changed since then
+(`git diff 7076063..HEAD -- v2/src v2/sw.js`): `data/recipeMerge.js` (#130 `ownWrite`, #91 `fillPersonalGaps`),
+`data/ingredientMatch.js` (#139 `searchIngredients`, no UI caller yet), `data/nutritionGoal.js` (new) + `data/settings.js`
++ `features/settings/settings.js` (#138), `i18n.js` (goal keys), `sw.js` (SHELL + activate filter `koch-v2*`, #135).
+The working tree is clean. Importers checked: `syncRules.js:79-98` (only caller of `mergeRecipes` with `pendingBase`), `settings.js`.
 
 New: **none**. No P0, no P1, no P2, no P3.
 
 ## Field reports
-FR-01 (Ingwer): no shopping-list code (`features/shopping/*`, `listSync.js`, `friendInbox.js`, `derive.js`) changed in
-this range. The new recipe `items[]` exists only in the view, and no shopping code reads it (grep: no consumer of
-`recipe.items` under `features/`). The status stays as the orchestrator set it: waiting for Marcel's device check.
+FR-01 (Ingwer): no shopping-list code changed in this range (`features/shopping/*`, `listSync.js`, `listMerge.js`,
+`friendInbox.js`, `derive.js` untouched since origin/main). Status unchanged: waiting for Marcel's device check.
 
 ## Status of previous findings
 | ID | Title | Status | Note |
 |---|---|---|---|
 | BH-01 | Offline edit silently dropped by LWW | ✅ fixed | 9019e8c (v2.7), unchanged |
-| BH-02 | Match "Nochmal" shows recipes you already matched | ⏳ still open | `features/match/match.js:120` still shuffles all `state.recipes`, while `:91` filters them. P3 · E2 · S |
+| BH-02 | Match "Nochmal" shows recipes you already matched | ⏳ still open | `features/match/match.js:120` still shuffles all `state.recipes`, `:91` filters. P3 · E2 · S |
 | BH-03 | Pager / scaler stops running step timers | ✅ fixed | e9b2b9b (#64), unchanged |
 | BH-04 … BH-11 | Shopping identity / merge / horizon | ✅ fixed | 41e5ea0 / 2eab1bb, unchanged |
-| BH-12 | Whole-cookbook import doubles the base recipes | ✅ fixed | 2b27980, still holds. #89 (b6f46d8) now also cleans the *existing* recipe before comparing it (`recipeImport.js:363-369`) |
+| BH-12 | Whole-cookbook import doubles the base recipes | ✅ fixed | 2b27980, unchanged |
 | BH-13 | Import accepts any `version` | ✅ fixed | 6dd0c52, unchanged |
-| BH-14 | Import sheet shows German reasons, and "–" for an empty file | ⏳ still open | German literals at `recipeImport.js:53-62`, `["–"]` at `importFile.js:29`. This delta adds more German-only reasons that reach the UI through `assistant.schemaFail`: `schema.js` "items muss Array von {text, …} sein" and `parse.js:78` "Unbekanntes Rezept: …". P3 · E2 · S |
+| BH-14 | Assistant `schemaFail` shows raw German validator text | ⏳ still open (narrowed) | `assistant.js:219`, `:262`; `parse.js` "Unbekanntes Rezept". P3 · E2 · S |
 | BH-15 | Export: no download fallback | ✅ fixed | 653dcb9, unchanged |
-| BH-16 | Lost Drive write ack + later edit → recipe forked into a duplicate | ⏳ still open | `recipeMerge.js:121` fork condition unchanged. Only `NOT_CONTENT` gained `items` (`:75`). P3 · E1 · M |
+| BH-16 | Lost Drive ack + later edit → fork | ✅ fixed | #90, re-probed: still no fork |
+| BH-17 | Lost ack drops another device's ♥/rating/cooked/photo | ✅ fixed | 4e1913b (#130): `recipeMerge.js:83-90` `ownWrite` + `:151`. E1 below |
+| BH-18 | After the move, own shopping rows labelled "from another device" | ⏳ still open | `moveFile.js` still excludes `deviceId`; untouched since last run. P3 · E2 · S |
 
 ## New findings
 None.
 
 ## Checked and refuted
-- **The assistant's update card shows spurious changes when the model echoes the recipe unchanged:** refuted (E1). I fed all 105 snapshot recipes through `coerceUpdate`, using their own content fields as the model answer. Result: 0 failures, 0 spurious entries from `recipeChanges`.
-- **Applying an update overwrites personal fields or `origin`:** refuted (E1). With `favorite:false` in the model answer, `favorite` stays `true`. `toTry` is never taken from the model (`parse.js:90`). `updateRecipe` restores `origin` (`store.js:133`).
-- **`applyUpdatePatch` re-applies the same card, or applies over a newer edit:** refuted (E1). A second apply returns `applied:false` with conflicts `[ingredients, tips]`. A changed non-patch field (`favorite`) does not block the patch. The patch survives the JSON round-trip through the `data-*` attribute.
-- **`updateRecipe` runs `fn` twice (in memory, then in the queue), and the second `applyUpdatePatch` reports a false "stale":** refuted (E2). `sync.saveChange` (`data/sync.js:124`) applies the change to the IndexedDB list, which does not contain the in-memory edit yet, so both calls see the same base. If the queue really diverged, the error and the restored `res.recipes` agree (`store.js:105-113`). Side note, not a defect: a stale apply still persists a no-op edit (dirty flag plus one sync round-trip).
-- **`items[]` leaks into IndexedDB or Drive, or makes the collection dirty on boot:** refuted (E2). `withItems` runs only inside `recomputeView` (`store.js:31-35`). `recipesDe` and persistence are untouched. All write paths (`updateRecipe`, form, export) read `recipesDe`/`getRecipeDe`, and `sameContent` ignores `items`.
-- **`relinkItems` is not idempotent, so it creates new objects on every render:** refuted (E1). 105/105 recipes come back as the same object on a second pass. 839 lines give 1013 items, 1002 of them linked, 0 invalid, about 22 ms for the whole cookbook.
-- **`startChange` from a detail sheet opened inside the assistant does nothing (same hash):** refuted. `router.navigate` calls `resolve()` when the hash is already the target (`router.js:16`).
-- **XSS on the new update card / attach bar:** refuted. Every recipe-derived value goes through `esc()`. `data-field` comes from the constant `CONTENT_FIELDS`.
-- **The ingredient master is missing offline:** refuted. `./data/ingredients.json` and `items.js` are in SHELL. A failed fetch is caught and leaves the view without `items` (`app.js:235-238`).
+- **#130 `ownWrite` still loses the other device's personal edit:** refuted (E1, probe `p1.mjs`: base = 2 snapshot recipes,
+  local `[X,…]`, remote `[{…X,<field>},…]`, pendingBase `[X]`):
+  ```
+  favorite    → fav:true   forked 0   rating → 4   cookedCount → 1   photos → 1
+  lost ack + local rename + remote ♥ → name "Neu X2", fav:true (per-field merge, conflict logged)
+  lost ack, local un-♥ (remote still ours) → fav:false · remote un-♥ (B) → fav:false
+  ```
+- **`ownWrite` with a pendingBase copy missing personal keys deletes remote values and causes a wrong merge:** refuted (E1).
+  `pendingBase` is the merged recipe shape (`syncRules.js:95-98`), so keys match `local`. A stripped copy fails `sameContent`
+  and falls back to the twin path, which keeps Drive plus local gaps — no loss.
+- **#91 `fillPersonalGaps` lets a stale local ♥ beat a remote un-♥:** true in mechanics only when there is no base for the id
+  (first sync / twin). Without a base an un-♥ cannot be told apart from "never set"; this is the documented TW-20 decision
+  (e39acc6). Where both sides have a value, Drive wins (E1: remote rating 2 vs local 5 → 2). Not a defect.
+- **`searchIngredients` throws on regex characters:** refuted (E1). `(`, `[`, `\`, `*`, `$`, `?`, space, `null` master,
+  `{}` master, non-string query, `limit` Infinity/"3" → no throw, sane results. No UI caller yet.
+- **#135 activate filter leaves old v2 caches behind:** refuted. Every historical `CACHE` name in `git log -p v2/sw.js`
+  starts with `koch-v2`.
+- **Nutrition goal leaks into sync/friends:** refuted (E2): only `settings.js` reads `GOAL_KEY`; pinned by test "Ziel bleibt lokal".
 
 ## Verified clean
-- i18n: every literal `t()`/`tn()` key plus every `fieldLabel` key for all 17 `CONTENT_FIELDS` resolves in de/en/es/da (E1). The only misses are dynamic prefixes and plural objects, the same as last run.
-- #89/#92 import comparison: `cleanRecipe` is shared by parse and compare, and nothing is mutated.
-- #107 schema: `withoutBadItems` drops only a malformed `items`, never the recipe. Import keeps a valid `items`.
-- `detail.js` "✨ change with assistant" is gated by `isPremium()` and always attaches the German original.
+- i18n: `settings.goal*` and `settings.goalPresets.<6 presets>` present in de/en/es/da (diff + test suite).
+- `cleanGoal`: invalid preset → balanced, out-of-range/non-integer → null; values rendered through `esc()`/`.value`.
+- SHELL contains the new `nutritionGoal.js`.
 
 ## Definition drift
-The agent file still names `decideSync.js` as the recipe sync decision point. Recipe sync runs through `syncCore.js` + `syncRules.js` + `recipeMerge.js`.
+The agent file still names `decideSync.js` as the recipe sync decision point; recipe sync runs through `syncCore.js` +
+`syncRules.js` + `recipeMerge.js` (`decideSync` only as fallback without a base).
 
 ## Cross-lens notes
-- → test-warden: no test checks that the view-only `items` never reach `db.replaceAll`/Drive after an edit (store-level).
-- → ux-curator: if the model changes `prepTime` but echoes the old `totalTime`/`time`, the card keeps the inconsistent times (`parse.js:100-103` recomputes only when they are not given).
+- → ux-curator: the goal form says "✓ Ziel gespeichert" even when an out-of-range kcal/protein (e.g. 7000) was silently
+  dropped to empty (`settings.js:181-188` → `cleanGoal`). Consider a hint instead of a silent clear.
 
 ## Summary
-P0 0 · P1 0 · P2 0 · P3 0 new. Still open: BH-02, BH-14 (has grown a little), BH-16, all P3.
-**No new P0/P1.** The most valuable check: the assistant update path (#73) was E1-verified on all 105 real recipes. It produces no spurious changes and does not overwrite personal fields.
+P0 0 · P1 0 · P2 0 · P3 0 new. Still open: BH-02 (P3), BH-14 (P3), BH-18 (P3). BH-17 ✅ fixed by #130 (E1-verified).
+**No new P0/P1.** Most valuable item this run: confirmation that the #130 lost-ack fix keeps another device's personal fields.

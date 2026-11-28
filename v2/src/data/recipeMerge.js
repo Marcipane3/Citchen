@@ -78,6 +78,16 @@ function contentOnly(r) {
   for (const k of Object.keys(full)) if (!NOT_CONTENT.has(k)) out[k] = full[k];
   return out;
 }
+/** #130: Basis = Drive-Inhalt, aber persönliche Felder (♥, Bewertung …) wie in unserem gemerkten Stand —
+ *  so gehen Änderungen eines anderen Geräts daran nicht still verloren (lokal gewinnt nur, was lokal neu ist). */
+function ownWrite(p, r) {
+  const b = { ...r }, dflt = withDefaults({});
+  for (const k of PERSONAL_FIELDS) {
+    if (k in p) b[k] = p[k];
+    else if (k in b && stable(b[k]) !== stable(dflt[k])) delete b[k]; // fehlt bei uns = Standardwert
+  }
+  return b;
+}
 export function sameContent(a, b) { return stable(contentOnly(a)) === stable(contentOnly(b)); }
 
 /** Feldweise: was lokal gegenüber der Basis geändert wurde, gewinnt; sonst der Drive-Stand. */
@@ -87,6 +97,18 @@ function mergeFields(base, local, remote) {
     const localChanged = !sameRecipe(local[k], base[k]);
     const v = localChanged ? local[k] : remote[k];
     if (v !== undefined) out[k] = v;
+  }
+  return out;
+}
+
+/** #91: gleicher Inhalt, Drive gewinnt — aber persönliche Felder, die Drive leer (= Standardwert) hat und lokal
+ *  gesetzt sind (♥, Bewertung …), bleiben erhalten. Wo beide einen Wert haben, gilt Drive. */
+function fillPersonalGaps(r, l) {
+  const rd = withDefaults(r), ld = withDefaults(l), dflt = withDefaults({});
+  const out = { ...r };
+  for (const k of PERSONAL_FIELDS) {
+    const empty = rd[k] === undefined || stable(rd[k]) === stable(dflt[k]);
+    if (empty && ld[k] !== undefined && stable(ld[k]) !== stable(dflt[k])) out[k] = l[k] !== undefined ? l[k] : ld[k];
   }
   return out;
 }
@@ -117,7 +139,7 @@ export const sameCollection = (a, b) => a.length === b.length && a.every((r, i) 
  */
 export function mergeRecipes({ base, local, remote, prefer = "remote", pendingBase = null, now = Date.now }) {
   const B = base ? byId(base) : null, L = byId(local), R = byId(remote);
-  const P = B && pendingBase ? byId(pendingBase.map((x) => withDefaults(x))) : null;
+  const P = B && pendingBase ? byId(pendingBase) : null;
   const merged = new Map();
   const removedRemotely = [], conflicts = [], twins = [];
 
@@ -126,12 +148,12 @@ export function mergeRecipes({ base, local, remote, prefer = "remote", pendingBa
     const l = L.get(id), r = R.get(id);
     if (B && !b && P && P.has(id)) {                  // #90: verlorene Bestätigung
       const p = P.get(id);
-      if (r && sameContent(p, r)) b = r;              // Drive hat genau unseren Schreibvorgang
+      if (r && sameContent(p, r)) b = ownWrite(p, r);     // Drive hat genau unseren Schreibvorgang
     }
     if (l && r) {
       if (sameRecipe(l, r)) return l;
       if (B && !b && !sameContent(l, r)) { twins.push(l); return r; } // zwei verschiedene Rezepte, eine id
-      if (!B || !b) return prefer === "local" ? l : r;
+      if (!B || !b) return prefer === "local" ? l : sameContent(l, r) ? fillPersonalGaps(r, l) : r;
       if (sameRecipe(l, b)) return r;                 // nur Drive geändert
       if (sameRecipe(r, b)) return l;                 // nur lokal geändert
       conflicts.push(id);

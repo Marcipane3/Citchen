@@ -1,61 +1,61 @@
-# Test-Warden — findings (2026-11-21T12:00:00Z)
-_Build 2026-11-18-v2.18 (bump to 2.19 not yet on branch) · CACHE koch-v2.18-1 · tests 636/636 · HEAD 556b19c · mode DELTA (origin/main..HEAD, release candidate v2.19: #73, #89, #92, #105, #107)_
+# Test-Warden — findings (2026-11-28T00:00:00Z)
+_Build 2026-11-21-v2.19 (bump to 2.20 not yet applied) · CACHE koch-v2.19-1 · tests 718/718 · HEAD e39acc6 · mode DELTA (origin/main..HEAD, release-bump/2.20-r2)_
 
-Suite green: 636 passed, 0 failed (was 583). Pure logic changed in `ai/parse.js`, `data/items.js` (new), `data/recipeImport.js`, `data/recipeMerge.js`, `data/schema.js`, `store.js`; each has new tests in the same diff. **No new P0/P1.** Probes: `/tmp/claude-0/tw/d.mjs` (outside the repo).
+Suite green: 718 passed, 0 failed (was 689 at the last pass). **No new P0/P1.** Since 7076063 the diff added `data/nutritionGoal.js` (#138), `searchIngredients` (#139), same-origin isolation (#137), the DG-22 pendingBase fix (#136) and the twin-merge decision test (#149). Each one comes with tests in the same diff.
 
 ## Field reports
-None open that touch this lens.
+FR-01 is fixed in code, and the shopping modules are not in this diff. No open report touches the changed modules.
 
 ## Status of previous findings
 | ID | Title | Status | Note |
 |---|---|---|---|
-| TW-20 | `mergeRecipes` twin keeps remote personal fields | ⏳ still open (low) | `recipeMerge.js` only changed `NOT_CONTENT` (+`items`); twin rule untouched. |
-| TW-21 | import outcome / BH-14 empty file | ⏳ still open (med) | `recipeImport.js` `parseImportFile` still returns `errors: []` for an empty envelope; not touched by this diff. |
-| TW-22 | `sameCollection` unpinned | ⏳ still open (low) | No test names it. |
-| TW-23 | `cookedMonthKey` "Sept" | ⏳ still open (low) | `filter.js` not in diff. |
-| TW-24 | `isSameRecipe` export not named in tests | ⏳ still open (low) | Behaviour pinned via `planImport`. |
-| TW-07 / TW-08 / TW-14 | default-clock `toFileString`, `extractJson` adversarial, `friendInbox` order | ⏳ still open (low) | Not touched. |
+| TW-20 | `mergeRecipes` twin keeps remote personal fields | ✅ fixed | e39acc6 (#149). `test-recipe-merge.js:166` pins that the twin keeps the local favorite and rating. |
+| TW-21 | empty envelope outcome (BH-14) | ⏳ open (med) | Not re-verified. `recipeImport.js` is unchanged since the last pass. |
+| TW-22 | `sameCollection` unpinned | ⏳ open (low) | Still named in only one test file. |
+| TW-24 | `isSameRecipe` not named in tests | ⏳ open (low) | grep count is 0. |
+| TW-28 | pendingBase lifecycle after a no-write sync | ⏳ open (low) | #136 added tests at `test-recipe-merge.js:321-347` (fork cases). The stale-pendingBase-without-write case is still not named. |
+| TW-29 | `parseMoveFile` `__proto__` keys | ⏳ open (low) | No test uses those keys. |
+| TW-30 | `shopMarkerRule` / `leftoverUserPrompt` / `generateUserPrompt` / `elaborateUserPrompt` untested | ⏳ open (low) | grep count is still 0 for all four. |
+| TW-25, TW-07, TW-08, TW-14 | older low items | ⏳ open (low) | Not touched in this diff. |
 
 ## New findings
 
-### TW-25 `v2/src/data/schema.js` `withoutBadItems` · risk: low · evidence: E1
-- **Covered today:** indirectly via import and store paths (`test-recipe-import.js`, `test-canonical.js`, `test-sync-core.js`). No test imports the export directly (grep count 0 in schema/items tests).
-- **Gap:** identity contract ("same object when nothing to do", no mutation of the input, `null` or non-object input passes through) is unpinned. Probe: `withoutBadItems({id:1, items:[null]})` → `{id:1}`; behaviour correct.
+### TW-31 `v2/src/data/nutritionGoal.js` constants and `data/settings.js` `getStaples`, theme helpers · risk: low · evidence: E1
+- **Covered today:** `test-nutrition-goal.js` M1 cases cover `cleanGoal` and the `get/set/resetNutritionGoal` round trip. `GOAL_KEY`, `DEFAULT_PRESET`, `KCAL_RANGE` and `PROTEIN_RANGE` are not named in any test. They are only used indirectly.
+- **Gap:** The probe shows `cleanGoal` is correct on every edge I tried:
+  - `null`, `[]` and `"x"` → defaults.
+  - `"2000"` → 2000, and `" 50 "` → 50.
+  - 2000.5, 6001, `true` and `NaN` → null.
+  - 800 is accepted. The `__proto__` and `constructor` presets → balanced.
+  Missing pins: the upper boundaries (6000 and 400 accepted, 6001 and 401 rejected), the lower boundaries (799 and 9 rejected), and a pin that `GOAL_KEY` stays `"nutritionGoal"`. Renaming the key would silently orphan stored goals.
 - **Proposed cases:**
-  - `withoutBadItems: valid items → same object (===)`.
-  - `withoutBadItems: bad items → copy without items, input unmodified`.
-  - `withoutBadItems: null / non-object / no items → returned unchanged`.
-- **Guards against:** a refactor that always copies, which would make `updateRecipe` and import churn.
-
-### TW-26 `v2/src/ai/parse.js` `coerceUpdate` tips type coercion · risk: low · evidence: E1
-- **Covered today:** `test-ai.js` update cases (typed-field "given" rule).
-- **Gap:** stored `tips:"t"`, model sends `tips:{}` (an object counts as "given" at `parse.js` `typed.tips`) → result `tips:""`, so the stored tip is silently wiped by an empty object. Probe output: `"tips":""`. A model that echoes an empty tips object is plausible. The user sees it in the diff card, so low.
-- **Proposed cases:** `coerceUpdate: tips {} over stored string → decide: keep stored tips, or pin "" (card shows removal)`.
-- **Guards against:** silent content loss through the assistant update card.
-
-### TW-27 `v2/src/ai/parse.js` `coerceUpdate` + `data/items.js` stale `items` · risk: low · evidence: E1
-- **Gap:** `coerceUpdate` carries `items` through unchanged while `ingredients` changes (probe: `ingredients:["2 Eier"]`, `items:[{text:"1 Ei"}]` stays). Harmless today (`relinkItems` matches by text and drops stale entries on the view side), but nothing pins it.
-- **Proposed case:** `coerceUpdate then withItems: changed ingredient line → items for the old line vanish, new line is derived`.
+  - `cleanGoal: 6000/400 ok, 6001/401 → null, 799/9 → null`.
+  - `GOAL_KEY === "nutritionGoal"` (storage-name contract).
+- **Guards against:** a boundary regression, or a silent loss of a user's stored goal.
 
 ## Checked and refuted
-- `applyUpdatePatch` double-apply: probe → second call returns `applied:false` (conflict), no overwrite. Good.
-- `coerceChange` with `__proto__` id → `null` (a `Set` lookup is safe).
-- `relinkItems` with duplicate lines and a mismatched count → re-derives, no multiplication (probe returned 2 items for 2 lines).
-- `coerceUpdate` ignores model-sent `id`, `favorite` and `toTry`; stored personal fields survive.
+- `cleanGoal` rejects non-integer, boolean and NaN input and prototype-named presets (probe above).
+- `searchIngredients` guards an empty or non-string query and `limit <= 0`. It escapes regex metacharacters, and ties are ordered deterministically by rank, length and id. Tests at `test-ingredient-match.js:385-400` cover this.
+- `GOAL_PRESETS` and the DE/EN/ES/DA wording are pinned by M1 tests.
 
 ## Verified clean
-Coverage map of the changed modules (export → tests): `CONTENT_FIELDS`, `applyContentFields`, `coerceUpdate`, `recipeChanges`, `makeUpdatePatch`, `applyUpdatePatch`, `coerceChange` (`test-ai.js`, `test-canonical.js`); `relinkItems`, `withItems`, `setItemIndex` (`test-items-relink.js`, 135 lines); items shape in `test-schema.js:123-`; `recipeImport` cleaned-existing comparison (#89) in `test-recipe-import.js`; `recipeMerge` `NOT_CONTENT` items in `test-recipe-merge.js`. Only `withoutBadItems` has no direct test (TW-25). Shopping and sync modules are not in the diff.
+Coverage of the changed pure modules, counted as exports named in at least one test file:
+- `moveFile` 13/13, `items` 2/2, `syncRules` 3/3, `filter` 12/12, `ai/parse` 13/13.
+- `ingredientMatch` 4/4. `recipeMerge` 7/7, with the TW-22 caveat.
+- `recipeImport` 4/5, because `isSameRecipe` is not named (TW-24).
+- `ai/prompts` 14/18 (TW-30). `nutritionGoal` 2/6 named (TW-31).
+- `settings` 8/14: `resetProfile`, `getStaples` and the theme helpers are not named. They sit on IndexedDB/DOM and are low value.
 
 ## Definition drift
-None.
+None. `BUILD` and `CACHE` still read 2.19 because release-prep has not applied the bump.
 
 ## If you add three tests, add these
-1. TW-21 empty-envelope outcome (open bug BH-14, needs a small helper extracted first).
-2. TW-26 `coerceUpdate` empty-tips decision.
-3. TW-25 `withoutBadItems` identity and non-mutation.
+1. TW-28: a lost ack followed by a no-write sync leaves pendingBase unchanged.
+2. TW-29: `parseMoveFile` drops `__proto__` and `constructor` keys.
+3. TW-31: `cleanGoal` boundaries plus the `GOAL_KEY` contract.
 
 ## Already well-covered
-Assistant update patch (base/set conflict, re-apply), derived `items[]` relinking (idempotence, duplicate lines, manual corrections), schema items shape, import dedupe against cleaned existing recipes.
+`moveFile`, `ai/parse`, `filter`, `syncRules`/`items` (#112, #114), `recipeMerge` twin and pendingBase fork cases, `searchIngredients` and `cleanGoal` basics.
 
 ## Summary
-P0 0 · P1 0 · P2 0 · P3 3 new (TW-25..27) · carried: TW-21 (med) plus 7 low. Most valuable: TW-21 regression test for BH-14.
+P0 0 · P1 0 · P2 0 · P3 4 (TW-28, TW-29, TW-30, TW-31 are all low-risk). Carried over: TW-21 (med), TW-22 and TW-24. The suite is green and coverage of the new code is good. The most valuable item is TW-28, the sync-path lost-ack case.
