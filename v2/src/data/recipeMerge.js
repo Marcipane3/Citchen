@@ -101,6 +101,18 @@ function mergeFields(base, local, remote) {
   return out;
 }
 
+/** #91: gleicher Inhalt, Drive gewinnt — aber persönliche Felder, die Drive leer (= Standardwert) hat und lokal
+ *  gesetzt sind (♥, Bewertung …), bleiben erhalten. Wo beide einen Wert haben, gilt Drive. */
+function fillPersonalGaps(r, l) {
+  const rd = withDefaults(r), ld = withDefaults(l), dflt = withDefaults({});
+  const out = { ...r };
+  for (const k of PERSONAL_FIELDS) {
+    const empty = rd[k] === undefined || stable(rd[k]) === stable(dflt[k]);
+    if (empty && ld[k] !== undefined && stable(ld[k]) !== stable(dflt[k])) out[k] = l[k] !== undefined ? l[k] : ld[k];
+  }
+  return out;
+}
+
 const byId = (list) => new Map((list || []).map((r) => [r.id, r]));
 export const sameCollection = (a, b) => a.length === b.length && a.every((r, i) => b[i] && r.id === b[i].id && sameRecipe(r, b[i]));
 
@@ -141,7 +153,7 @@ export function mergeRecipes({ base, local, remote, prefer = "remote", pendingBa
     if (l && r) {
       if (sameRecipe(l, r)) return l;
       if (B && !b && !sameContent(l, r)) { twins.push(l); return r; } // zwei verschiedene Rezepte, eine id
-      if (!B || !b) return prefer === "local" ? l : r;
+      if (!B || !b) return prefer === "local" ? l : sameContent(l, r) ? fillPersonalGaps(r, l) : r;
       if (sameRecipe(l, b)) return r;                 // nur Drive geändert
       if (sameRecipe(r, b)) return l;                 // nur lokal geändert
       conflicts.push(id);
