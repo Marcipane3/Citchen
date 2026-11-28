@@ -27,24 +27,29 @@ const listOf = (master) => (Array.isArray(master) ? master : Array.isArray(maste
  * Nachschlage-Index über Namen, Plurale und Aliase einer Sprache (gespeicherte Daten sind deutsch).
  * Groß-/Kleinschreibung, Akzente und ß sind egal (searchNorm).
  * @param master die Stamm-Datei ({ ingredients }) oder die nackte Liste
- * @returns {{ byName: Map<string,string>, byId: Map<string,object>, maxWords: number }}
+ * `forms` hält je Zutat alle Schreibweisen (ungekürzt) für die Suche (searchIngredients).
+ * @returns {{ byName: Map<string,string>, byId: Map<string,object>, maxWords: number, forms: object[] }}
  */
 export function buildIndex(master, lang = "de") {
-  const byName = new Map(), byId = new Map();
+  const byName = new Map(), byId = new Map(), forms = [];
   let maxWords = 1;
   for (const rec of listOf(master)) {
     if (!rec || typeof rec.id !== "string" || !rec.id) continue;
     byId.set(rec.id, rec);
     const aliases = Array.isArray(rec.aliases?.[lang]) ? rec.aliases[lang] : [];
+    const keys = [];
     for (const form of [rec.names?.[lang], rec.plural?.[lang], ...aliases]) {
       if (typeof form !== "string") continue;
+      const whole = fold(form);
+      if (whole && !keys.includes(whole)) keys.push(whole);
       const key = form.split(/\s+/).map(foldWord).filter(Boolean).join(" ");
       if (!key || byName.has(key)) continue;
       byName.set(key, rec.id);
       maxWords = Math.max(maxWords, key.split(" ").length);
     }
+    if (keys.length) forms.push({ rec, name: typeof rec.names?.[lang] === "string" ? fold(rec.names[lang]) : keys[0], keys });
   }
-  return { byName, byId, maxWords };
+  return { byName, byId, maxWords, forms };
 }
 
 /**
@@ -248,4 +253,37 @@ export function gramsOf(item, master) {
   }
   if (u.kind === "vague") return round(amount * u.factor); // Prise: fest 0,5 g
   return null;
+}
+
+const searchIndexes = new WeakMap(); // master (Objekt) → { lang → Index }, damit nicht je Tastendruck neu gebaut wird
+
+/**
+ * Type-ahead über den Stamm: Zutaten-Datensätze, beste zuerst.
+ * Rang: genau (Name/Plural/Alias) < beginnt mit < Wortanfang; gleicher Rang: kürzerer Name, dann id.
+ * Groß-/Kleinschreibung, Akzente und ß sind egal. Pur: master bleibt unverändert, kein I/O.
+ * @param master Stamm-Datei, nackte Liste (oder Müll → [])
+ * @param index optional ein fertiger Index aus buildIndex(master, lang)
+ */
+export function searchIngredients(master, query, lang = "de", limit = 8, index) {
+  const q = fold(typeof query === "string" ? query : "");
+  const max = Math.floor(Number(limit));
+  if (!q || !(max > 0)) return [];
+  let idx = index;
+  if (!Array.isArray(idx?.forms)) {
+    const cacheable = master && typeof master === "object";
+    const byLang = cacheable ? (searchIndexes.get(master) || searchIndexes.set(master, {}).get(master)) : {};
+    idx = byLang[lang] || (byLang[lang] = buildIndex(master, lang));
+  }
+  const startsWord = new RegExp(`(?:^|[^\\p{L}\\d])${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "u");
+  const hits = [];
+  for (const f of idx.forms) {
+    let rank = 3;
+    for (const key of f.keys) {
+      const r = key === q ? 0 : key.startsWith(q) ? 1 : startsWord.test(key) ? 2 : 3;
+      if (r < rank) rank = r;
+    }
+    if (rank < 3) hits.push({ rec: f.rec, rank, len: f.name.length });
+  }
+  hits.sort((a, b) => a.rank - b.rank || a.len - b.len || (a.rec.id < b.rec.id ? -1 : a.rec.id > b.rec.id ? 1 : 0));
+  return hits.slice(0, max).map((h) => h.rec);
 }

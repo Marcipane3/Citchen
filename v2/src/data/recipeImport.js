@@ -12,20 +12,26 @@ export const IMPORT_LIMITS = Object.freeze({ fileChars: 2_000_000, name: 200, li
 const PERSONAL = new Set(PERSONAL_FIELDS);
 const KEPT_FIELDS = RECIPE_FIELDS.filter((f) => !PERSONAL.has(f)); // unbekannte Felder fallen weg
 
+/** Felder, die über den Grenzen liegen (technische Namen; die App-Sprache formuliert den Satz). */
 function limitProblems(r) {
   const L = IMPORT_LIMITS, out = [];
-  if (r.name.length > L.name) out.push(`name länger als ${L.name} Zeichen`);
+  if (r.name.length > L.name) out.push("name");
   for (const f of ["time", "servings", "cuisine", "season"]) {
-    if (typeof r[f] === "string" && r[f].length > L.line) out.push(`${f} länger als ${L.line} Zeichen`);
+    if (typeof r[f] === "string" && r[f].length > L.line) out.push(f);
   }
-  if (typeof r.tips === "string" && r.tips.length > L.tips) out.push(`tips länger als ${L.tips} Zeichen`);
-  if (typeof r.image === "string" && r.image.length > L.image) out.push(`image länger als ${L.image} Zeichen`);
+  if (typeof r.tips === "string" && r.tips.length > L.tips) out.push("tips");
+  if (typeof r.image === "string" && r.image.length > L.image) out.push("image");
   for (const f of ["ingredients", "steps", "tags"]) {
     if (!Array.isArray(r[f])) continue;
-    if (r[f].length > L.lines) out.push(`${f} hat mehr als ${L.lines} Zeilen`);
-    else if (r[f].some((line) => line.length > L.line)) out.push(`${f}: Zeile länger als ${L.line} Zeichen`);
+    if (r[f].length > L.lines || r[f].some((line) => line.length > L.line)) out.push(f);
   }
   return out;
+}
+
+/** Feldname aus einer validateRecipe-Meldung ("category ungültig: …" → "category"); leer, wenn kein Feld. */
+function fieldOf(message) {
+  const m = /^([A-Za-z]+) (?:fehlt|muss|ungültig)/.exec(message);
+  return m ? m[1] : null;
 }
 
 /** Nur https-Bilder: ein http-Bild wird bei jedem Anzeigen unverschlüsselt geladen, javascript:/data: gehören nie in ein Rezept. */
@@ -33,10 +39,29 @@ function isHttpsUrl(v) {
   try { return new URL(v).protocol === "https:"; } catch { return false; }
 }
 
+/** items[] einer Import-Datei (#111): nur Einträge zu echten Zutatenzeilen, Strings in Grenzen, kein Markup, höchstens `lines`. */
+function cleanItems(items, ingredients) {
+  const lines = new Set(ingredients);
+  const out = [];
+  for (const it of items) {
+    if (out.length >= IMPORT_LIMITS.lines) break;
+    if (!it || typeof it !== "object" || Array.isArray(it)) continue;
+    if (!lines.has(it.text)) continue;
+    const entries = Object.entries(it);
+    if (entries.some(([, v]) => typeof v === "string" && v.length > IMPORT_LIMITS.line)) continue;
+    if (typeof it.ing === "string" && /[<>]/.test(it.ing)) continue;
+    const item = { ...it };
+    if (item.ing !== undefined && typeof item.ing !== "string") delete item.ing;
+    out.push(item);
+  }
+  return out;
+}
+
 /** Die eine Bereinigung für Import UND Vergleich: nur Vertragsfelder, id getrimmt, nur https-Bild, Defaults. Mutiert nichts. */
 function cleanRecipe(r) {
   const clean = {};
   for (const f of KEPT_FIELDS) if (r[f] !== undefined) clean[f] = r[f];
+  if (Array.isArray(clean.items)) clean.items = cleanItems(clean.items, Array.isArray(clean.ingredients) ? clean.ingredients : []);
   clean.id = r.id.trim(); // „ r01 “ ist dasselbe Rezept wie „r01“ (#50)
   const imageRemoved = !!clean.image && !isHttpsUrl(clean.image);
   if (imageRemoved) clean.image = "";
@@ -44,31 +69,40 @@ function cleanRecipe(r) {
 }
 
 /**
- * Text → {recipes, errors, notes}. Ungültige oder übergroße Rezepte werden mit Index + Grund gemeldet
+ * Text → {recipes, errors, notes}. Ungültige oder übergroße Rezepte werden mit Nummer + Feldnamen gemeldet
  * (errors) und übersprungen; `notes` nennt, was an einem übernommenen Rezept entfernt wurde.
+ * Probleme sind STRUKTURIERT ({code, …}), nie Sätze: die Oberfläche übersetzt sie (#84).
+ *   Datei:  {code: "notText"|"tooLarge"|"notJson"|"notObject"|"noVersion"|"noRecipes"|"newerFormat", version?}
+ *   Rezept: {code: "recipeInvalid", index (0-basiert), name, fields[]} · {code: "recipeNotObject", index}
+ *   Hinweis: {code: "imageRemoved", index, name}
+ * Eine gültige Datei mit `recipes: []` ist kein Fehler: errors bleibt leer.
  * Übernommen werden nur Inhaltsfelder des Vertrags — persönliche und unbekannte Felder fallen weg.
  */
 export function parseImportFile(text) {
-  const none = (msg) => ({ recipes: [], errors: [msg], notes: [] });
-  if (typeof text !== "string") return none("Datei ist kein Text");
-  if (text.length > IMPORT_LIMITS.fileChars) return none("Datei ist größer als 2 MB");
+  const none = (code, extra = {}) => ({ recipes: [], errors: [{ code, ...extra }], notes: [] });
+  if (typeof text !== "string") return none("notText");
+  if (text.length > IMPORT_LIMITS.fileChars) return none("tooLarge");
   let data;
   try { data = JSON.parse(text); }
-  catch { return none("Datei ist kein gültiges JSON"); }
+  catch { return none("notJson"); }
   const problem = envelopeProblem(data);
-  if (problem === "notObject") return none("Datei enthält kein Objekt");
-  if (typeof data.version !== "number" || !Number.isFinite(data.version)) return none("version fehlt oder ist keine Zahl");
-  if (problem === "noRecipes") return none("recipes fehlt oder ist kein Array");
-  if (problem === "newerFormat") return none(`Datei stammt aus einer neueren App-Version (Format ${data.version})`);
+  if (problem === "notObject") return none("notObject");
+  if (typeof data.version !== "number" || !Number.isFinite(data.version)) return none("noVersion");
+  if (problem === "noRecipes") return none("noRecipes");
+  if (problem === "newerFormat") return none("newerFormat", { version: data.version });
 
   const recipes = [], errors = [], notes = [];
   data.recipes.forEach((raw, i) => {
     const r = withoutBadItems(raw); // items ist abgeleitet: ein kaputter Wert verwirft nicht das Rezept
     const res = validateRecipe(r);
-    const problems = res.valid ? limitProblems(r) : res.errors;
-    if (problems.length) { errors.push(`Rezept[${i}]: ${problems.join("; ")}`); return; }
+    if (!r || typeof r !== "object" || Array.isArray(r)) { errors.push({ code: "recipeNotObject", index: i }); return; }
+    const fields = res.valid ? limitProblems(r) : [...new Set(res.errors.map(fieldOf).filter(Boolean))];
+    if (!res.valid || fields.length) {
+      errors.push({ code: "recipeInvalid", index: i, name: typeof r.name === "string" ? r.name : "", fields });
+      return;
+    }
     const { clean, imageRemoved } = cleanRecipe(r);
-    if (imageRemoved) notes.push(`Rezept[${i}] „${r.name}“: Bild-Adresse entfernt (nur https erlaubt)`);
+    if (imageRemoved) notes.push({ code: "imageRemoved", index: i, name: r.name });
     recipes.push(clean);
   });
   return { recipes, errors, notes };
@@ -115,7 +149,7 @@ export function summarizeImport(plan, errors = [], notes = []) {
   return {
     imported: plan.toAdd.length,
     skipped: errors.length + plan.skipped.length, // Hinweise zählen nicht: das Rezept wurde übernommen
-    reasons: [...errors, ...notes], // Duplikate nur zählen: bis zu 105 Zeilen Liste wären Rauschen
+    reasons: [...errors, ...notes], // strukturiert (s. parseImportFile). Duplikate nur zählen: bis zu 105 Zeilen Liste wären Rauschen
     renamed: plan.renamed.length,
     duplicates: plan.skipped.length,
   };

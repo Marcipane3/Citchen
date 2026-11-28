@@ -83,7 +83,7 @@ Android build (a TWA) shows it at once: testers get each web release without a n
 | — | **Hard cutoff** | Anything unfinished moves to v3.1 | **31 Mar 2027** | — |
 | **v3.1** | Cut items + English data | **Format 4 / English stored data (D8)** · default photos + photo grid · "Gesund & Langlebig" hub · accessibility pass · iPhone as tested target | **Mar – Apr 2027** | planned |
 | **v3.2** | **Accounts + send/invite sharing** (D10) | Google sign-in via Supabase · send a recipe to a person or household (linked copy, edits fork) · Supabase **Pro** from this release | **May – Jun 2027** | planned |
-| **v3.x** | Public recipes + household | Public publishing + browsing + **ratings/likes** (D11, scheduled after launch feedback — review **May 2027**) · shared household cookbook + weekly plan · §5 | H2 2027 | backlog |
+| **v3.x** | Public recipes + household | Public publishing + browsing + **ratings/likes** (D11, scheduled after launch feedback — review **Mar/Apr 2027**) · shared household cookbook + weekly plan · §5 | H2 2027 | backlog |
 | **v3.5 / v4** | Money (only if wanted) | Payment screen or sponsored AI via a proxy. No subscription planned. | 2028+ | parked |
 | *someday* | Envy list | Voice cooking mode · social-video import · iPhone App Store | — | parked |
 
@@ -171,8 +171,11 @@ Sonnet 5.5 (Q1).
 
 | # | Item | Source | Notes |
 |---|------|--------|-------|
-| US-08e | **Public recipes: publish, browse, copy, rate/like** *(new 2026-11-18, D11)* | Marcel | Direction set; **scheduled after launch feedback (review May 2027)**. Needs accounts (v3.2), report + takedown flow, photo/recipe copyright rule, vote-abuse protection, privacy policy + data-safety update. **Still not wanted:** comments, follows, feed |
-| US-08b | **Shared household cookbook** | Marcel, round 2 | On the backend instead of Drive; decide in the v3.x plan |
+| US-08e | **Public recipes: publish, browse, copy, rate/like** *(new 2026-11-18, D11)* | Marcel | Direction set; **review in Mar/Apr 2027** whether it fits what has been built (Marcel, 27 Nov; was May 2027). Needs accounts (v3.2), report + takedown flow, photo/recipe copyright rule, vote-abuse protection, privacy policy + data-safety update. **Still not wanted:** comments, follows, feed |
+| US-08b | **Shared household cookbook** | Marcel, round 2 | One cookbook that several people in a household keep and edit together, on the backend instead of Drive; own ADR in the v3.x plan, reusing `profiles` |
+| US-08f | Photos in sent and public recipes *(idea, 27 Nov)* | Marcel | Not in the first version of send/invite (v3.2) or public recipes (US-08e). Marcel reconfirms once those first versions are built. Needs the photo/recipe copyright rule and storage limits |
+| US-L7 | **Sign-in without Google (e-mail login)** *(idea, 27 Nov)* | Marcel | v3.2 stays Google-only. What has to change: (1) today the Google sign-in also opens the user's Drive, where recipes and the shopping list live; e-mail users have no Drive, so their data needs a home on the backend (per-user rows with RLS, same flat-v3 format, the sync engine gets a second storage adapter). This amends D10 "recipes stay in Drive" for those users. (2) The backend becomes the only copy of their recipes: Supabase Pro, backups and a restore drill are mandatory. (3) Privacy policy + Play data-safety name stored recipe content; account deletion also deletes those recipes. (4) Export/import stays the way out. Friends inbox and send/invite are unaffected. Recommended together with US-08b, which needs the same backend storage |
+| US-L8 | **Printable cookbook** *(idea, 27 Nov)* | Marcel | Pick recipes (by hand, or from a filter/collection), then build a nicely designed file to print or share: PDF first, Word/LaTeX as options. Not the same as US-08b. Needs a design pass |
 | US-08 | **Shared weekly plan** | A10 = (b) | Together with the shared cookbook; reuses the sync core + backend |
 | US-12 | AI spend display with default limit, **warning only** | D5 | Data source: V2 Q3 token measurement |
 | L4 | AI calorie estimate for unmatched recipes (marked ✨) | Epic L | Needs V2 L2 |
@@ -218,7 +221,7 @@ Sonnet 5.5 (Q1).
 | **T-7** | P3 / P4 phone tests | **Marcel, week of 18 Nov** | Last V2 gate items |
 | **T-8** | Release rhythm | **Twice a week** | `/release-prep` runs Wed + Sat, retry mode retired (skill + `CLAUDE.md` updated 19 Nov); Marcel sets the task schedule |
 | **D10** | Accounts + recipe sharing: when? | **First release after the cut items = v3.2 (May–Jun 2027)**; v3.0 only writes the schema down | Slice 1b reduced; Supabase Pro from v3.2 |
-| **D11** | Sharing model | **Public browsing too**, **with ratings/likes**; timing **decided after launch** (review May 2027). Send/invite comes first (v3.2) | Overrides E4 / A6 "no public links"; US-08e added; comments/feed still not wanted |
+| **D11** | Sharing model | **Public browsing too**, **with ratings/likes**; timing **decided after launch** (review Mar/Apr 2027). Send/invite comes first (v3.2) | Overrides E4 / A6 "no public links"; US-08e added; comments/feed still not wanted |
 | **H-1** | URL layout | **`citchen.de` = landing, app at `/app`** | One origin for TWA + sign-in; redirect pages for old paths |
 | **H-2** | Supabase plan | **Free + keep-alive until accounts**, Pro from v3.2 | ADR D9 unchanged |
 | **H-3** | Testers and the AI key | **AI optional for testers**; 2–3 bring their own key | BYOK unchanged; onboarding explains |
@@ -266,7 +269,7 @@ Sonnet 5.5 (Q1).
 
 | ID | Question | Blocks | Recommendation |
 |----|----------|--------|----------------|
-| **D11-T** | When do public recipes (publish, browse, copy, rate/like) ship? | US-08e | Decide in **May 2027** with tester and launch feedback, after v3.2 accounts |
+| **D11-T** | When do public recipes (publish, browse, copy, rate/like) ship? | US-08e | Review in **March/April 2027** (Marcel, 27 Nov; was May 2027): does it fit the line of what has been built? Open points of the sharing ADR answered 27 Nov, ratings vs. likes still open (#146) |
 | **L1 (nutrition)** | Nutrition model: (a) bundled table (via the R2 ingredient master) + (b) AI fallback later | — | Treated as resolved by R2 (ADR R1, R1-Q5); confirm with the v2.19a calories release |
 
 Full question list and Claude's technical checks: `docs/v3/03-QUESTIONS.md`.

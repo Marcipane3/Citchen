@@ -35,6 +35,9 @@ import "./test-ingredient-match.js";
 import "./test-items-relink.js";
 import "./test-cook-portions.js";
 import "./test-cook-timers.js";
+import "./test-move-file.js";
+import "./test-origin-isolation.js";
+import "./test-nutrition-goal.js";
 import { run } from "./runner.js";
 
 const { fail } = await run();

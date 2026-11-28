@@ -15,6 +15,7 @@ import { recipeSync, RECIPE_STATUS } from "./syncRules.js";
 import { t } from "../i18n.js";
 
 const META_KEY = "collection";       // { version, updated, fileId, dirty, lastSync, source }
+const PENDING_KEY = "recipesPendingBase"; // #90: Stand vor dem Drive-Schreiben (verlorene Bestätigung)
 const BASE_KEY = "recipesBase";      // T1: letzter mit Drive geeinigter Stand (Basis für den Drei-Wege-Merge)
 const BACKUP_KEY = "recipesBackup";  // T2: eine Sicherung des lokalen Stands, bevor ein Abgleich ihn ersetzt
 const SNAPSHOT_URL = new URL("../../data/rezepte.snapshot.json", import.meta.url);
@@ -67,7 +68,9 @@ const engine = createSyncEngine({
       readAll: () => db.getAll("recipes"),
       replaceAll: (r) => db.replaceAll("recipes", r),
       getBase: () => db.kvGet(BASE_KEY, null),
-      setBase: (r) => db.kvSet(BASE_KEY, r),
+      getPendingBase: () => db.kvGet(PENDING_KEY, null),
+      setPendingBase: (r) => db.kvSet(PENDING_KEY, r),
+      setBase: async (r) => { await db.kvSet(BASE_KEY, r); await db.kvDel(PENDING_KEY); },
       backup: (r) => db.kvSet(BACKUP_KEY, { at: new Date().toISOString(), recipes: r }),
     },
     // T2: würde Drive auffällig viele Rezepte löschen → fragen statt still übernehmen.

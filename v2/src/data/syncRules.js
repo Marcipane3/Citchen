@@ -32,6 +32,7 @@ export const RECIPE_STATUS = Object.freeze({
  * store = {
  *   readAll() → recipes[] · replaceAll(recipes)
  *   getBase() → recipes[] | null — letzter mit Drive geeinigter Stand
+ *   getPendingBase?() · setPendingBase?(recipes) — #90: Stand VOR dem Drive-Schreiben (setBase räumt ihn weg)
  *   setBase(recipes) · backup(recipes) — eine Sicherung des lokalen Stands vor dem Ersetzen
  * }
  * approveDrop({ count, total }) → bool — Rückfrage, bevor auffällig viele Rezepte lokal verschwinden
@@ -75,7 +76,8 @@ export function recipeSync({ store, approveDrop = async () => false, onRetry = (
           const old = decideSync({ hasRemote: true, localUpdated: meta.updated || "", remoteUpdated: collection.updated || "", dirty: true, source: meta.source });
           prefer = old === "push" ? "local" : "remote";
         }
-        const out = mergeRecipes({ base, local, remote: collection.recipes, prefer });
+        const pendingBase = store.getPendingBase ? await store.getPendingBase() : null;
+        const out = mergeRecipes({ base, local, remote: collection.recipes, prefer, pendingBase });
         merged = out.merged;
         if (out.conflicts.length) console.info("Beidseitig geändert, feldweise zusammengeführt:", out.conflicts);
         if (out.forked.length) console.info("Gleiche id, anderes Rezept — lokales Rezept bekommt eine neue id:", out.forked);
@@ -87,6 +89,13 @@ export function recipeSync({ store, approveDrop = async () => false, onRetry = (
       }
 
       const write = notes.length > 0 || !sameCollection(merged, collection.recipes);
+      // #90: vor dem Schreiben merken; geht die Antwort verloren, erkennt der nächste Abgleich die eigene Datei.
+      // Nur lokal entstandene, auf Drive noch fehlende Rezepte (keine Fork-Kopien, keine Drive-Stände): Drive-Neuzugänge (Partner) dürfen hier nicht stehen, sonst würde ein
+      // verlorener Schreibvorgang sie später als "lokal gelöscht" lesen und von Drive entfernen.
+      if (write && store.setPendingBase) {
+        const localIds = new Set(local.map((r) => r.id)), remoteIds = new Set(collection.recipes.map((r) => r.id));
+        await store.setPendingBase(merged.filter((r) => localIds.has(r.id) && !remoteIds.has(r.id)));
+      }
       return {
         write: write ? toFileString({ updated: now, recipes: merged }) : null,
         apply: async () => {

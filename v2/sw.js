@@ -18,7 +18,7 @@
 //     Überbleibsel.
 // Jetzt: lesen nur aus CACHE, schreiben nur solange CACHE existiert und innerhalb des Events.
 
-const CACHE = "koch-v2.19-1";
+const CACHE = "koch-v2.20-1";
 
 // Bewusst NICHT im SHELL: add.html (Freundes-Seite des I3-Freunde-Links). Sie wird von Freunden
 // ohne App geöffnet und braucht ohnehin Netz (Supabase); wird sie hier im Scope geladen, landet sie
@@ -48,6 +48,7 @@ const SHELL = [
   "./src/data/recipeMerge.js",
   "./src/data/recipeImport.js",
   "./src/data/recipeExport.js",
+  "./src/data/moveFile.js",
   "./src/data/listFile.js",
   "./src/data/baseLang.js",
   "./src/ui/sheet.js",
@@ -81,7 +82,9 @@ const SHELL = [
   "./src/features/planner/planner.js",
   "./src/features/assistant/assistant.js",
   "./src/features/settings/settings.js",
+  "./src/features/settings/move.js",
   "./src/data/settings.js",
+  "./src/data/nutritionGoal.js",
   "./src/ai/gate.js",
   "./src/ai/client.js",
   "./src/ai/prompts.js",
@@ -116,7 +119,7 @@ let retired = [];
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => { retired = keys.filter((k) => k !== CACHE); return Promise.all(retired.map((k) => caches.delete(k))); })
+      .then((keys) => { retired = keys.filter((k) => k.startsWith("koch-v2") && k !== CACHE); return Promise.all(retired.map((k) => caches.delete(k))); })
       .then(() => self.clients.claim())
   );
 });

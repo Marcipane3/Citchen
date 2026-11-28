@@ -4,6 +4,7 @@
 
 import * as db from "./db.js";
 import { getInStock } from "./lager.js";
+import { GOAL_KEY, cleanGoal } from "./nutritionGoal.js";
 import { DEFAULT_PROFILE, DEFAULT_INSTRUCTIONS } from "../ai/prompts.js";
 
 const THEME_KEY = "theme"; // "system" | "light" | "dark"
@@ -33,6 +34,22 @@ export async function setProfile(profile) {
 export async function resetProfile() {
   await db.kvDel(PROFILE_KEY);
   return { ...DEFAULT_PROFILE };
+}
+
+/** M1 (#138): Ernährungsziel — eigener kv-Schlüssel, nur dieses Gerät, nicht im Koch-Profil. */
+export async function getNutritionGoal() {
+  return cleanGoal(await db.kvGet(GOAL_KEY, null));
+}
+
+export async function setNutritionGoal(goal) {
+  const clean = cleanGoal(goal);
+  await db.kvSet(GOAL_KEY, clean);
+  return clean;
+}
+
+export async function resetNutritionGoal() {
+  await db.kvDel(GOAL_KEY);
+  return cleanGoal(null);
 }
 
 /** Q4.2 (#70): Assistenten-Anweisungen (Vorlage aus Q4.1). Nichts gespeichert → mitgelieferter Default. */

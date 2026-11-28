@@ -2,7 +2,7 @@
 // Jede Zeile der ADR-Tabelle „Checked against real recipes“ ist hier ein Fall, mit Ergebnis.
 import { test, assert, assertEqual, assertDeepEqual } from "./runner.js";
 import { readFileSync } from "node:fs";
-import { buildIndex, matchLine, gramsOf } from "../src/data/ingredientMatch.js";
+import { buildIndex, matchLine, gramsOf, searchIngredients } from "../src/data/ingredientMatch.js";
 
 const read = (rel) => JSON.parse(readFileSync(new URL(rel, import.meta.url), "utf8"));
 
@@ -330,8 +330,10 @@ test("ausgelieferter Stamm: 3 Knoblauchzehen → clove, 9 g (Alias „Knoblauchz
 
 // Gemessen am 2026-11-13 (105 Rezepte, 70 Zutaten): 839 Zeilen → 1010 Teile, 965 mit Zutat (95,5 %).
 // R2.2 (113 Zutaten): 1013 Teile, 1002 mit Zutat (98,9 %). Neue Stamm-Daten dürfen den Anteil nur heben.
+// R2.3 (150 Zutaten): 1014 Teile, 1010 mit Zutat (99,6 %).
 const BASE_70_PCT = 95.5;
-const MEASURED_PCT = 98.9;
+const BASE_113_PCT = 98.9;
+const MEASURED_PCT = 99.6;
 const FLOOR_PCT = MEASURED_PCT - 1;
 
 test("Abdeckung: Anteil der Teile mit Zutat liegt über dem Boden", () => {
@@ -361,5 +363,75 @@ test("master covers more base-recipe lines than before", () => {
   const idx = buildIndex(master);
   let parts = 0, matched = 0;
   for (const r of snapshot.recipes) for (const line of r.ingredients || []) for (const it of matchLine(line, idx)) { parts++; if (it.ing) matched++; }
-  assert((matched / parts) * 100 > BASE_70_PCT + 3, `Abdeckung ${((matched / parts) * 100).toFixed(1)} % hebt sich nicht über die 70er Datei (${BASE_70_PCT} %)`);
+  assert((matched / parts) * 100 > BASE_113_PCT, `Abdeckung ${((matched / parts) * 100).toFixed(1)} % hebt sich nicht über die 113er Datei (${BASE_113_PCT} %)`);
+});
+
+// ---- R4.1: searchIngredients (Type-ahead über den Stamm) ----
+const SMASTER = {
+  version: 1,
+  ingredients: [
+    { id: "tomato-paste", names: { de: "Tomatenmark", en: "tomato paste" } },
+    { id: "tomato", names: { de: "Tomate", en: "tomato" }, plural: { de: "Tomaten", en: "tomatoes" }, aliases: { de: ["Paradeiser"] } },
+    { id: "cherry-tomatoes", names: { de: "Kirschtomaten", en: "cherry tomatoes" } },
+    { id: "tomato-sauce", names: { de: "Tomatensauce", en: "tomato sauce" } },
+    { id: "cheese", names: { de: "Käse", en: "cheese" }, aliases: { de: ["Reibekäse"] } },
+    { id: "street-food", names: { de: "Straße", en: "street" } },
+    { id: "salt", names: { de: "Salz", en: "salt" }, aliases: { en: ["table salt"] } },
+  ],
+};
+const ids = (rs) => rs.map((r) => r.id);
+
+test("search ranks exact before prefix before contains", () => {
+  assertDeepEqual(ids(searchIngredients(SMASTER, "tomate")), ["tomato", "tomato-paste", "tomato-sauce"]);
+  // exakt (Tomate) < beginnt mit (Tomatenmark, Tomatensauce; kürzer zuerst) < Wortanfang in Mehrwort-Namen
+  const m = { ingredients: [
+    { id: "b", names: { de: "Sahne Käse" } }, { id: "a", names: { de: "Käse" } }, { id: "c", names: { de: "Käsekuchen" } },
+  ] };
+  assertDeepEqual(ids(searchIngredients(m, "käse")), ["a", "c", "b"]);
+});
+test("search is case/accent/ß-insensitive", () => {
+  assertEqual(searchIngredients(SMASTER, "kase")[0].id, "cheese");
+  assertEqual(searchIngredients(SMASTER, "KÄSE")[0].id, "cheese");
+  assertEqual(searchIngredients(SMASTER, "strasse")[0].id, "street-food");
+});
+test("search finds plural and alias forms", () => {
+  assertEqual(searchIngredients(SMASTER, "tomaten")[0].id, "tomato");
+  assertEqual(searchIngredients(SMASTER, "paradeiser")[0].id, "tomato");
+  assertEqual(searchIngredients(SMASTER, "reibe")[0].id, "cheese");
+});
+test("search empty query", () => {
+  assertDeepEqual(searchIngredients(SMASTER, ""), []);
+  assertDeepEqual(searchIngredients(SMASTER, "   "), []);
+  assertDeepEqual(searchIngredients(SMASTER, null), []);
+});
+test("search honours limit", () => {
+  assertEqual(searchIngredients(SMASTER, "tomat", "de", 2).length, 2);
+  assertEqual(searchIngredients(SMASTER, "tomat").length, 3);
+  assertDeepEqual(searchIngredients(SMASTER, "tomat", "de", 0), []);
+});
+test("search tolerates a bad master", () => {
+  for (const bad of [null, undefined, 42, "x", {}, { ingredients: "x" }, [null, 3, { id: 5 }, { id: "x" }]]) assertDeepEqual(searchIngredients(bad, "tom"), []);
+});
+test("search in English returns the canonical id", () => {
+  const r = searchIngredients(SMASTER, "tomatoes", "en");
+  assertEqual(r[0].id, "tomato");
+  assertEqual(searchIngredients(SMASTER, "table", "en")[0].id, "salt");
+  assertDeepEqual(searchIngredients(SMASTER, "Tomatenmark", "en"), []);
+});
+test("search does not mutate the master", () => {
+  const copy = JSON.stringify(SMASTER);
+  searchIngredients(SMASTER, "tomat");
+  assertEqual(JSON.stringify(SMASTER), copy);
+});
+test("search reuses a prebuilt index", () => {
+  const idx = buildIndex(SMASTER, "de");
+  assertDeepEqual(ids(searchIngredients(SMASTER, "tomat", "de", 8, idx)), ids(searchIngredients(SMASTER, "tomat", "de")));
+});
+test("search smoke: every real German name finds its own record first", () => {
+  const master = read("../data/ingredients.json");
+  const idx = buildIndex(master, "de");
+  for (const rec of master.ingredients) {
+    const first = searchIngredients(master, rec.names.de, "de", 8, idx)[0];
+    assert(first && first.id === rec.id, `${rec.names.de} → ${first?.id}, erwartet ${rec.id}`);
+  }
 });

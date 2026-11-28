@@ -31,10 +31,13 @@ export function relinkItems(recipe, index) {
     seen.set(line, k + 1);
     // Gleiche Zeile n-mal: die vorhandenen Items verteilen sich gleichmäßig auf die Vorkommen (idempotent);
     // passt die Zahl nicht auf, wird die Zeile neu abgeleitet statt Items zu vervielfachen.
-    if (kept && kept.length % n === 0) {
+    // Mehr gespeicherte Items je Vorkommen, als matchLine liefert (z. B. eine der gleichen Zeilen wurde
+    // entfernt) → neu ableiten, sonst verdoppeln sich die Items.
+    const derived = matchLine(line, index);
+    if (kept && kept.length % n === 0 && kept.length / n <= derived.length) {
       const per = kept.length / n;
       out.push(...kept.slice(k * per, (k + 1) * per));
-    } else out.push(...matchLine(line, index));
+    } else out.push(...derived);
   }
   return out;
 }

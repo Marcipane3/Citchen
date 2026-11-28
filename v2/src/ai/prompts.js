@@ -84,6 +84,7 @@ const OUTPUT_CONTRACT = `
    - Vollrezept: {"type":"recipe","intro":"1 Satz","recipe":{…}} — Schema unten.
    - Rezept ändern (nur, wenn ein ANGEHÄNGTES REZEPT in der Nachricht steht): {"type":"update","id":"r…","intro":"1 Satz","recipe":{…}} — "id" = die id des angehängten Rezepts; "recipe" = das KOMPLETTE geänderte Rezept im Schema unten, auf Deutsch. Herz, Bewertung, Notizen, Fotos und Koch-Daten gibt es hier nicht; die bleiben.
    - Änderungswunsch OHNE angehängtes Rezept: nicht raten, sondern {"type":"change","id":"r…","intro":"1 Satz"} — exakte id aus der Kochbuch-Liste. Ist das Rezept nicht eindeutig, frag mit text nach.
+   - Rezept löschen (nur auf ausdrücklichen Wunsch): {"type":"delete","id":"r…","intro":"1 Satz"} — GENAU EINE exakte id aus der Kochbuch-Liste, nie eine Liste. Gelöscht werden können nur Rezepte, die der Nutzer selbst angelegt hat; Grundrezepte der App nicht (die App lehnt das ab).
    - Sonst: {"type":"text","text":"…"}
 3. Rezept-Schema (flach, Schema v3):
    {"name":str,"category":str (EXAKT eine von: ${CATEGORIES.join(" / ")}),"time":"25 Min","servings":"~4","effort":"alltag"|"besonders","difficulty":"einfach"|"mittel"|"aufwändig","cuisine":str,"prepTime":int,"cookTime":int,"totalTime":int,"mealPrep":bool,"toTry":true,"season":str|"","tags":[str],"ingredients":[str],"steps":[str],"tips":str}

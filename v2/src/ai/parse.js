@@ -2,7 +2,7 @@
 // Modelle halten sich meist, aber nicht immer an "nur JSON" — wir extrahieren
 // das erste JSON-Objekt und koerzieren das Rezept ins flache v3-Schema.
 
-import { CATEGORIES, validateRecipe, EFFORT_VALUES, DIFFICULTY_VALUES, RECIPE_FIELDS, PERSONAL_FIELDS } from "../data/schema.js";
+import { CATEGORIES, validateRecipe, isUserRecipe, EFFORT_VALUES, DIFFICULTY_VALUES, RECIPE_FIELDS, PERSONAL_FIELDS } from "../data/schema.js";
 
 /** Erstes vollständiges JSON-Objekt aus Text ziehen (auch in ```-Zäunen). */
 export function extractJson(text) {
@@ -150,7 +150,8 @@ export function coerceUpdate(json, recipeDe) {
   if (!content) return { recipe: null, errors };
   // Nur ein Wert vom richtigen Typ zählt als „gegeben“; alles andere lässt das Gespeicherte stehen.
   const typed = {
-    tips: () => typeof raw.tips === "string" || (raw.tips && typeof raw.tips === "object") || (raw.tipps && typeof raw.tipps === "object"),
+    // Leere Tipps (""/{}/tipps:{}) löschen die gespeicherten nie (#113): nur ein Wert mit Inhalt zählt.
+    tips: () => !!content.tips,
     tags: () => Array.isArray(raw.tags),
     effort: () => EFFORT_VALUES.includes(raw.effort) || raw.effort === "",
     difficulty: () => DIFFICULTY_VALUES.includes(raw.difficulty) || raw.difficulty === "",
@@ -236,4 +237,18 @@ export function applyUpdatePatch(target, patch) {
 export function coerceChange(json, knownIds) {
   if (!json || !json.id || !knownIds.has(json.id)) return null;
   return { id: json.id, intro: toStr(json.intro) };
+}
+
+/**
+ * G3.3 (#74): Löschen-Antwort {"type":"delete","id","intro"} → {recipe, intro} oder {recipe:null, reason}.
+ * `recipesDe` = gespeicherte deutsche Rezepte. Nur ein EXISTIERENDES Rezept mit origin "user" (isUserRecipe)
+ * darf gelöscht werden; Grundrezepte (kein origin) und jeder andere origin-Wert werden verweigert.
+ * Genau EINE id als String — eine Liste ist ungültig. reason: "invalid" | "unknown" | "notUser".
+ */
+export function coerceDelete(json, recipesDe) {
+  if (!json || typeof json !== "object" || typeof json.id !== "string" || !json.id.trim()) return { recipe: null, reason: "invalid" };
+  const recipe = (recipesDe || []).find((r) => r && r.id === json.id.trim());
+  if (!recipe) return { recipe: null, reason: "unknown" };
+  if (!isUserRecipe(recipe)) return { recipe: null, reason: "notUser" };
+  return { recipe, intro: toStr(json.intro) };
 }

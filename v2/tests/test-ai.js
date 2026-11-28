@@ -5,7 +5,7 @@ import * as gate from "../src/ai/gate.js";
 import { CHAT_MODELS, DEFAULT_CHAT_MODEL } from "../src/ai/models.js";
 import {
   extractJson, coerceRecipe, coerceSuggestions, coercePlanDays, tippsToString,
-  coerceUpdate, recipeChanges, coerceChange, applyContentFields, CONTENT_FIELDS, makeUpdatePatch, applyUpdatePatch,
+  coerceUpdate, recipeChanges, coerceChange, applyContentFields, CONTENT_FIELDS, makeUpdatePatch, applyUpdatePatch, coerceDelete,
 } from "../src/ai/parse.js";
 import {
   buildSystemPrompt, buildCollectionContext, suggestUserPrompt, fromStockUserPrompt, planUserPrompt,
@@ -14,6 +14,8 @@ import {
 } from "../src/ai/prompts.js";
 import { getInstructions, setInstructions, resetInstructions } from "../src/data/settings.js";
 import { validateRecipe, PERSONAL_FIELDS } from "../src/data/schema.js";
+import { buildIndex } from "../src/data/ingredientMatch.js";
+import { withItems } from "../src/data/items.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -256,7 +258,7 @@ const TPL_RX = [
 const TPL_FRIDGE = [{ name: "Zucchini", menge: "2 Stück" }, { name: "Feta" }];
 
 // Eingefrorene Kopie der Ausgabe von buildSystemPrompt VOR #69 (Stand next, 15.11.2026);
-// #73 hat dem Vertrag bewusst die Antworten "update" und "change" hinzugefügt (sonst unverändert).
+// #73 hat dem Vertrag bewusst die Antworten "update" und "change" hinzugefügt, #74 "delete" (sonst unverändert).
 // Nicht aus dem Code ableiten und nicht „mitziehen“: genau diese Bytes müssen ohne Vorlage herauskommen.
 // FROZEN_CONTRACT = der feste Ausgabe-Vertrag (Regeln 2–4), der an jede Vorlage angehängt wird.
 const FROZEN_CONTRACT = `
@@ -265,6 +267,7 @@ const FROZEN_CONTRACT = `
    - Vollrezept: {"type":"recipe","intro":"1 Satz","recipe":{…}} — Schema unten.
    - Rezept ändern (nur, wenn ein ANGEHÄNGTES REZEPT in der Nachricht steht): {"type":"update","id":"r…","intro":"1 Satz","recipe":{…}} — "id" = die id des angehängten Rezepts; "recipe" = das KOMPLETTE geänderte Rezept im Schema unten, auf Deutsch. Herz, Bewertung, Notizen, Fotos und Koch-Daten gibt es hier nicht; die bleiben.
    - Änderungswunsch OHNE angehängtes Rezept: nicht raten, sondern {"type":"change","id":"r…","intro":"1 Satz"} — exakte id aus der Kochbuch-Liste. Ist das Rezept nicht eindeutig, frag mit text nach.
+   - Rezept löschen (nur auf ausdrücklichen Wunsch): {"type":"delete","id":"r…","intro":"1 Satz"} — GENAU EINE exakte id aus der Kochbuch-Liste, nie eine Liste. Gelöscht werden können nur Rezepte, die der Nutzer selbst angelegt hat; Grundrezepte der App nicht (die App lehnt das ab).
    - Sonst: {"type":"text","text":"…"}
 3. Rezept-Schema (flach, Schema v3):
    {"name":str,"category":str (EXAKT eine von: Frühstück & Brunch / Schnelle Wochentags-Gerichte / Pasta & Nudeln / Reis & Getreide / Suppen & Eintöpfe / Salate & leichte Gerichte / Wochenend-Gerichte / Vegetarische Hauptgerichte / Deutsche Hausmannskost / Middle Eastern & Mediterran / Asiatisch inspiriert / Backen: Brot & Herzhaftes / Backen: Süßes & Kuchen / Muffins & Kleingebäck / Sourdough & Sauerteig / Grundrezepte & Basissoßen),"time":"25 Min","servings":"~4","effort":"alltag"|"besonders","difficulty":"einfach"|"mittel"|"aufwändig","cuisine":str,"prepTime":int,"cookTime":int,"totalTime":int,"mealPrep":bool,"toTry":true,"season":str|"","tags":[str],"ingredients":[str],"steps":[str],"tips":str}
@@ -625,6 +628,23 @@ test("#73: coerceUpdate — Ergebnis ist schema-valide, Inhalt vom Modell", () =
   assertEqual(coerceUpdate(upd73({ ...VEGAN73, ingredients: [] }), STORED73).recipe, null, "keine Zutaten");
 });
 
+test("#113: coerceUpdate — leere Tipps vom Modell löschen die gespeicherten nicht", () => {
+  const stored = { ...STORED73, tips: "Gut ziehen lassen" };
+  const base = { ...VEGAN73 };
+  delete base.tips;
+  for (const [label, extra] of [["tips {}", { tips: {} }], ["tips \"\"", { tips: "" }], ["tipps {}", { tipps: {} }], ["tips Leerraum", { tips: "  " }]]) {
+    const { recipe, errors } = coerceUpdate(upd73({ ...base, ...extra }), stored);
+    assertDeepEqual(errors, [], label);
+    assertEqual(recipe.tips, "Gut ziehen lassen", label + " behält gespeicherte Tipps");
+  }
+  assertEqual(coerceUpdate(upd73({ ...base, tips: "Neu." }), stored).recipe.tips, "Neu.", "Text ersetzt");
+  assertEqual(coerceUpdate(upd73({ ...base, tips: { technik: "Heiß braten" } }), stored).recipe.tips, "Technik: Heiß braten.", "Objekt mit Inhalt ersetzt");
+  const noTips = { ...STORED73 }; delete noTips.tips;
+  const r = coerceUpdate(upd73({ ...base, tips: {} }), noTips);
+  assert(r.recipe && validateRecipe(r.recipe).valid, "ohne gespeicherte Tipps bleibt das Rezept valide");
+  assert(!r.recipe.tips, "Tipps bleiben leer");
+});
+
 test("#73: coerceUpdate — id, origin, Bild und jedes persönliche Feld kommen aus dem gespeicherten Rezept", () => {
   const evil = { ...VEGAN73, id: "r1", origin: "shared", image: "x", favorite: false, rating: 1, feedback: "weg",
     photos: [], cookedCount: 0, lastCooked: "nie" };
@@ -639,6 +659,48 @@ test("#73: coerceUpdate — id, origin, Bild und jedes persönliche Feld kommen 
   // Grundrezept bleibt ohne origin
   const base = { ...STORED73 }; delete base.origin;
   assert(!("origin" in coerceUpdate(upd73(evil), base).recipe), "Grundrezept bekommt kein origin");
+});
+
+// #114: pinnt, dass `items` (abgeleitet, kein Inhaltsfeld) von coerceUpdate unberührt durchgereicht wird;
+// das Nachziehen übernimmt withItems beim Lesen.
+const ITEMS114 = [
+  { text: "400g Spaghetti", ing: "pasta", buy: false, optional: false },
+  { text: "200g Hackfleisch 🛒", ing: "mince", buy: true, optional: false },
+  { text: "1 Dose Tomaten", ing: "tomato", buy: false, optional: false },
+];
+const STORED114 = { ...STORED73, items: ITEMS114 };
+const INDEX114 = buildIndex({ ingredients: ["pasta:Spaghetti", "mince:Hackfleisch", "tomato:Tomaten", "lentil:Linsen"].map((s) => {
+  const [id, de] = s.split(":");
+  return { id, names: { de, en: id, es: id, da: id }, base: "g", shop: "g" };
+}) });
+
+test("#114: coerceUpdate mit geänderten Zutaten — gespeicherte items bleiben unberührt, Ergebnis valide", () => {
+  assert(!CONTENT_FIELDS.includes("items"), "items ist kein Inhaltsfeld");
+  const { recipe, errors } = coerceUpdate(upd73(VEGAN73), STORED114);
+  assertDeepEqual(errors, []);
+  assertDeepEqual(recipe.ingredients, VEGAN73.ingredients, "Zutaten kommen vom Modell");
+  assertDeepEqual(recipe.items, ITEMS114, "items unverändert");
+  assert(validateRecipe(recipe).valid, "schema-valide");
+});
+
+test("#114: coerceUpdate + withItems — Items entfernter Zeilen fallen weg, unveränderte bleiben", () => {
+  const { recipe } = coerceUpdate(upd73(VEGAN73), STORED114);
+  const out = withItems(recipe, INDEX114);
+  assert(!out.items.some((it) => it.text === "200g Hackfleisch 🛒"), "Item der entfernten Zeile bleibt");
+  assert(out.items.some((it) => it.text === "200g rote Linsen 🛒"), "neue Zeile bekommt ein Item");
+  assertDeepEqual(out.items.find((it) => it.text === "400g Spaghetti"), ITEMS114[0], "Item unveränderter Zeile identisch");
+  assertDeepEqual(out.items.find((it) => it.text === "1 Dose Tomaten"), ITEMS114[2], "Item unveränderter Zeile identisch");
+  assertEqual(out.items.length, VEGAN73.ingredients.length);
+  assert(validateRecipe(out).valid, "schema-valide");
+});
+
+test("#114: coerceUpdate mit gleichen Zutaten — items identisch, auch nach withItems", () => {
+  const same = { ...VEGAN73, ingredients: [...STORED114.ingredients], steps: ["Anders formuliert."] };
+  const { recipe, errors } = coerceUpdate(upd73(same), STORED114);
+  assertDeepEqual(errors, []);
+  assertDeepEqual(recipe.items, ITEMS114, "items identisch");
+  assert(validateRecipe(recipe).valid, "schema-valide");
+  assertDeepEqual(withItems(recipe, INDEX114).items, ITEMS114, "withItems ändert nichts");
 });
 
 test("#73: coerceUpdate — vom Modell weggelassene Felder bleiben wie gespeichert (kein toTry-Default)", () => {
@@ -735,4 +797,59 @@ test("#73 Nit: falsch getypte Werte lassen das Gespeicherte stehen", () => {
   assertEqual(recipe.tips, STORED73.tips);
   assertDeepEqual(recipe.tags, STORED73.tags);
   assertEqual(recipe.effort, STORED73.effort);
+});
+
+// ---- #74 (G3.3): Assistent löscht nur selbst angelegte Rezepte ----
+const D74 = [
+  { id: "r01", name: "Grundrezept" },
+  { id: "r02", name: "Eigenes", origin: "user" },
+  { id: "r03", name: "Geteilt", origin: "shared" },
+];
+
+test("#74: Vertrag kennt delete; Prompt sagt, dass nur selbst angelegte Rezepte gelöscht werden", () => {
+  const sys = buildSystemPrompt({ recipes: R.slice(0, 2), staples: [] });
+  assert(sys.includes('{"type":"delete","id":"r…"'), "delete im Vertrag");
+  assert(/nur Rezepte, die der Nutzer selbst angelegt hat/.test(sys), "Hinweis auf eigene Rezepte");
+});
+
+test("#74: coerceDelete — eigenes Rezept (origin user) → {recipe, intro}", () => {
+  const r = coerceDelete({ type: "delete", id: "r02", intro: " Weg damit. " }, D74);
+  assertEqual(r.recipe.id, "r02");
+  assertEqual(r.intro, "Weg damit.");
+});
+
+test("#74: coerceDelete — Grundrezept (kein origin) wird verweigert", () => {
+  const r = coerceDelete({ type: "delete", id: "r01" }, D74);
+  assertEqual(r.recipe, null);
+  assertEqual(r.reason, "notUser");
+});
+
+test("#74: coerceDelete — anderer origin-Wert wird verweigert", () => {
+  const r = coerceDelete({ type: "delete", id: "r03" }, D74);
+  assertEqual(r.recipe, null);
+  assertEqual(r.reason, "notUser");
+});
+
+test("#74: coerceDelete — unbekannte id wird verweigert", () => {
+  const r = coerceDelete({ type: "delete", id: "r99" }, D74);
+  assertEqual(r.recipe, null);
+  assertEqual(r.reason, "unknown");
+});
+
+test("#74: coerceDelete — eine Liste von ids wird nicht akzeptiert (höchstens ein Rezept)", () => {
+  for (const id of [["r02"], ["r02", "r01"], { 0: "r02" }, 5, null, undefined, ""]) {
+    const r = coerceDelete({ type: "delete", id }, D74);
+    assertEqual(r.recipe, null);
+    assertEqual(r.reason, "invalid");
+  }
+  assertEqual(coerceDelete({ type: "delete", ids: ["r02"] }, D74).recipe, null);
+  assertEqual(coerceDelete(null, D74).recipe, null);
+});
+
+test("#74: coerceDelete — gleicher Check beim Tippen: Karte von früher löscht kein Rezept, das nicht mehr origin user ist", () => {
+  const card = coerceDelete({ type: "delete", id: "r02" }, D74); // Karte war erlaubt
+  assert(card.recipe);
+  const nowStored = [{ id: "r02", name: "Eigenes" }]; // inzwischen ohne origin gespeichert
+  assertEqual(coerceDelete({ id: card.recipe.id }, nowStored).reason, "notUser");
+  assertEqual(coerceDelete({ id: card.recipe.id }, []).reason, "unknown"); // schon gelöscht
 });

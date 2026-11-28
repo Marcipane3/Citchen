@@ -211,9 +211,14 @@ export function openDetail(id) {
   };
   el.querySelector(".del").onclick = async () => {
     if (!confirm(t("detail.confirmDelete"))) return;
-    (r.photos || []).forEach((p) => drive.deleteFile(p.id)); // Drive-Fotos mit aufräumen
-    try { await deleteRecipe(r.id); close(); } catch (err) { alert(err.message); }
+    try { await removeRecipe(r); close(); } catch (err) { alert(err.message); }
   };
+}
+
+/** Rezept löschen wie in der Detailansicht: Drive-Fotos aufräumen, dann das Rezept entfernen (auch für den Assistenten, #74). */
+export async function removeRecipe(r) {
+  (r.photos || []).forEach((p) => drive.deleteFile(p.id)); // Drive-Fotos mit aufräumen
+  await deleteRecipe(r.id);
 }
 
 /** D2: Zutaten mit Katalog-Symbol (Match auf der deutschen Zeile, Anzeige lokalisiert). */
