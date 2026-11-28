@@ -7,7 +7,8 @@ import { testKey, AiError } from "../../ai/client.js";
 import { getUsageLog, summarizeUsage, clearUsage } from "../../ai/usage.js";
 import * as drive from "../../data/drive.js";
 import * as sync from "../../data/sync.js";
-import { getTheme, setTheme, getProfile, setProfile, resetProfile, getInstructions, setInstructions, resetInstructions } from "../../data/settings.js";
+import { getTheme, setTheme, getProfile, setProfile, resetProfile, getInstructions, setInstructions, resetInstructions, getNutritionGoal, setNutritionGoal, resetNutritionGoal } from "../../data/settings.js";
+import { GOAL_PRESETS } from "../../data/nutritionGoal.js";
 import { TEMPLATE_VARIABLES, missingVariables, addBackVariables, appendedFixedPart } from "../../ai/prompts.js";
 import { esc, appHeader, wireHeader } from "../../ui/helpers.js";
 import { moveCardHtml, wireMove } from "./move.js";
@@ -51,6 +52,20 @@ export function renderSettings(container) {
         <h3>${t("settings.lagerHeading")}</h3>
         <p class="set-note">${t("settings.lagerNote")}</p>
         <button class="btn-sec" id="open-lager" style="width:100%">${t("settings.lagerOpen")}</button>
+      </div>
+
+      <div class="card set-card" id="goal-card">
+        <h3>${t("settings.goalHeading")}</h3>
+        <p class="set-note">${t("settings.goalNote")}</p>
+        <label for="goal-preset">${t("settings.goalPreset")}</label>
+        <select class="f" id="goal-preset">${GOAL_PRESETS.map((p) => `<option value="${esc(p)}">${esc(t("settings.goalPresets." + p))}</option>`).join("")}</select>
+        <label for="goal-kcal">${t("settings.goalKcal")}</label><input class="f" id="goal-kcal" type="number" inputmode="numeric" min="800" max="6000" step="1" />
+        <label for="goal-protein">${t("settings.goalProtein")}</label><input class="f" id="goal-protein" type="number" inputmode="numeric" min="10" max="400" step="1" />
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn-primary" id="goal-save">${t("settings.goalSave")}</button>
+          <button class="btn-sec" id="goal-reset">${t("settings.goalReset")}</button>
+        </div>
+        <p class="set-note" id="goal-status"></p>
       </div>
 
       <div class="card set-card">
@@ -153,6 +168,27 @@ ${moveCardHtml()}
     if (!confirm(t("settings.profileReset") + "?")) return;
     fillProfile(await resetProfile());
     profStatus.textContent = t("settings.profileResetDone");
+  };
+
+  /* ---------- Ernährungsziel (M1, nur dieses Gerät) ---------- */
+  const goalStatus = container.querySelector("#goal-status");
+  const fillGoal = (g) => {
+    container.querySelector("#goal-preset").value = g.preset;
+    container.querySelector("#goal-kcal").value = g.dailyKcal ?? "";
+    container.querySelector("#goal-protein").value = g.dailyProtein ?? "";
+  };
+  getNutritionGoal().then(fillGoal);
+  container.querySelector("#goal-save").onclick = async () => {
+    fillGoal(await setNutritionGoal({
+      preset: container.querySelector("#goal-preset").value,
+      dailyKcal: container.querySelector("#goal-kcal").value,
+      dailyProtein: container.querySelector("#goal-protein").value,
+    }));
+    goalStatus.textContent = t("settings.goalSaved");
+  };
+  container.querySelector("#goal-reset").onclick = async () => {
+    fillGoal(await resetNutritionGoal());
+    goalStatus.textContent = t("settings.goalResetDone");
   };
 
   /* ---------- Assistenten-Anweisungen (Q4.2) ---------- */
