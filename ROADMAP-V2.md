@@ -7,7 +7,7 @@
 >
 > Owner: Marcel · Maintained by Claude Code · **Last updated: 2026-11-21** (replan with Marcel: two
 > releases a week, scope freeze **15 Dec**, P6 → v3.1, M1–M3 in, E3/QW-6/QW-7 → v3.x; dates in §2) ·
-> Live: **v2.18** (`/v2`, release PR #98 merged 18 Nov) · v2.19 release PR open (21 Nov).
+> Live: **v2.18** (`/v2`, release PR #98 merged 18 Nov) · v2.19 merged 21 Nov · v2.20 release PR open (28 Nov).
 
 ---
 
@@ -41,15 +41,15 @@ M1–M3 move to v3.1 (R2, R3, R6, L2 are protected).
 | v2.14 … v2.17 | Friends link · sync core · data safety · AI housekeeping · find recipes | see the shipped log (§5) | Oct 2026 | ✅ live | — |
 | **v2.18** | Recipe export / import | G2 + ahead-of-plan pieces: Q4.1/Q4.2 (#69 #70), G3.1 (#72), Q5 (#79), R2.1/R3.1 (#61 #62), QW-2/4/8 (#63 #65 #64), P8.1/P8.2 (#26 #43) | 18 Nov | ✅ **live 18 Nov** (release PR #98) · device checklist open | — |
 | — (Marcel) | ★ Sharing proof | P3 two-account test, P4 live friend test | **week of 18 Nov** | open since v2.11 — **last V2 gate items** | Picker key + partner as test user |
-| **v2.20** | Assistant deletes recipes | G3.3 (#74, PR #102) · G3.2 ✅ shipped in v2.19 · Q4 ✅ live in v2.18 | **Wed 25 Nov** | in review | — |
+| **v2.20** | Assistant deletes recipes | G3.3 ✅ (#74) · G3.2 ✅ shipped in v2.19 · Q4 ✅ live in v2.18 | **Wed 25 Nov** | ✅ shipped in v2.20 (28 Nov) | — |
 | **v2.19** | Assistant edits + ingredient master + structured items | G3.2 ✅ (#73) · R2.2 ✅ (#105, 113 entries; Marcel spot-checks 20) · R3.2 ✅ (#107 `items[]` re-link) · DG-19/TW-22 ✅ (#89 #92) · R2.3 (to ~150) left | **Sat 28 Nov** | ✅ release PR open 21 Nov (R2.1/R3.1 live in v2.18) | ✅ R1 accepted 10 Nov |
-| **v2.21** | ★ Move to the new address | P5 move helper · (P8 ✅ in v2.18 · P6 → v3.1, Marcel 18 Nov) | **Wed 2 Dec** — must be live **before** the switch on 5 Dec | planned | — |
+| **v2.21** | ★ Move to the new address | P5 move helper · (P8 ✅ in v2.18 · P6 → v3.1, Marcel 18 Nov) | **Wed 2 Dec** — must be live **before** the switch on 5 Dec | ✅ P5 move helper shipped early in v2.20 (#108) | — |
 | *(V3)* | *Domain switch = v3.0-a1* | *`ROADMAP-V3.md` slice 1; export window for existing users 2–5 Dec* | *Sat 5 Dec* | — | P5 |
 | **v2.19a** | Calories | L2 `estimateNutrition` + "≈ 520 kcal" · L3 outlier tool (R1-Q7 split) | **Wed 9 Dec** | planned | R3 |
 | **v2.19b** | Structured editor + ownership | R6 `origin`/`forkedFrom` + "reset to original" · R4 editor with ingredient picker | **Sat 12 Dec** | planned | R3 |
 | — | **Scope freeze** | no new v2 features after this | **Tue 15 Dec 2026** | — | — |
 | **v2.19c** | Capture maps to the master | R5 + capture check on 10 real samples | **Wed 16 Dec** | planned | R3 |
-| **v2.22** | Nutrition goal | M1–M3 (Marcel 18 Nov: in before the freeze) | **Sat 19 Dec** | planned | L2 |
+| **v2.22** | Nutrition goal | M1 ✅ (#138, v2.20) · M2–M3 left (Marcel 18 Nov: in before the freeze) | **Sat 19 Dec** | in progress | L2 |
 | v2.17b | Photo grid | F4 (a) | → **v3.1** with the default photos | moved | photos |
 | v2.x final | Last v2-named release | After 19 Dec every release is `v3.0-…` (`ROADMAP-V3.md` §3); 19 Dec – 6 Jan fixes only | Dec 2026 | — | — |
 
@@ -283,6 +283,7 @@ Full detail lives in the git history, the in-app changelog (`v2/src/version.js`)
 | v2.17 (2026-10-27) | F4 lean cut: sort menu in the search field (newest · last cooked · most cooked · ♥ first · A–Z; remembered per device in `kochv2_sort`, first open = newest), multi-word search over name/ingredients/tips/cuisine ignoring accents and ß, time chips ≤ 15 / ≤ 30 / ≤ 60 (a chip only appears if it adds something), shorter search placeholder · `filter.js` `sortRecipes` / `cookedMonthKey` / `searchNorm` · tests: `test-filter.js` (+6), e2e `13-find-recipes.spec.js` |
 | v2.18 (2026-11-18, live) | G2 recipe export/import: lossless export file (#29), Markdown share (#30), import core (#25), import UI (#42), untrusted-file hardening (#36 #49 #50 #48), canonical menu export (#35), export download fallback (#83) · QA-02/TW-15 month names (#28 #51) · P8.1/P8.2 i18n clean-up + English default (#26 #43) · UX-18 contrast (#39) · ahead of plan: Q4.1/Q4.2 editable assistant instructions (#69 #70), G3.1 `origin` field (#72), Q5 chat on 5.5 models (#79), R2.1 ingredient master + R3.1 matcher (#61 #62), QW-2/QW-4/QW-8 (#63 #65 #64) |
 | v2.19 (2026-11-21) | G3.2 assistant proposes recipe changes, nothing saved before confirm (#73) · R2.2 ingredient master 70 → 113 (#105) · R3.2 `items[]` re-link on load, schema, export/import (#107) · DG-19 re-import of own export no longer duplicates (#89) · TW-22 `sameCollection` truth table (#92) |
+| v2.20 (2026-11-28) | G3.3 assistant deletes only user-created recipes, guard in code (#74) · P5 move helper (#108) · M1 nutrition goal in the cook profile (#138) · R2.3 ingredient master 113 → 150 (#106) · R4.1 `searchIngredients` type-ahead core (#139) · BH-16/DG-22 lost Drive ack no longer forks a recipe or drops another device's ♥/rating/photos (#90 #130) · DG-20/DG-21 import `items[]` cleaned, doubled items fixed (#111 #112) · TW-23/26/27 month parsing, `coerceUpdate` tips, pinned behaviour (#93 #113 #114) · TW-20 twin merge decision (#91) · BH-14 import sheet in UI language (#84) · C-5 same-origin isolation (#135) · ADRs: hosting/URL layout (#141), accounts and sharing D10/D11 (#140) |
 
 **Architecture decisions worth remembering** (details in the linked files):
 - Sharing models (Epic I): couples = shared Drive file + Google Picker, no backend; friends without
