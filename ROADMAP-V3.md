@@ -269,7 +269,7 @@ Sonnet 5.5 (Q1).
 
 | ID | Question | Blocks | Recommendation |
 |----|----------|--------|----------------|
-| **D11-T** | When do public recipes (publish, browse, copy, rate/like) ship? | US-08e | Review in **March/April 2027** (Marcel, 27 Nov; was May 2027): does it fit the line of what has been built? Open points of the sharing ADR answered 27 Nov, ratings vs. likes still open (#146) |
+| **D11-T** | When do public recipes (publish, browse, copy, rate/like) ship? | US-08e | Review in **March/April 2027** (Marcel, 27 Nov; was May 2027): does it fit the line of what has been built? Open points of the sharing ADR answered 27/28 Nov (ratings + likes = one table, #146) |
 | **L1 (nutrition)** | Nutrition model: (a) bundled table (via the R2 ingredient master) + (b) AI fallback later | — | Treated as resolved by R2 (ADR R1, R1-Q5); confirm with the v2.19a calories release |
 
 Full question list and Claude's technical checks: `docs/v3/03-QUESTIONS.md`.
