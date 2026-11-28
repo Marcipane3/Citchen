@@ -84,6 +84,7 @@ const SHELL = [
   "./src/features/settings/settings.js",
   "./src/features/settings/move.js",
   "./src/data/settings.js",
+  "./src/data/nutritionGoal.js",
   "./src/ai/gate.js",
   "./src/ai/client.js",
   "./src/ai/prompts.js",
