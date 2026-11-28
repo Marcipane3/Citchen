@@ -22,6 +22,7 @@ test("nutrition: sums per100 × grams over matched items", () => {
   assertEqual(r.matched, 1);
   assertEqual(r.approx, false);
   assertEqual(r.none, false);
+  assertEqual(r.per, "serving");
 });
 
 test("nutrition: no-amount lines do not lower the share", () => {
@@ -31,33 +32,66 @@ test("nutrition: no-amount lines do not lower the share", () => {
 });
 
 const share = (known, unknown) => estimateNutrition(R([it({ ing: "rice", amount: known, unit: "g" }), it({ ing: "mystery", amount: unknown, unit: "g" })]), MASTER);
-test("nutrition: matched < 0.5 → none, no numbers", () => {
-  const r = share(49, 51);
+test("nutrition: matched < 0.75 → none, no numbers", () => {
+  const r = share(74, 26);
   assertEqual(r.none, true); assertEqual(r.perServing, null); assertEqual(r.total, null);
+  assertEqual(share(50, 50).none, true);
 });
-test("nutrition: 0.5 exactly is approx (boundary)", () => {
-  const r = share(50, 50);
-  assertEqual(r.matched, 0.5); assertEqual(r.none, false); assertEqual(r.approx, true);
+test("nutrition: 0.75 exactly is approx (boundary)", () => {
+  const r = share(75, 25);
+  assertEqual(r.matched, 0.75); assertEqual(r.none, false); assertEqual(r.approx, true);
 });
-test("nutrition: 0.5–0.8 approx, 0.8 exactly is not approx (boundary)", () => {
-  assertEqual(share(79, 21).approx, true);
-  const r = share(80, 20);
-  assertEqual(r.matched, 0.8); assertEqual(r.approx, false);
+test("nutrition: 0.75–0.9 approx, 0.9 exactly is not approx (boundary)", () => {
+  assertEqual(share(89, 11).approx, true);
+  const r = share(90, 10);
+  assertEqual(r.matched, 0.9); assertEqual(r.approx, false);
 });
 
-test("nutrition: parseServings takes first integer, lower bound, else null", () => {
-  assertEqual(parseServings("~4"), 4);
-  assertEqual(parseServings("4"), 4);
-  assertEqual(parseServings("2–3"), 2);
-  assertEqual(parseServings("1 Zucchini, 2 Paprika"), 1);
-  assertEqual(parseServings("einige"), null);
-  assertEqual(parseServings(undefined), null);
+test("nutrition: optional items are not counted", () => {
+  const r = estimateNutrition(R([it({ ing: "rice", amount: 100, unit: "g" }), it({ ing: "mystery", amount: 900, unit: "g", optional: true }), it({ ing: "egg", amount: 2, unit: "piece", optional: true })], "1"), MASTER);
+  assertEqual(r.total.kcal, 350);
+  assertEqual(r.matched, 1);
+  assertEqual(r.none, false);
+});
+
+const S = (count) => ({ count, per: "serving" });
+const P = (count) => ({ count, per: "piece" });
+test("nutrition: parseServings reads only clear serving counts", () => {
+  assertDeepEqual(parseServings("~4"), S(4));
+  assertDeepEqual(parseServings("4"), S(4));
+  assertDeepEqual(parseServings("ca. 4"), S(4));
+  assertDeepEqual(parseServings("2–3"), S(2));
+  assertDeepEqual(parseServings("2-3"), S(2));
+  assertDeepEqual(parseServings("4 Portionen"), S(4));
+  assertDeepEqual(parseServings("4 Personen"), S(4));
+  assertDeepEqual(parseServings("~4 (Basis)"), S(4));
+  assertDeepEqual(parseServings(4), S(4));
+});
+test("nutrition: parseServings reads pieces as per piece", () => {
+  assertDeepEqual(parseServings("12 Stücke"), P(12));
+  assertDeepEqual(parseServings("12 Stück"), P(12));
+  assertDeepEqual(parseServings("~16 Stücke"), P(16));
+});
+test("nutrition: parseServings → null for anything else", () => {
+  for (const v of ["1 Zucchini, 2 Paprika", "1 Laib", "1 Blech", "2 Pizzen", "2 Pizzen / 1 Blech", "1 Glas Starter", "einige", "0", "", undefined, null, 0, 2.5]) {
+    assertEqual(parseServings(v), null, `servings ${JSON.stringify(v)}`);
+  }
 });
 
 test("nutrition: unparseable servings → total only, perServing null", () => {
-  const r = estimateNutrition(R([it({ ing: "rice", amount: 100, unit: "g" })], "reicht für alle"), MASTER);
-  assertEqual(r.perServing, null);
-  assertEqual(r.total.kcal, 350);
+  for (const sv of ["reicht für alle", "1 Zucchini, 2 Paprika", "1 Laib"]) {
+    const r = estimateNutrition(R([it({ ing: "rice", amount: 100, unit: "g" })], sv), MASTER);
+    assertEqual(r.perServing, null, sv);
+    assertEqual(r.per, null, sv);
+    assertEqual(r.total.kcal, 350, sv);
+  }
+});
+
+test("nutrition: pieces give the value per piece", () => {
+  const r = estimateNutrition(R([it({ ing: "rice", amount: 300, unit: "g" })], "12 Stücke"), MASTER);
+  assertEqual(r.per, "piece");
+  assertEqual(r.total.kcal, 1050);
+  assertEqual(r.perServing.kcal, 87.5);
 });
 
 test("nutrition: amountMax range uses the lower bound; stated g wins", () => {
